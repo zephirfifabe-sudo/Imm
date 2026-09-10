@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  passwordHash       String
+  fullName           String?
+  freeAnalysesUsed   Int                 @default(0)
+  creditBalance      Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  analyses           Analysis[]
+  creditTransactions CreditTransaction[]
+}
+
+model Analysis {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  propertyType   String
+  askingPrice    Float
+  livingAreaM2   Float?
+  commune        String
+  postalCode     String
+  countryCode    String
+  energyStandard String?
+  energyClass    String?
+  /// Tableau JSON des URLs de photos (SQLite n'a pas de type array natif)
+  photoUrls      String
+  /// VisionAnalysisResult sérialisé en JSON
+  visionResult   String
+  /// ScoringResult sérialisé en JSON
+  scoringResult  String
+  score          Float
+  verdict        String
+  synthesis      String
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model CreditTransaction {
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id])
+  /// "free_grant" | "purchase" | "consumption"
+  type                   String
+  /// positif pour un crédit, négatif pour une consommation
+  amount                 Int
+  stripePaymentIntentId  String?
+  creditPackId           String?
+  createdAt              DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

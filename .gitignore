@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.expo/
+.expo-shared/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+apps/backend/prisma/dev.db
+apps/backend/prisma/dev.db-journal
+apps/backend/uploads/
+apps/mobile/ios/
+apps/mobile/android/
+.vscode/
+*.tsbuildinfo

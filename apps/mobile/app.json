@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "PréVisite",
+    "slug": "previsite",
+    "scheme": "previsite",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F5F7FA",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "be.previsite.app"
+    },
+    "android": {
+      "package": "be.previsite.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#12233F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PréVisite a besoin d'accéder à tes photos pour analyser l'état visuel du bien.",
+          "cameraPermission": "PréVisite a besoin de l'appareil photo pour prendre des photos du bien à analyser."
+        }
+      ]
+    ]
+  }
+}

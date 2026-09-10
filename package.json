@@ -1,0 +1,21 @@
+{
+  "name": "previsite",
+  "private": true,
+  "version": "0.1.0",
+  "description": "PréVisite — analyse un bien immobilier avant de le visiter (MVP)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=@previsite/shared",
+    "dev:backend": "npm run dev --workspace=@previsite/backend",
+    "dev:mobile": "npm run start --workspace=@previsite/mobile",
+    "test:shared": "npm run test --workspace=@previsite/shared",
+    "test:backend": "npm run test --workspace=@previsite/backend",
+    "test": "npm run test:shared && npm run test:backend"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
