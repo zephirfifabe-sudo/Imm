@@ -11,6 +11,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "employees": "Werknemers",
     "settingsCompany": "Bedrijf",
     "settingsSites": "Vestigingen",
     "settingsUsers": "Gebruikers",
@@ -70,5 +71,28 @@
       "emailTakenInCompany": "Dit e-mailadres wordt al gebruikt binnen uw bedrijf.",
       "inviteSent": "Uitnodiging verzonden."
     }
+  },
+  "employees": {
+    "title": "Werknemers",
+    "empty": "Nog geen werknemer.",
+    "addTitle": "Werknemer toevoegen",
+    "editTitle": "Werknemer bewerken",
+    "internalCodeLabel": "Personeelsnummer",
+    "jobTitleLabel": "Functie",
+    "siteLabel": "Vestiging",
+    "siteNone": "Geen vestiging",
+    "pinLabel": "PIN-code (4 cijfers)",
+    "pinHint": "Laat leeg om de bestaande PIN niet te wijzigen.",
+    "nfcTokenLabel": "NFC-identificatie",
+    "qrTokenLabel": "QR-identificatie",
+    "regenerateQr": "Nieuwe QR genereren",
+    "statusActive": "Actief",
+    "statusInactive": "Inactief",
+    "activate": "Activeren",
+    "deactivate": "Deactiveren",
+    "edit": "Bewerken",
+    "backToList": "Terug naar de lijst",
+    "duplicateCode": "Dit personeelsnummer wordt al gebruikt in uw bedrijf.",
+    "duplicatePin": "Deze PIN-code wordt al gebruikt door een andere werknemer."
   }
 }

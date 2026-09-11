@@ -11,6 +11,7 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "employees": "Employés",
     "settingsCompany": "Entreprise",
     "settingsSites": "Sites",
     "settingsUsers": "Utilisateurs",
@@ -70,5 +71,28 @@
       "emailTakenInCompany": "Cette adresse e-mail est déjà utilisée dans votre entreprise.",
       "inviteSent": "Invitation envoyée."
     }
+  },
+  "employees": {
+    "title": "Employés",
+    "empty": "Aucun employé pour le moment.",
+    "addTitle": "Ajouter un employé",
+    "editTitle": "Modifier l'employé",
+    "internalCodeLabel": "Matricule (ID interne)",
+    "jobTitleLabel": "Rôle / fonction",
+    "siteLabel": "Site",
+    "siteNone": "Aucun site",
+    "pinLabel": "Code PIN (4 chiffres)",
+    "pinHint": "Laisser vide pour ne pas modifier le PIN existant.",
+    "nfcTokenLabel": "Identifiant NFC",
+    "qrTokenLabel": "Identifiant QR",
+    "regenerateQr": "Générer un nouveau QR",
+    "statusActive": "Actif",
+    "statusInactive": "Inactif",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "edit": "Modifier",
+    "backToList": "Retour à la liste",
+    "duplicateCode": "Ce matricule est déjà utilisé dans votre entreprise.",
+    "duplicatePin": "Ce code PIN est déjà utilisé par un autre employé."
   }
 }
