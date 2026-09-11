@@ -16,6 +16,7 @@
     "settingsSites": "Sites",
     "settingsUsers": "Utilisateurs",
     "settingsTerminals": "Terminaux",
+    "history": "Historique",
     "logout": "Déconnexion"
   },
   "auth": {
@@ -42,7 +43,16 @@
     "today": "Aujourd'hui",
     "present": "présents",
     "absent": "absents",
-    "onBreak": "en pause"
+    "onBreak": "en pause",
+    "presenceTitle": "Présence",
+    "recentTitle": "Derniers pointages",
+    "noPunchesToday": "Aucun pointage aujourd'hui.",
+    "noEmployees": "Aucun employé actif.",
+    "statePresent": "Présent",
+    "stateOnBreak": "En pause",
+    "stateAbsent": "Absent",
+    "anomaliesCount": "{count} anomalie(s) aujourd'hui",
+    "viewHistory": "Voir l'historique"
   },
   "settings": {
     "company": {
@@ -109,5 +119,24 @@
     "backToList": "Retour à la liste",
     "duplicateCode": "Ce matricule est déjà utilisé dans votre entreprise.",
     "duplicatePin": "Ce code PIN est déjà utilisé par un autre employé."
+  },
+  "history": {
+    "title": "Historique",
+    "employeeLabel": "Employé",
+    "allEmployees": "Tous les employés",
+    "fromLabel": "Du",
+    "toLabel": "Au",
+    "filter": "Filtrer",
+    "workedLabel": "Temps travaillé",
+    "breakLabel": "Pause",
+    "noEntries": "Aucun pointage sur cette période.",
+    "anomaliesLabel": "Anomalies",
+    "anomaly": {
+      "CLOCK_OUT_WITHOUT_CLOCK_IN": "Départ sans arrivée",
+      "BREAK_WITHOUT_CLOCK_IN": "Pause sans arrivée",
+      "BREAK_END_WITHOUT_START": "Reprise sans pause",
+      "DOUBLE_CLOCK_IN": "Double arrivée",
+      "OPEN_DAY": "Journée non clôturée (pas de départ)"
+    }
   }
 }

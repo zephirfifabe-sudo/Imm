@@ -16,6 +16,7 @@
     "settingsSites": "Sites",
     "settingsUsers": "Users",
     "settingsTerminals": "Terminals",
+    "history": "History",
     "logout": "Log out"
   },
   "auth": {
@@ -42,7 +43,16 @@
     "today": "Today",
     "present": "present",
     "absent": "absent",
-    "onBreak": "on break"
+    "onBreak": "on break",
+    "presenceTitle": "Presence",
+    "recentTitle": "Recent punches",
+    "noPunchesToday": "No punches today.",
+    "noEmployees": "No active employees.",
+    "statePresent": "Present",
+    "stateOnBreak": "On break",
+    "stateAbsent": "Absent",
+    "anomaliesCount": "{count} anomaly(ies) today",
+    "viewHistory": "View history"
   },
   "settings": {
     "company": {
@@ -109,5 +119,24 @@
     "backToList": "Back to list",
     "duplicateCode": "This employee code is already used in your company.",
     "duplicatePin": "This PIN code is already used by another employee."
+  },
+  "history": {
+    "title": "History",
+    "employeeLabel": "Employee",
+    "allEmployees": "All employees",
+    "fromLabel": "From",
+    "toLabel": "To",
+    "filter": "Filter",
+    "workedLabel": "Worked time",
+    "breakLabel": "Break",
+    "noEntries": "No punches for this period.",
+    "anomaliesLabel": "Anomalies",
+    "anomaly": {
+      "CLOCK_OUT_WITHOUT_CLOCK_IN": "Departure without arrival",
+      "BREAK_WITHOUT_CLOCK_IN": "Break without arrival",
+      "BREAK_END_WITHOUT_START": "Resume without a break",
+      "DOUBLE_CLOCK_IN": "Double arrival",
+      "OPEN_DAY": "Day not closed (no departure)"
+    }
   }
 }

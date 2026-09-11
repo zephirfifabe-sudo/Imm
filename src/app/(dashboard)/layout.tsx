@@ -30,6 +30,9 @@ export default async function DashboardLayout({
             <Link href="/employees" className="text-foreground hover:text-primary">
               {t("nav.employees")}
             </Link>
+            <Link href="/history" className="text-foreground hover:text-primary">
+              {t("nav.history")}
+            </Link>
             {isAdmin && (
               <>
                 <Link

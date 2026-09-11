@@ -16,6 +16,7 @@
     "settingsSites": "Vestigingen",
     "settingsUsers": "Gebruikers",
     "settingsTerminals": "Terminals",
+    "history": "Geschiedenis",
     "logout": "Uitloggen"
   },
   "auth": {
@@ -42,7 +43,16 @@
     "today": "Vandaag",
     "present": "aanwezig",
     "absent": "afwezig",
-    "onBreak": "op pauze"
+    "onBreak": "op pauze",
+    "presenceTitle": "Aanwezigheid",
+    "recentTitle": "Laatste inklokkingen",
+    "noPunchesToday": "Geen inklokkingen vandaag.",
+    "noEmployees": "Geen actieve werknemers.",
+    "statePresent": "Aanwezig",
+    "stateOnBreak": "Op pauze",
+    "stateAbsent": "Afwezig",
+    "anomaliesCount": "{count} anomalie(ën) vandaag",
+    "viewHistory": "Geschiedenis bekijken"
   },
   "settings": {
     "company": {
@@ -109,5 +119,24 @@
     "backToList": "Terug naar de lijst",
     "duplicateCode": "Dit personeelsnummer wordt al gebruikt in uw bedrijf.",
     "duplicatePin": "Deze PIN-code wordt al gebruikt door een andere werknemer."
+  },
+  "history": {
+    "title": "Geschiedenis",
+    "employeeLabel": "Werknemer",
+    "allEmployees": "Alle werknemers",
+    "fromLabel": "Van",
+    "toLabel": "Tot",
+    "filter": "Filteren",
+    "workedLabel": "Gewerkte tijd",
+    "breakLabel": "Pauze",
+    "noEntries": "Geen inklokkingen in deze periode.",
+    "anomaliesLabel": "Anomalieën",
+    "anomaly": {
+      "CLOCK_OUT_WITHOUT_CLOCK_IN": "Vertrek zonder aankomst",
+      "BREAK_WITHOUT_CLOCK_IN": "Pauze zonder aankomst",
+      "BREAK_END_WITHOUT_START": "Hervatting zonder pauze",
+      "DOUBLE_CLOCK_IN": "Dubbele aankomst",
+      "OPEN_DAY": "Dag niet afgesloten (geen vertrek)"
+    }
   }
 }
