@@ -92,7 +92,14 @@ npm run lint          # ESLint
   premier ADMIN), profil entreprise, gestion des sites, gestion des
   utilisateurs (invitation, rôles, retrait d'accès) avec la règle "toujours
   au moins un ADMIN" appliquée côté serveur.
+- **Phase 3 (Employés)** ✅ — CRUD employés (matricule auto-suggéré, site,
+  rôle/fonction), PIN à 4 chiffres hashé (bcrypt) et vérifié unique par
+  entreprise, token QR régénérable, activation/désactivation. La
+  suppression d'un employé n'est jamais exposée dans l'UI — seule la
+  désactivation, et l'intégrité est renforcée en base (`ON DELETE
+  RESTRICT` sur `time_entries.employee_id`) pour empêcher toute perte
+  silencieuse de l'historique de pointage.
 
-Les phases suivantes (employés, terminal de pointage, dashboard,
-corrections/audit, mode hors-ligne, NFC, abonnements, exports, hardening)
-sont décrites dans le plan de développement du projet.
+Les phases suivantes (terminal de pointage, dashboard, corrections/audit,
+mode hors-ligne, NFC, abonnements, exports, hardening) sont décrites dans
+le plan de développement du projet.
