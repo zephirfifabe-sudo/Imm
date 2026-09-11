@@ -72,16 +72,19 @@ const CONFIRM_LABELS: Record<TimeEntryType, string> = {
   BREAK_END: "Pause terminée",
 };
 
+type IdentificationMethod = "PIN" | "QR" | "NFC";
+
 type Screen =
   | { name: "home" }
   | { name: "pin" }
   | { name: "qr" }
+  | { name: "nfc" }
   | {
       name: "identified";
       employeeId: string;
       firstName: string;
       validActions: TimeEntryType[];
-      method: "PIN" | "QR";
+      method: IdentificationMethod;
     }
   | { name: "success"; firstName: string; type: TimeEntryType; occurredAt: string }
   | { name: "queued"; firstName: string; type: TimeEntryType };
@@ -96,6 +99,10 @@ export default function TerminalPage() {
   const [screen, setScreen] = useState<Screen>({ name: "home" });
   const [pin, setPin] = useState("");
   const [qrValue, setQrValue] = useState("");
+  const [nfcValue, setNfcValue] = useState("");
+  const [nfcScanState, setNfcScanState] = useState<
+    "unsupported" | "scanning" | "error"
+  >("unsupported");
   const [activationCode, setActivationCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -151,8 +158,44 @@ export default function TerminalPage() {
     setScreen({ name: "home" });
     setPin("");
     setQrValue("");
+    setNfcValue("");
     setError(null);
   }
+
+  // Tente une lecture NFC native (Web NFC, Chrome sur Android uniquement)
+  // pendant que l'écran NFC est affiché. Le lecteur USB en mode clavier et
+  // la saisie manuelle restent toujours disponibles via le champ texte —
+  // le terminal ne dépend d'aucun matériel précis pour fonctionner.
+  useEffect(() => {
+    if (screen.name !== "nfc" || !window.NDEFReader) {
+      // Sans Web NFC, l'état reste sur sa valeur par défaut ("unsupported"):
+      // le champ texte (lecteur USB ou saisie manuelle) fait le travail.
+      return;
+    }
+
+    const controller = new AbortController();
+    const reader = new window.NDEFReader();
+
+    reader
+      .scan({ signal: controller.signal })
+      .then(() => {
+        setNfcScanState("scanning");
+        reader.onreading = (event) => {
+          if (event.serialNumber) {
+            void handleIdentify("NFC", event.serialNumber);
+          }
+        };
+      })
+      .catch(() => {
+        setNfcScanState("error");
+      });
+
+    return () => controller.abort();
+    // handleIdentify est recréée à chaque rendu (elle capture pin/qrValue/...);
+    // la re-souscrire à chaque fois relancerait le scan NFC inutilement, alors
+    // qu'on ne veut redémarrer que lorsqu'on entre réellement sur cet écran.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen.name]);
 
   async function handleActivate() {
     setIsPending(true);
@@ -177,7 +220,7 @@ export default function TerminalPage() {
     }
   }
 
-  async function handleIdentify(method: "PIN" | "QR", value: string) {
+  async function handleIdentify(method: IdentificationMethod, value: string) {
     if (!token) return;
     setIsPending(true);
     setError(null);
@@ -309,6 +352,13 @@ export default function TerminalPage() {
           >
             📷 QR CODE
           </button>
+          <button
+            type="button"
+            onClick={() => setScreen({ name: "nfc" })}
+            className="w-full rounded-xl bg-primary px-6 py-6 text-2xl font-semibold text-primary-foreground"
+          >
+            📶 NFC
+          </button>
         </div>
       )}
 
@@ -384,6 +434,41 @@ export default function TerminalPage() {
             type="button"
             disabled={isPending || !qrValue.trim()}
             onClick={() => handleIdentify("QR", qrValue.trim())}
+            className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            Valider
+          </button>
+          <button type="button" onClick={resetToHome} className="text-sm text-muted">
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {token && screen.name === "nfc" && (
+        <div className="w-full max-w-sm space-y-4">
+          <p className="text-lg text-foreground">Approchez votre badge NFC</p>
+          <p className="text-xs text-muted">
+            {nfcScanState === "scanning"
+              ? "En attente du badge..."
+              : "Utilisez le lecteur NFC de la borne, ou saisissez le code manuellement."}
+          </p>
+          <input
+            autoFocus
+            value={nfcValue}
+            onChange={(e) => setNfcValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nfcValue.trim()) {
+                void handleIdentify("NFC", nfcValue.trim());
+              }
+            }}
+            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-lg"
+            placeholder="Code du badge"
+          />
+          {error && <p className="text-danger">{error}</p>}
+          <button
+            type="button"
+            disabled={isPending || !nfcValue.trim()}
+            onClick={() => handleIdentify("NFC", nfcValue.trim())}
             className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50"
           >
             Valider

@@ -2,11 +2,14 @@ import type { TimeEntryType } from "@/types/database";
 
 const QUEUE_STORAGE_KEY = "klock_terminal_offline_queue";
 
+// Dupliqué depuis IdentificationMethod (lib/timeclock/identification-providers,
+// un module "server-only") plutôt qu'importé: ce fichier est du code client,
+// et server-only casse le build s'il est importé côté client.
 export type QueuedClockEvent = {
   eventId: string;
   employeeId: string;
   type: TimeEntryType;
-  method: "PIN" | "QR";
+  method: "PIN" | "QR" | "NFC";
   occurredAt: string;
 };
 
