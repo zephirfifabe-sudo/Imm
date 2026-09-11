@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/config/env";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+// /terminal a sa propre authentification (token de terminal, pas de session
+// Supabase): il ne doit jamais être redirigé vers /login.
+const PUBLIC_PATHS = ["/login", "/signup", "/terminal"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
