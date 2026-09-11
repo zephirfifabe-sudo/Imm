@@ -86,8 +86,13 @@ npm run lint          # ESLint
 
 ## Statut du projet
 
-Phase 1 (Foundation) : projet initialisé, schéma DB + RLS, authentification
-Supabase, design system minimal, layout de base. Les phases suivantes
-(entreprise/onboarding, employés, terminal de pointage, dashboard,
+- **Phase 1 (Foundation)** ✅ — projet initialisé, schéma DB + RLS,
+  authentification Supabase, design system minimal, layout de base.
+- **Phase 2 (Entreprise)** ✅ — onboarding self-serve (création entreprise +
+  premier ADMIN), profil entreprise, gestion des sites, gestion des
+  utilisateurs (invitation, rôles, retrait d'accès) avec la règle "toujours
+  au moins un ADMIN" appliquée côté serveur.
+
+Les phases suivantes (employés, terminal de pointage, dashboard,
 corrections/audit, mode hors-ligne, NFC, abonnements, exports, hardening)
 sont décrites dans le plan de développement du projet.
