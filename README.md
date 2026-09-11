@@ -130,6 +130,13 @@ npm run lint          # ESLint
   les 20s), un par un et dans l'ordre pour préserver la validité des
   transitions. Un événement devenu invalide au moment du rejeu (conflit) est
   abandonné plutôt que retenté indéfiniment.
+- **Phase 8 (NFC)** ✅ — abstraction `IdentificationProvider` (PIN/QR/NFC
+  implémentent tous la même interface `isValidInput` + `identify`,
+  résolue via `getIdentificationProvider()`); le terminal ne contient plus
+  aucune logique spécifique à un moyen d'identification. NFC ajouté au
+  terminal: scan Web NFC natif quand disponible (Chrome sur Android),
+  sinon lecteur USB en mode clavier ou saisie manuelle — aucun
+  verrouillage à un fabricant.
 
-Les phases suivantes (NFC, abonnements,
+Les phases suivantes (abonnements,
 exports, hardening) sont décrites dans le plan de développement du projet.
