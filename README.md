@@ -120,6 +120,16 @@ npm run lint          # ESLint
   d'audit dans une seule transaction — jamais d'écrasement silencieux.
   `/history` signale les pointages corrigés. `/settings/audit-log`
   (ADMIN) liste les entrées d'audit.
+- **Phase 7 (Hors-ligne)** ✅ — périmètre assumé: la résilience hors-ligne
+  couvre l'enregistrement du pointage, pas l'identification (PIN/QR
+  nécessite toujours le serveur, aucune donnée d'identification n'est mise
+  en cache sur le terminal). Une fois l'employé identifié, une coupure
+  réseau au moment de pointer met l'événement en file (localStorage, avec
+  son heure réelle de capture, pas l'heure de synchronisation) et le
+  resynchronise automatiquement (retour réseau, montage, relance toutes
+  les 20s), un par un et dans l'ordre pour préserver la validité des
+  transitions. Un événement devenu invalide au moment du rejeu (conflit) est
+  abandonné plutôt que retenté indéfiniment.
 
-Les phases suivantes (mode hors-ligne, NFC, abonnements,
+Les phases suivantes (NFC, abonnements,
 exports, hardening) sont décrites dans le plan de développement du projet.
