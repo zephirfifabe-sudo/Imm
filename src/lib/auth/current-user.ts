@@ -40,3 +40,21 @@ export async function requireCurrentUser(): Promise<{
 
   return { user, company };
 }
+
+/**
+ * Comme `requireCurrentUser`, mais redirige vers /dashboard si l'utilisateur
+ * n'est pas ADMIN. À utiliser dans toutes les pages/actions réservées aux
+ * administrateurs (paramètres entreprise, sites, utilisateurs).
+ */
+export async function requireAdmin(): Promise<{
+  user: AppUser;
+  company: Company;
+}> {
+  const result = await requireCurrentUser();
+
+  if (result.user.role !== "ADMIN") {
+    redirect("/dashboard");
+  }
+
+  return result;
+}
