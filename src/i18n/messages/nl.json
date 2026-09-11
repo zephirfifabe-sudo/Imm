@@ -15,6 +15,7 @@
     "settingsCompany": "Bedrijf",
     "settingsSites": "Vestigingen",
     "settingsUsers": "Gebruikers",
+    "settingsTerminals": "Terminals",
     "logout": "Uitloggen"
   },
   "auth": {
@@ -70,6 +71,20 @@
       "lastAdminError": "Niet mogelijk: het bedrijf moet minstens één beheerder houden.",
       "emailTakenInCompany": "Dit e-mailadres wordt al gebruikt binnen uw bedrijf.",
       "inviteSent": "Uitnodiging verzonden."
+    },
+    "terminals": {
+      "title": "Terminals",
+      "empty": "Nog geen terminal.",
+      "nameLabel": "Naam van de terminal",
+      "addTitle": "Terminal toevoegen",
+      "activationCodeIntro": "Activeringscode:",
+      "reissueCode": "Nieuwe code",
+      "deactivate": "Deactiveren",
+      "status": {
+        "ACTIVE": "Online",
+        "PENDING_ACTIVATION": "Wacht op activering",
+        "INACTIVE": "Gedeactiveerd"
+      }
     }
   },
   "employees": {

@@ -50,6 +50,12 @@ export default async function DashboardLayout({
                 >
                   {t("nav.settingsUsers")}
                 </Link>
+                <Link
+                  href="/settings/terminals"
+                  className="text-foreground hover:text-primary"
+                >
+                  {t("nav.settingsTerminals")}
+                </Link>
               </>
             )}
             <form action={logoutAction}>

@@ -15,6 +15,7 @@
     "settingsCompany": "Entreprise",
     "settingsSites": "Sites",
     "settingsUsers": "Utilisateurs",
+    "settingsTerminals": "Terminaux",
     "logout": "Déconnexion"
   },
   "auth": {
@@ -70,6 +71,20 @@
       "lastAdminError": "Impossible: l'entreprise doit garder au moins un administrateur.",
       "emailTakenInCompany": "Cette adresse e-mail est déjà utilisée dans votre entreprise.",
       "inviteSent": "Invitation envoyée."
+    },
+    "terminals": {
+      "title": "Terminaux",
+      "empty": "Aucun terminal pour le moment.",
+      "nameLabel": "Nom du terminal",
+      "addTitle": "Ajouter un terminal",
+      "activationCodeIntro": "Code d'activation :",
+      "reissueCode": "Nouveau code",
+      "deactivate": "Désactiver",
+      "status": {
+        "ACTIVE": "En ligne",
+        "PENDING_ACTIVATION": "En attente d'activation",
+        "INACTIVE": "Désactivé"
+      }
     }
   },
   "employees": {

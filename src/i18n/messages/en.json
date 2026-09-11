@@ -15,6 +15,7 @@
     "settingsCompany": "Company",
     "settingsSites": "Sites",
     "settingsUsers": "Users",
+    "settingsTerminals": "Terminals",
     "logout": "Log out"
   },
   "auth": {
@@ -70,6 +71,20 @@
       "lastAdminError": "Not possible: the company must keep at least one admin.",
       "emailTakenInCompany": "This email address is already used in your company.",
       "inviteSent": "Invitation sent."
+    },
+    "terminals": {
+      "title": "Terminals",
+      "empty": "No terminals yet.",
+      "nameLabel": "Terminal name",
+      "addTitle": "Add a terminal",
+      "activationCodeIntro": "Activation code:",
+      "reissueCode": "New code",
+      "deactivate": "Deactivate",
+      "status": {
+        "ACTIVE": "Online",
+        "PENDING_ACTIVATION": "Pending activation",
+        "INACTIVE": "Deactivated"
+      }
     }
   },
   "employees": {
