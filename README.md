@@ -113,6 +113,13 @@ npm run lint          # ESLint
   reconstruction du temps travaillé et des pauses par jour
   (`summarizeDay`), détection d'anomalies (départ sans arrivée, pause non
   refermée, journée non clôturée, etc.).
+- **Phase 6 (Corrections + Audit)** ✅ — correction d'un pointage
+  (`/corrections/[id]`) avec motif obligatoire; l'opération
+  (`correct_time_entry`) met à jour le pointage, journalise la correction
+  (valeur précédente, nouvelle valeur, auteur, motif) et écrit une entrée
+  d'audit dans une seule transaction — jamais d'écrasement silencieux.
+  `/history` signale les pointages corrigés. `/settings/audit-log`
+  (ADMIN) liste les entrées d'audit.
 
-Les phases suivantes (corrections/audit, mode hors-ligne, NFC, abonnements,
+Les phases suivantes (mode hors-ligne, NFC, abonnements,
 exports, hardening) sont décrites dans le plan de développement du projet.
