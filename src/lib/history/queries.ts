@@ -21,7 +21,7 @@ function dateKeyOf(isoString: string): string {
 
 export async function getHistory(
   companyId: string,
-  filters: { employeeId?: string; from: Date; to: Date },
+  filters: { employeeId?: string; siteId?: string; from: Date; to: Date },
 ): Promise<HistoryDayGroup[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -51,6 +51,11 @@ export async function getHistory(
     .order("occurred_at", { ascending: true });
   if (filters.employeeId) {
     entriesQuery = entriesQuery.eq("employee_id", filters.employeeId);
+  }
+  if (filters.siteId) {
+    // Le site du pointage (celui du terminal utilisé), pas le site
+    // "habituel" de l'employé — plus juste pour un rapport par site.
+    entriesQuery = entriesQuery.eq("site_id", filters.siteId);
   }
   const { data: entries } = await entriesQuery;
 
