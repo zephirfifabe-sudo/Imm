@@ -1,0 +1,21 @@
+{
+  "common": {
+    "appName": "KLOCK",
+    "tagline": "Work time, simply."
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "invalidCredentials": "Incorrect email or password.",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "dashboard": {
+    "greeting": "Hello {name}",
+    "today": "Today",
+    "present": "present",
+    "absent": "absent",
+    "onBreak": "on break"
+  }
+}

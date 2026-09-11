@@ -1,0 +1,21 @@
+{
+  "common": {
+    "appName": "KLOCK",
+    "tagline": "Le temps de travail, simplement."
+  },
+  "auth": {
+    "loginTitle": "Connexion",
+    "emailLabel": "Adresse e-mail",
+    "passwordLabel": "Mot de passe",
+    "submit": "Se connecter",
+    "invalidCredentials": "Adresse e-mail ou mot de passe incorrect.",
+    "genericError": "Une erreur est survenue. Merci de réessayer."
+  },
+  "dashboard": {
+    "greeting": "Bonjour {name}",
+    "today": "Aujourd'hui",
+    "present": "présents",
+    "absent": "absents",
+    "onBreak": "en pause"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "common": {
+    "appName": "KLOCK",
+    "tagline": "Werktijd, eenvoudig."
+  },
+  "auth": {
+    "loginTitle": "Inloggen",
+    "emailLabel": "E-mailadres",
+    "passwordLabel": "Wachtwoord",
+    "submit": "Inloggen",
+    "invalidCredentials": "Onjuist e-mailadres of wachtwoord.",
+    "genericError": "Er is een fout opgetreden. Probeer opnieuw."
+  },
+  "dashboard": {
+    "greeting": "Hallo {name}",
+    "today": "Vandaag",
+    "present": "aanwezig",
+    "absent": "afwezig",
+    "onBreak": "op pauze"
+  }
+}
