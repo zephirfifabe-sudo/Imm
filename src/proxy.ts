@@ -26,6 +26,13 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  // Les routes API (ex: le webhook Stripe) gèrent leur propre authentification
+  // (signature Stripe, token de terminal...) — jamais une session utilisateur,
+  // et ne doivent donc jamais être redirigées vers /login.
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    return response;
+  }
+
   const { data } = await supabase.auth.getUser();
   const isPublicPath = PUBLIC_PATHS.some((path) =>
     request.nextUrl.pathname.startsWith(path),
