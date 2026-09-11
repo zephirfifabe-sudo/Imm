@@ -52,3 +52,27 @@ export async function identifyByQrToken(
 
   return employee ?? null;
 }
+
+/**
+ * Identifie un employé par son token NFC (UID du badge, ou identifiant
+ * KLOCK associé au badge — jamais une donnée personnelle). Même mécanique
+ * que le QR: égalité indexée sur un token opaque, quel que soit le moyen
+ * par lequel ce token est arrivé au terminal (lecteur USB en mode clavier,
+ * Web NFC, saisie manuelle) — le matériel est invisible à ce niveau.
+ */
+export async function identifyByNfcToken(
+  companyId: string,
+  nfcToken: string,
+): Promise<Employee | null> {
+  const serviceRole = createSupabaseServiceRoleClient();
+
+  const { data: employee } = await serviceRole
+    .from("employees")
+    .select("*")
+    .eq("nfc_token", nfcToken)
+    .eq("company_id", companyId)
+    .eq("status", "ACTIVE")
+    .maybeSingle();
+
+  return employee ?? null;
+}

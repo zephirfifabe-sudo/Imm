@@ -2,10 +2,9 @@
 
 import { z } from "zod";
 import { activateTerminal, verifyTerminalToken } from "@/lib/timeclock/terminal-auth";
-import { identifyByPin, identifyByQrToken } from "@/lib/timeclock/identify";
+import { getIdentificationProvider, type IdentificationMethod } from "@/lib/timeclock/identification-providers";
 import { getLastEntryType, recordClockEvent } from "@/lib/timeclock/mutations";
 import { getValidNextActions } from "@/lib/timeclock/service";
-import { PIN_REGEX } from "@/lib/employees/schema";
 import type { TimeEntryType } from "@/types/database";
 
 export type ActivateResult =
@@ -39,7 +38,7 @@ export type IdentifyResult =
 
 export async function identifyEmployeeAction(
   token: string,
-  method: "PIN" | "QR",
+  method: IdentificationMethod,
   value: string,
 ): Promise<IdentifyResult> {
   const terminal = await verifyTerminalToken(token);
@@ -47,17 +46,12 @@ export async function identifyEmployeeAction(
     return { ok: false, error: "invalid_terminal" };
   }
 
-  if (method === "PIN" && !PIN_REGEX.test(value)) {
-    return { ok: false, error: "invalid_input" };
-  }
-  if (method === "QR" && value.trim().length === 0) {
+  const provider = getIdentificationProvider(method);
+  if (!provider.isValidInput(value)) {
     return { ok: false, error: "invalid_input" };
   }
 
-  const employee =
-    method === "PIN"
-      ? await identifyByPin(terminal.company_id, value)
-      : await identifyByQrToken(terminal.company_id, value.trim());
+  const employee = await provider.identify(terminal.company_id, value);
 
   if (!employee) {
     return { ok: false, error: "not_found" };
@@ -95,7 +89,7 @@ export async function recordClockAction(
   token: string,
   employeeId: string,
   type: TimeEntryType,
-  method: "PIN" | "QR",
+  method: IdentificationMethod,
   eventId: string,
   occurredAt: string,
 ): Promise<ClockResult> {
