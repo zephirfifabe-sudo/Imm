@@ -106,7 +106,13 @@ npm run lint          # ESLint
   (`TimeClockService`), idempotence par `event_id`, administration des
   terminaux (`/settings/terminals`), historique du jour sur le tableau de
   bord.
+- **Phase 5 (Dashboard)** ✅ — tableau de bord de présence (présents/en
+  pause/absents, bannière d'anomalies, liste de présence, derniers
+  pointages) recalculé à chaque chargement de page (pas de push temps
+  réel pour l'instant). Page `/history` avec filtres employé/période,
+  reconstruction du temps travaillé et des pauses par jour
+  (`summarizeDay`), détection d'anomalies (départ sans arrivée, pause non
+  refermée, journée non clôturée, etc.).
 
-Les phases suivantes (dashboard, corrections/audit, mode hors-ligne, NFC,
-abonnements, exports, hardening) sont décrites dans
-le plan de développement du projet.
+Les phases suivantes (corrections/audit, mode hors-ligne, NFC, abonnements,
+exports, hardening) sont décrites dans le plan de développement du projet.
