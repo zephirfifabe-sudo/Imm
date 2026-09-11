@@ -16,6 +16,7 @@
     "settingsSites": "Sites",
     "settingsUsers": "Utilisateurs",
     "settingsTerminals": "Terminaux",
+    "auditLog": "Journal d'audit",
     "history": "Historique",
     "logout": "Déconnexion"
   },
@@ -138,5 +139,19 @@
       "DOUBLE_CLOCK_IN": "Double arrivée",
       "OPEN_DAY": "Journée non clôturée (pas de départ)"
     }
+  },
+  "corrections": {
+    "title": "Corriger un pointage",
+    "originalLabel": "Pointage initial",
+    "newTimeLabel": "Nouvelle heure",
+    "reasonLabel": "Motif",
+    "historyLabel": "Corrections précédentes",
+    "correctLink": "Corriger",
+    "correctedBadge": "Corrigé",
+    "notFound": "Ce pointage est introuvable."
+  },
+  "auditLog": {
+    "title": "Journal d'audit",
+    "empty": "Aucune entrée pour le moment."
   }
 }

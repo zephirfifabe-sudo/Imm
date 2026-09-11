@@ -16,6 +16,7 @@
     "settingsSites": "Sites",
     "settingsUsers": "Users",
     "settingsTerminals": "Terminals",
+    "auditLog": "Audit log",
     "history": "History",
     "logout": "Log out"
   },
@@ -138,5 +139,19 @@
       "DOUBLE_CLOCK_IN": "Double arrival",
       "OPEN_DAY": "Day not closed (no departure)"
     }
+  },
+  "corrections": {
+    "title": "Correct a punch",
+    "originalLabel": "Original punch",
+    "newTimeLabel": "New time",
+    "reasonLabel": "Reason",
+    "historyLabel": "Previous corrections",
+    "correctLink": "Correct",
+    "correctedBadge": "Corrected",
+    "notFound": "This punch could not be found."
+  },
+  "auditLog": {
+    "title": "Audit log",
+    "empty": "No entries yet."
   }
 }

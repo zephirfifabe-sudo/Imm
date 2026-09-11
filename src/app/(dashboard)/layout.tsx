@@ -59,6 +59,12 @@ export default async function DashboardLayout({
                 >
                   {t("nav.settingsTerminals")}
                 </Link>
+                <Link
+                  href="/settings/audit-log"
+                  className="text-foreground hover:text-primary"
+                >
+                  {t("nav.auditLog")}
+                </Link>
               </>
             )}
             <form action={logoutAction}>

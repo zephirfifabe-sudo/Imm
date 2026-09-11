@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHistory } from "@/lib/history/queries";
+import { getCorrectionsForEntries } from "@/lib/corrections/queries";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -60,6 +62,9 @@ export default async function HistoryPage({
       .order("first_name", { ascending: true }),
     getHistory(company.id, { employeeId, from, to }),
   ]);
+
+  const allEntryIds = groups.flatMap((group) => group.entries.map((e) => e.id));
+  const correctionsByEntry = await getCorrectionsForEntries(company.id, allEntryIds);
 
   return (
     <div className="space-y-6">
@@ -137,17 +142,29 @@ export default async function HistoryPage({
                 )}
               </div>
               <ul className="mb-3 space-y-1 text-sm text-foreground">
-                {group.entries.map((entry) => (
-                  <li key={entry.id} className="flex gap-3">
-                    <span className="text-muted">
-                      {new Date(entry.occurred_at).toLocaleTimeString("fr-BE", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    <span>{TYPE_LABELS[entry.type]}</span>
-                  </li>
-                ))}
+                {group.entries.map((entry) => {
+                  const wasCorrected = (correctionsByEntry.get(entry.id)?.length ?? 0) > 0;
+                  return (
+                    <li key={entry.id} className="flex items-center gap-3">
+                      <span className="text-muted">
+                        {new Date(entry.occurred_at).toLocaleTimeString("fr-BE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <span>{TYPE_LABELS[entry.type]}</span>
+                      {wasCorrected && (
+                        <Badge tone="warning">{t("corrections.correctedBadge")}</Badge>
+                      )}
+                      <Link
+                        href={`/corrections/${entry.id}`}
+                        className="ml-auto text-xs text-primary hover:underline"
+                      >
+                        {t("corrections.correctLink")}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="flex gap-6 border-t border-border pt-3 text-sm">
                 <p>

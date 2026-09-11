@@ -16,6 +16,7 @@
     "settingsSites": "Vestigingen",
     "settingsUsers": "Gebruikers",
     "settingsTerminals": "Terminals",
+    "auditLog": "Auditlog",
     "history": "Geschiedenis",
     "logout": "Uitloggen"
   },
@@ -138,5 +139,19 @@
       "DOUBLE_CLOCK_IN": "Dubbele aankomst",
       "OPEN_DAY": "Dag niet afgesloten (geen vertrek)"
     }
+  },
+  "corrections": {
+    "title": "Inklokking corrigeren",
+    "originalLabel": "Oorspronkelijke inklokking",
+    "newTimeLabel": "Nieuwe tijd",
+    "reasonLabel": "Reden",
+    "historyLabel": "Eerdere correcties",
+    "correctLink": "Corrigeren",
+    "correctedBadge": "Gecorrigeerd",
+    "notFound": "Deze inklokking bestaat niet."
+  },
+  "auditLog": {
+    "title": "Auditlog",
+    "empty": "Nog geen items."
   }
 }
