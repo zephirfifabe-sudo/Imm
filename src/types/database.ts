@@ -70,6 +70,7 @@ export type Terminal = {
   terminal_code: string;
   status: TerminalStatus;
   activation_code: string | null;
+  terminal_secret_hash: string | null;
   software_version: string | null;
   last_seen_at: string | null;
   created_at: string;
