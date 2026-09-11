@@ -25,9 +25,15 @@ export type RecordClockResult =
 /**
  * Enregistre un pointage. `event_id` est fourni par le terminal (UUID
  * généré côté client) et garantit l'idempotence: un même événement envoyé
- * deux fois (retry réseau) ne crée qu'une seule ligne. La transition est
- * toujours revérifiée ici à partir du dernier pointage réel en base — le
- * type demandé par le terminal n'est jamais appliqué aveuglément.
+ * deux fois (retry réseau, ou rejeu depuis la file hors-ligne) ne crée
+ * qu'une seule ligne. La transition est toujours revérifiée ici à partir
+ * du dernier pointage réel en base — le type demandé par le terminal
+ * n'est jamais appliqué aveuglément.
+ *
+ * `occurredAt` est l'instant réel du pointage, capturé côté terminal au
+ * moment de l'action (pas au moment de l'écriture en base): un pointage
+ * mis en file d'attente hors-ligne puis synchronisé plus tard doit garder
+ * son heure réelle, jamais l'heure de synchronisation.
  */
 export async function recordClockEvent(params: {
   companyId: string;
@@ -37,6 +43,7 @@ export async function recordClockEvent(params: {
   type: TimeEntryType;
   source: TimeEntrySource;
   eventId: string;
+  occurredAt: string;
 }): Promise<RecordClockResult> {
   const serviceRole = createSupabaseServiceRoleClient();
 
@@ -80,7 +87,7 @@ export async function recordClockEvent(params: {
       terminal_id: params.terminalId,
       type: params.type,
       source: params.source,
-      occurred_at: new Date().toISOString(),
+      occurred_at: params.occurredAt,
     })
     .select("*")
     .single();

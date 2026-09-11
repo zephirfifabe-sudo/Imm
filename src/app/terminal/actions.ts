@@ -77,8 +77,19 @@ export type ClockResult =
   | { ok: true; type: TimeEntryType; occurredAt: string }
   | {
       ok: false;
-      error: "invalid_terminal" | "invalid_transition" | "not_found" | "generic_error";
+      error:
+        | "invalid_terminal"
+        | "invalid_transition"
+        | "not_found"
+        | "invalid_timestamp"
+        | "generic_error";
     };
+
+// Tolérance à la dérive d'horloge du terminal (le pointage ne peut pas être
+// dans le futur au-delà de ça) et fenêtre maximale acceptée pour un
+// pointage mis en file d'attente hors-ligne puis synchronisé plus tard.
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const MAX_OFFLINE_BACKLOG_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function recordClockAction(
   token: string,
@@ -86,10 +97,21 @@ export async function recordClockAction(
   type: TimeEntryType,
   method: "PIN" | "QR",
   eventId: string,
+  occurredAt: string,
 ): Promise<ClockResult> {
   const terminal = await verifyTerminalToken(token);
   if (!terminal) {
     return { ok: false, error: "invalid_terminal" };
+  }
+
+  const occurredAtMs = new Date(occurredAt).getTime();
+  const nowMs = Date.now();
+  if (
+    Number.isNaN(occurredAtMs) ||
+    occurredAtMs > nowMs + MAX_CLOCK_SKEW_MS ||
+    occurredAtMs < nowMs - MAX_OFFLINE_BACKLOG_MS
+  ) {
+    return { ok: false, error: "invalid_timestamp" };
   }
 
   const result = await recordClockEvent({
@@ -100,6 +122,7 @@ export async function recordClockAction(
     type,
     source: method,
     eventId,
+    occurredAt,
   });
 
   if (!result.ok) {
