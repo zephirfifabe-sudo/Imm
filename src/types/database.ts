@@ -173,6 +173,16 @@ export type Database = {
         };
         Returns: { company_id: string; user_id: string }[];
       };
+      correct_time_entry: {
+        Args: {
+          p_time_entry_id: string;
+          p_company_id: string;
+          p_new_occurred_at: string;
+          p_reason: string;
+          p_corrected_by: string;
+        };
+        Returns: { correction_id: string }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
