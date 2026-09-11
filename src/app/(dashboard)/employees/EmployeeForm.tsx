@@ -14,6 +14,7 @@ const ERROR_KEYS: Record<string, string> = {
   invalid_input: "auth.invalidInput",
   duplicate_code: "employees.duplicateCode",
   duplicate_pin: "employees.duplicatePin",
+  plan_limit_reached: "employees.planLimitReached",
   generic_error: "auth.genericError",
 };
 

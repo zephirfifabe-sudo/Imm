@@ -9,8 +9,13 @@ import { getTranslator } from "@/i18n";
 
 const t = getTranslator();
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { company } = await requireCurrentUser();
+  const { error } = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const [{ data: employees }, { data: sites }] = await Promise.all([
@@ -34,6 +39,14 @@ export default async function EmployeesPage() {
           <Button>{t("employees.addTitle")}</Button>
         </Link>
       </div>
+
+      {error === "plan_limit_reached" && (
+        <Card className="border-amber-300 bg-amber-50">
+          <p className="text-sm font-medium text-amber-800">
+            {t("employees.planLimitReached")}
+          </p>
+        </Card>
+      )}
 
       <Card>
         {employees && employees.length > 0 ? (

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { employeeFormSchema } from "@/lib/employees/schema";
 import {
@@ -76,8 +77,12 @@ export async function setEmployeeStatusAction(
   status: "ACTIVE" | "INACTIVE",
 ) {
   const { company } = await requireCurrentUser();
-  await setEmployeeStatus(company.id, employeeId, status);
+  const result = await setEmployeeStatus(company.id, employeeId, status);
   revalidatePath("/employees");
+
+  if (!result.ok) {
+    redirect(`/employees?error=${result.error}`);
+  }
 }
 
 export async function regenerateQrTokenAction(employeeId: string) {

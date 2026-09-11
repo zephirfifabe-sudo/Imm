@@ -1,12 +1,26 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hashPin, pinMatchesHash } from "@/lib/employees/pin";
+import {
+  countActiveEmployees,
+  getCompanyEmployeeLimit,
+  isAtOrOverEmployeeLimit,
+} from "@/lib/subscriptions/limits";
 import type { EmployeeFormInput } from "@/lib/employees/schema";
 
 export type EmployeeMutationError =
   | "duplicate_code"
   | "duplicate_pin"
+  | "plan_limit_reached"
   | "generic_error";
+
+async function hasReachedEmployeeLimit(companyId: string): Promise<boolean> {
+  const [maxEmployees, activeCount] = await Promise.all([
+    getCompanyEmployeeLimit(companyId),
+    countActiveEmployees(companyId),
+  ]);
+  return isAtOrOverEmployeeLimit(activeCount, maxEmployees);
+}
 
 export type EmployeeMutationResult =
   | { ok: true; id: string }
@@ -47,6 +61,10 @@ export async function createEmployee(
   input: EmployeeFormInput,
 ): Promise<EmployeeMutationResult> {
   const supabase = await createSupabaseServerClient();
+
+  if (await hasReachedEmployeeLimit(companyId)) {
+    return { ok: false, error: "plan_limit_reached" };
+  }
 
   if (input.pin && (await findEmployeeWithSamePin(supabase, companyId, input.pin))) {
     return { ok: false, error: "duplicate_pin" };
@@ -119,7 +137,14 @@ export async function setEmployeeStatus(
   companyId: string,
   employeeId: string,
   status: "ACTIVE" | "INACTIVE",
-): Promise<{ ok: true } | { ok: false; error: "generic_error" }> {
+): Promise<{ ok: true } | { ok: false; error: "plan_limit_reached" | "generic_error" }> {
+  // Réactiver un employé augmente aussi le nombre d'actifs: la même limite
+  // de plan s'applique, sinon elle serait contournable en désactivant puis
+  // réactivant un employé.
+  if (status === "ACTIVE" && (await hasReachedEmployeeLimit(companyId))) {
+    return { ok: false, error: "plan_limit_reached" };
+  }
+
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
