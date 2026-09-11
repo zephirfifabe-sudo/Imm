@@ -10,7 +10,7 @@ KLOCK est conçu pour répondre aux besoins des entreprises belges en matière d
 
 - **Frontend** : Next.js (App Router), TypeScript strict, Tailwind CSS
 - **Backend** : Supabase (PostgreSQL, Auth, Row Level Security)
-- **Paiement** : Stripe (à intégrer en Phase 9)
+- **Paiement** : Stripe (Checkout + Billing Portal hébergés)
 - **Déploiement** : Vercel + Supabase
 - **Tests** : Vitest
 
@@ -45,6 +45,22 @@ Pour appliquer les migrations sur un projet Supabase (CLI Supabase requise):
 supabase link --project-ref <votre-projet>
 supabase db push
 ```
+
+## Configuration Stripe
+
+1. Créer un produit + un prix récurrent mensuel dans le Dashboard Stripe
+   pour chaque plan (STARTER, PME, BUSINESS)
+2. Renseigner `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PME`,
+   `STRIPE_PRICE_BUSINESS` (les Price ID, pas les Product ID) dans
+   `.env.local`
+3. Renseigner `STRIPE_SECRET_KEY` (Dashboard > Développeurs > Clés API)
+4. Créer un endpoint webhook pointant vers `<votre-domaine>/api/stripe/webhook`,
+   écoutant au minimum `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted`, puis
+   renseigner `STRIPE_WEBHOOK_SECRET` avec le secret de signature affiché
+
+En local, utiliser `stripe listen --forward-to localhost:3000/api/stripe/webhook`
+(CLI Stripe) pour recevoir les événements.
 
 ## Architecture
 
@@ -137,6 +153,17 @@ npm run lint          # ESLint
   terminal: scan Web NFC natif quand disponible (Chrome sur Android),
   sinon lecteur USB en mode clavier ou saisie manuelle — aucun
   verrouillage à un fabricant.
+- **Phase 9 (Abonnement)** ✅ — Stripe Checkout (page hébergée) pour
+  souscrire, Billing Portal (hébergé) pour gérer paiement/factures/
+  résiliation — pas de formulaire carte ni de UI de facturation maison.
+  Le webhook (`/api/stripe/webhook`) est la seule source de vérité pour
+  l'état réel de l'abonnement après le paiement (statut, plan, date de
+  fin de période). Nouvelle entreprise = abonnement d'essai STARTER par
+  défaut, pour que la limite d'employés soit réelle dès le premier jour.
+  Limite appliquée à la création **et** à la réactivation d'un employé
+  (sinon contournable en désactivant/réactivant). Correctif au passage:
+  le proxy redirigeait `/api/**` vers `/login` faute de session — cela
+  aurait cassé le webhook Stripe en production.
 
-Les phases suivantes (abonnements,
+Les phases suivantes (
 exports, hardening) sont décrites dans le plan de développement du projet.
