@@ -99,7 +99,14 @@ npm run lint          # ESLint
   désactivation, et l'intégrité est renforcée en base (`ON DELETE
   RESTRICT` sur `time_entries.employee_id`) pour empêcher toute perte
   silencieuse de l'historique de pointage.
+- **Phase 4 (Time Clock)** ✅ — terminal de pointage (`/terminal`), activation
+  par code à usage unique, identification PIN (clavier numérique) ou QR
+  (saisie compatible douchette USB — pas encore de scan caméra),
+  arrivée/départ/pauses avec validation serveur de chaque transition
+  (`TimeClockService`), idempotence par `event_id`, administration des
+  terminaux (`/settings/terminals`), historique du jour sur le tableau de
+  bord.
 
-Les phases suivantes (terminal de pointage, dashboard, corrections/audit,
-mode hors-ligne, NFC, abonnements, exports, hardening) sont décrites dans
+Les phases suivantes (dashboard, corrections/audit, mode hors-ligne, NFC,
+abonnements, exports, hardening) sont décrites dans
 le plan de développement du projet.
