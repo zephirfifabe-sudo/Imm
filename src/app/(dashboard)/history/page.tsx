@@ -40,7 +40,12 @@ function toDateInputValue(date: Date): string {
 export default async function HistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ employeeId?: string; from?: string; to?: string }>;
+  searchParams: Promise<{
+    employeeId?: string;
+    siteId?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const { company } = await requireCurrentUser();
   const params = await searchParams;
@@ -52,16 +57,29 @@ export default async function HistoryPage({
   const from = params.from ? new Date(params.from) : defaultFrom;
   const to = params.to ? new Date(params.to) : today;
   const employeeId = params.employeeId || undefined;
+  const siteId = params.siteId || undefined;
 
   const supabase = await createSupabaseServerClient();
-  const [{ data: employees }, groups] = await Promise.all([
+  const [{ data: employees }, { data: sites }, groups] = await Promise.all([
     supabase
       .from("employees")
       .select("id, first_name, last_name")
       .eq("company_id", company.id)
       .order("first_name", { ascending: true }),
-    getHistory(company.id, { employeeId, from, to }),
+    supabase
+      .from("sites")
+      .select("id, name")
+      .eq("company_id", company.id)
+      .order("name", { ascending: true }),
+    getHistory(company.id, { employeeId, siteId, from, to }),
   ]);
+
+  const exportParams = new URLSearchParams({
+    from: toDateInputValue(from),
+    to: toDateInputValue(to),
+  });
+  if (employeeId) exportParams.set("employeeId", employeeId);
+  if (siteId) exportParams.set("siteId", siteId);
 
   const allEntryIds = groups.flatMap((group) => group.entries.map((e) => e.id));
   const correctionsByEntry = await getCorrectionsForEntries(company.id, allEntryIds);
@@ -86,6 +104,24 @@ export default async function HistoryPage({
               {(employees ?? []).map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.first_name} {e.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground" htmlFor="siteId">
+              {t("employees.siteLabel")}
+            </label>
+            <select
+              id="siteId"
+              name="siteId"
+              defaultValue={siteId ?? ""}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            >
+              <option value="">{t("history.allSites")}</option>
+              {(sites ?? []).map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
                 </option>
               ))}
             </select>
@@ -117,6 +153,15 @@ export default async function HistoryPage({
           <Button type="submit">{t("history.filter")}</Button>
         </form>
       </Card>
+
+      <div className="flex flex-wrap gap-3">
+        <a href={`/api/exports/time-entries?${exportParams}&format=csv`}>
+          <Button variant="secondary">{t("history.exportCsv")}</Button>
+        </a>
+        <a href={`/api/exports/time-entries?${exportParams}&format=xlsx`}>
+          <Button variant="secondary">{t("history.exportExcel")}</Button>
+        </a>
+      </div>
 
       {groups.length > 0 ? (
         <div className="space-y-4">
