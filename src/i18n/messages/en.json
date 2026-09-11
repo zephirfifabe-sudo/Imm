@@ -17,6 +17,7 @@
     "settingsUsers": "Users",
     "settingsTerminals": "Terminals",
     "auditLog": "Audit log",
+    "settingsSubscription": "Subscription",
     "history": "History",
     "logout": "Log out"
   },
@@ -119,7 +120,8 @@
     "edit": "Edit",
     "backToList": "Back to list",
     "duplicateCode": "This employee code is already used in your company.",
-    "duplicatePin": "This PIN code is already used by another employee."
+    "duplicatePin": "This PIN code is already used by another employee.",
+    "planLimitReached": "Your plan's maximum number of active employees has been reached. Upgrade to a higher plan to add more."
   },
   "history": {
     "title": "History",
@@ -153,5 +155,25 @@
   "auditLog": {
     "title": "Audit log",
     "empty": "No entries yet."
+  },
+  "subscription": {
+    "title": "Subscription",
+    "noSubscription": "No subscription.",
+    "employeeUsage": "{current} / {max} active employees",
+    "manageBilling": "Manage my subscription",
+    "subscribe": "Subscribe",
+    "perMonth": "/month",
+    "upToEmployees": "Up to {count} employees",
+    "genericError": "Something went wrong. Please try again.",
+    "status": {
+      "trialing": "Trial",
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "canceled": "Canceled",
+      "incomplete": "Incomplete",
+      "incomplete_expired": "Expired",
+      "unpaid": "Unpaid",
+      "paused": "Paused"
+    }
   }
 }

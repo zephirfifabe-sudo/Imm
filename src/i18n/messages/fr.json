@@ -17,6 +17,7 @@
     "settingsUsers": "Utilisateurs",
     "settingsTerminals": "Terminaux",
     "auditLog": "Journal d'audit",
+    "settingsSubscription": "Abonnement",
     "history": "Historique",
     "logout": "Déconnexion"
   },
@@ -119,7 +120,8 @@
     "edit": "Modifier",
     "backToList": "Retour à la liste",
     "duplicateCode": "Ce matricule est déjà utilisé dans votre entreprise.",
-    "duplicatePin": "Ce code PIN est déjà utilisé par un autre employé."
+    "duplicatePin": "Ce code PIN est déjà utilisé par un autre employé.",
+    "planLimitReached": "Le nombre maximum d'employés actifs de votre plan est atteint. Passez à un plan supérieur pour en ajouter."
   },
   "history": {
     "title": "Historique",
@@ -153,5 +155,25 @@
   "auditLog": {
     "title": "Journal d'audit",
     "empty": "Aucune entrée pour le moment."
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "noSubscription": "Aucun abonnement.",
+    "employeeUsage": "{current} / {max} employés actifs",
+    "manageBilling": "Gérer mon abonnement",
+    "subscribe": "S'abonner",
+    "perMonth": "/mois",
+    "upToEmployees": "Jusqu'à {count} employés",
+    "genericError": "Une erreur est survenue. Merci de réessayer.",
+    "status": {
+      "trialing": "Essai",
+      "active": "Actif",
+      "past_due": "Paiement en retard",
+      "canceled": "Résilié",
+      "incomplete": "Incomplet",
+      "incomplete_expired": "Expiré",
+      "unpaid": "Impayé",
+      "paused": "En pause"
+    }
   }
 }

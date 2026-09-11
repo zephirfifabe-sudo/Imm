@@ -17,6 +17,7 @@
     "settingsUsers": "Gebruikers",
     "settingsTerminals": "Terminals",
     "auditLog": "Auditlog",
+    "settingsSubscription": "Abonnement",
     "history": "Geschiedenis",
     "logout": "Uitloggen"
   },
@@ -119,7 +120,8 @@
     "edit": "Bewerken",
     "backToList": "Terug naar de lijst",
     "duplicateCode": "Dit personeelsnummer wordt al gebruikt in uw bedrijf.",
-    "duplicatePin": "Deze PIN-code wordt al gebruikt door een andere werknemer."
+    "duplicatePin": "Deze PIN-code wordt al gebruikt door een andere werknemer.",
+    "planLimitReached": "Het maximum aantal actieve werknemers van uw abonnement is bereikt. Kies een hoger abonnement om er meer toe te voegen."
   },
   "history": {
     "title": "Geschiedenis",
@@ -153,5 +155,25 @@
   "auditLog": {
     "title": "Auditlog",
     "empty": "Nog geen items."
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "noSubscription": "Geen abonnement.",
+    "employeeUsage": "{current} / {max} actieve werknemers",
+    "manageBilling": "Abonnement beheren",
+    "subscribe": "Abonneren",
+    "perMonth": "/maand",
+    "upToEmployees": "Tot {count} werknemers",
+    "genericError": "Er is een fout opgetreden. Probeer opnieuw.",
+    "status": {
+      "trialing": "Proefperiode",
+      "active": "Actief",
+      "past_due": "Betaling te laat",
+      "canceled": "Opgezegd",
+      "incomplete": "Onvolledig",
+      "incomplete_expired": "Verlopen",
+      "unpaid": "Onbetaald",
+      "paused": "Gepauzeerd"
+    }
   }
 }
