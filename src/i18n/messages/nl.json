@@ -1,14 +1,38 @@
 {
   "common": {
     "appName": "KLOCK",
-    "tagline": "Werktijd, eenvoudig."
+    "tagline": "Werktijd, eenvoudig.",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "delete": "Verwijderen",
+    "add": "Toevoegen",
+    "loading": "Laden...",
+    "savedSuccessfully": "Opgeslagen."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "settingsCompany": "Bedrijf",
+    "settingsSites": "Vestigingen",
+    "settingsUsers": "Gebruikers",
+    "logout": "Uitloggen"
   },
   "auth": {
     "loginTitle": "Inloggen",
+    "signupTitle": "Maak uw KLOCK-account",
     "emailLabel": "E-mailadres",
     "passwordLabel": "Wachtwoord",
+    "companyNameLabel": "Bedrijfsnaam",
+    "firstNameLabel": "Voornaam",
+    "lastNameLabel": "Achternaam",
     "submit": "Inloggen",
+    "createAccount": "Account aanmaken",
+    "noAccountYet": "Nog geen account?",
+    "goToSignup": "Bedrijf aanmaken",
+    "alreadyHaveAccount": "Al een account?",
+    "goToLogin": "Inloggen",
     "invalidCredentials": "Onjuist e-mailadres of wachtwoord.",
+    "invalidInput": "Controleer de ingevoerde gegevens.",
+    "emailTaken": "Er bestaat al een account met dit e-mailadres.",
     "genericError": "Er is een fout opgetreden. Probeer opnieuw."
   },
   "dashboard": {
@@ -17,5 +41,34 @@
     "present": "aanwezig",
     "absent": "afwezig",
     "onBreak": "op pauze"
+  },
+  "settings": {
+    "company": {
+      "title": "Bedrijfsprofiel",
+      "nameLabel": "Bedrijfsnaam",
+      "vatLabel": "BTW-nummer",
+      "addressLabel": "Adres"
+    },
+    "sites": {
+      "title": "Vestigingen",
+      "empty": "Nog geen vestiging.",
+      "nameLabel": "Naam van de vestiging",
+      "addressLabel": "Adres",
+      "addTitle": "Vestiging toevoegen"
+    },
+    "users": {
+      "title": "Gebruikers",
+      "empty": "Geen gebruikers.",
+      "inviteTitle": "Gebruiker uitnodigen",
+      "roleLabel": "Rol",
+      "roleAdmin": "Beheerder",
+      "roleManager": "Manager",
+      "invite": "Uitnodigen",
+      "remove": "Toegang intrekken",
+      "you": "(u)",
+      "lastAdminError": "Niet mogelijk: het bedrijf moet minstens één beheerder houden.",
+      "emailTakenInCompany": "Dit e-mailadres wordt al gebruikt binnen uw bedrijf.",
+      "inviteSent": "Uitnodiging verzonden."
+    }
   }
 }

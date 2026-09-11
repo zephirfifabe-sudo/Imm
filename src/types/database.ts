@@ -160,7 +160,18 @@ export type Database = {
       subscriptions: TableDef<Subscription>;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_company_with_admin: {
+        Args: {
+          p_auth_user_id: string;
+          p_email: string;
+          p_company_name: string;
+          p_first_name: string;
+          p_last_name: string;
+        };
+        Returns: { company_id: string; user_id: string }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

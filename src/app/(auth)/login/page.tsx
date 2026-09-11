@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { LoginForm } from "./LoginForm";
 import { getTranslator } from "@/i18n";
@@ -19,6 +20,12 @@ export default function LoginPage() {
             {t("auth.loginTitle")}
           </h2>
           <LoginForm />
+          <p className="mt-4 text-center text-sm text-muted">
+            {t("auth.noAccountYet")}{" "}
+            <Link href="/signup" className="text-primary hover:underline">
+              {t("auth.goToSignup")}
+            </Link>
+          </p>
         </Card>
       </div>
     </main>

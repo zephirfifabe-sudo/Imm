@@ -1,14 +1,38 @@
 {
   "common": {
     "appName": "KLOCK",
-    "tagline": "Le temps de travail, simplement."
+    "tagline": "Le temps de travail, simplement.",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "add": "Ajouter",
+    "loading": "Chargement...",
+    "savedSuccessfully": "Enregistré."
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "settingsCompany": "Entreprise",
+    "settingsSites": "Sites",
+    "settingsUsers": "Utilisateurs",
+    "logout": "Déconnexion"
   },
   "auth": {
     "loginTitle": "Connexion",
+    "signupTitle": "Créer votre compte KLOCK",
     "emailLabel": "Adresse e-mail",
     "passwordLabel": "Mot de passe",
+    "companyNameLabel": "Nom de l'entreprise",
+    "firstNameLabel": "Prénom",
+    "lastNameLabel": "Nom",
     "submit": "Se connecter",
+    "createAccount": "Créer mon compte",
+    "noAccountYet": "Pas encore de compte ?",
+    "goToSignup": "Créer une entreprise",
+    "alreadyHaveAccount": "Déjà un compte ?",
+    "goToLogin": "Se connecter",
     "invalidCredentials": "Adresse e-mail ou mot de passe incorrect.",
+    "invalidInput": "Merci de vérifier les informations saisies.",
+    "emailTaken": "Un compte existe déjà avec cette adresse e-mail.",
     "genericError": "Une erreur est survenue. Merci de réessayer."
   },
   "dashboard": {
@@ -17,5 +41,34 @@
     "present": "présents",
     "absent": "absents",
     "onBreak": "en pause"
+  },
+  "settings": {
+    "company": {
+      "title": "Profil de l'entreprise",
+      "nameLabel": "Nom de l'entreprise",
+      "vatLabel": "Numéro de TVA",
+      "addressLabel": "Adresse"
+    },
+    "sites": {
+      "title": "Sites",
+      "empty": "Aucun site pour le moment.",
+      "nameLabel": "Nom du site",
+      "addressLabel": "Adresse",
+      "addTitle": "Ajouter un site"
+    },
+    "users": {
+      "title": "Utilisateurs",
+      "empty": "Aucun utilisateur.",
+      "inviteTitle": "Inviter un utilisateur",
+      "roleLabel": "Rôle",
+      "roleAdmin": "Administrateur",
+      "roleManager": "Manager",
+      "invite": "Inviter",
+      "remove": "Retirer l'accès",
+      "you": "(vous)",
+      "lastAdminError": "Impossible: l'entreprise doit garder au moins un administrateur.",
+      "emailTakenInCompany": "Cette adresse e-mail est déjà utilisée dans votre entreprise.",
+      "inviteSent": "Invitation envoyée."
+    }
   }
 }

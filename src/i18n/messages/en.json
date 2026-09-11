@@ -1,14 +1,38 @@
 {
   "common": {
     "appName": "KLOCK",
-    "tagline": "Work time, simply."
+    "tagline": "Work time, simply.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "add": "Add",
+    "loading": "Loading...",
+    "savedSuccessfully": "Saved."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "settingsCompany": "Company",
+    "settingsSites": "Sites",
+    "settingsUsers": "Users",
+    "logout": "Log out"
   },
   "auth": {
     "loginTitle": "Sign in",
+    "signupTitle": "Create your KLOCK account",
     "emailLabel": "Email address",
     "passwordLabel": "Password",
+    "companyNameLabel": "Company name",
+    "firstNameLabel": "First name",
+    "lastNameLabel": "Last name",
     "submit": "Sign in",
+    "createAccount": "Create my account",
+    "noAccountYet": "No account yet?",
+    "goToSignup": "Create a company",
+    "alreadyHaveAccount": "Already have an account?",
+    "goToLogin": "Sign in",
     "invalidCredentials": "Incorrect email or password.",
+    "invalidInput": "Please check the information entered.",
+    "emailTaken": "An account already exists with this email address.",
     "genericError": "Something went wrong. Please try again."
   },
   "dashboard": {
@@ -17,5 +41,34 @@
     "present": "present",
     "absent": "absent",
     "onBreak": "on break"
+  },
+  "settings": {
+    "company": {
+      "title": "Company profile",
+      "nameLabel": "Company name",
+      "vatLabel": "VAT number",
+      "addressLabel": "Address"
+    },
+    "sites": {
+      "title": "Sites",
+      "empty": "No sites yet.",
+      "nameLabel": "Site name",
+      "addressLabel": "Address",
+      "addTitle": "Add a site"
+    },
+    "users": {
+      "title": "Users",
+      "empty": "No users.",
+      "inviteTitle": "Invite a user",
+      "roleLabel": "Role",
+      "roleAdmin": "Admin",
+      "roleManager": "Manager",
+      "invite": "Invite",
+      "remove": "Remove access",
+      "you": "(you)",
+      "lastAdminError": "Not possible: the company must keep at least one admin.",
+      "emailTakenInCompany": "This email address is already used in your company.",
+      "inviteSent": "Invitation sent."
+    }
   }
 }
