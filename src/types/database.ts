@@ -53,6 +53,7 @@ export type Employee = {
   first_name: string;
   last_name: string;
   email: string | null;
+  job_title: string | null;
   status: EmployeeStatus;
   pin_hash: string | null;
   qr_token: string | null;
