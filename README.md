@@ -164,6 +164,13 @@ npm run lint          # ESLint
   (sinon contournable en désactivant/réactivant). Correctif au passage:
   le proxy redirigeait `/api/**` vers `/login` faute de session — cela
   aurait cassé le webhook Stripe en production.
+- **Phase 10 (Exports)** ✅ — export CSV (séparateur `;`, BOM UTF-8 — pensé
+  pour Excel en locale belge/française) et Excel (.xlsx réel via
+  `exceljs`) de l'historique des pointages depuis `/history`, filtrable
+  par employé/site/période. Une ligne par employé et par jour: temps
+  travaillé en H:MIN et en décimal (utilisable directement pour un calcul
+  de paie), pauses, anomalies. PDF volontairement laissé de côté pour
+  l'instant (CSV/Excel couvrent le besoin immédiat).
 
 Les phases suivantes (
-exports, hardening) sont décrites dans le plan de développement du projet.
+hardening) sont décrites dans le plan de développement du projet.
