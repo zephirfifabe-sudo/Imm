@@ -3,8 +3,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/config/env";
 
 // /terminal a sa propre authentification (token de terminal, pas de session
-// Supabase): il ne doit jamais être redirigé vers /login.
-const PUBLIC_PATHS = ["/login", "/signup", "/terminal"];
+// Supabase): il ne doit jamais être redirigé vers /login. /auth/callback et
+// /set-password font partie du flux d'invitation (employeur ou employé) et
+// doivent rester accessibles avant qu'une session applicative n'existe.
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/terminal",
+  "/employee/login",
+  "/auth/callback",
+  "/set-password",
+];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -39,7 +48,10 @@ export async function proxy(request: NextRequest) {
   );
 
   if (!data.user && !isPublicPath && request.nextUrl.pathname !== "/") {
-    const loginUrl = new URL("/login", request.url);
+    const loginPath = request.nextUrl.pathname.startsWith("/employee")
+      ? "/employee/login"
+      : "/login";
+    const loginUrl = new URL(loginPath, request.url);
     return NextResponse.redirect(loginUrl);
   }
 

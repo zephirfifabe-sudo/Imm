@@ -84,6 +84,7 @@ export async function createEmployee(
       pin_hash: input.pin ? await hashPin(input.pin) : null,
       status: "ACTIVE",
       qr_token: crypto.randomUUID(),
+      auth_user_id: null,
     })
     .select("id")
     .single();

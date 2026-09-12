@@ -7,6 +7,7 @@ import { EmployeeForm } from "../../EmployeeForm";
 import { updateEmployeeAction, regenerateQrTokenAction } from "../../actions";
 import { getTranslator } from "@/i18n";
 import { getEmployeeSchedulingProfile } from "@/lib/scheduling/mutations";
+import { AppAccessCard } from "./AppAccessCard";
 
 const t = getTranslator();
 
@@ -68,6 +69,17 @@ export default async function EditEmployeePage({
             maxNightsPerPeriod: schedulingProfile?.max_nights_per_period,
           }}
           submitLabel={t("common.save")}
+        />
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 text-sm font-medium text-foreground">
+          {t("employees.appAccessTitle")}
+        </h2>
+        <AppAccessCard
+          employeeId={employee.id}
+          hasEmail={Boolean(employee.email)}
+          hasAppAccess={Boolean(employee.auth_user_id)}
         />
       </Card>
 

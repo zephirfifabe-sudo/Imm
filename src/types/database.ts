@@ -58,6 +58,7 @@ export type Employee = {
   pin_hash: string | null;
   qr_token: string | null;
   nfc_token: string | null;
+  auth_user_id: string | null;
   created_at: string;
   updated_at: string;
 }

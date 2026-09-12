@@ -39,7 +39,12 @@
     "invalidCredentials": "Adresse e-mail ou mot de passe incorrect.",
     "invalidInput": "Merci de vérifier les informations saisies.",
     "emailTaken": "Un compte existe déjà avec cette adresse e-mail.",
-    "genericError": "Une erreur est survenue. Merci de réessayer."
+    "genericError": "Une erreur est survenue. Merci de réessayer.",
+    "newPasswordLabel": "Nouveau mot de passe (8 caractères minimum)",
+    "setPasswordTitle": "Créer votre mot de passe",
+    "setPasswordHint": "Dernière étape avant d'accéder à votre espace.",
+    "setPasswordSubmit": "Valider",
+    "setPasswordNoSession": "Ce lien a expiré ou a déjà été utilisé. Demandez une nouvelle invitation."
   },
   "dashboard": {
     "greeting": "Bonjour {name}",
@@ -131,7 +136,16 @@
     "dayOnlyLabel": "Journée uniquement",
     "nightOnlyLabel": "Nuit uniquement",
     "minNightsLabel": "Min. nuits / 4 semaines",
-    "maxNightsLabel": "Max. nuits / 4 semaines"
+    "maxNightsLabel": "Max. nuits / 4 semaines",
+    "appAccessTitle": "Accès application (employé)",
+    "appAccessHint": "Permet à cet employé de consulter son horaire depuis son téléphone, avec son propre e-mail et mot de passe.",
+    "appAccessNoEmail": "Renseignez d'abord une adresse e-mail pour cet employé.",
+    "appAccessInvite": "Inviter à l'application",
+    "appAccessInviteSent": "Invitation envoyée par e-mail.",
+    "appAccessAlreadyInvited": "Cet employé a déjà été invité.",
+    "appAccessEmailTaken": "Cette adresse e-mail est déjà utilisée par un autre compte.",
+    "appAccessActive": "Accès activé",
+    "appAccessRevoke": "Révoquer l'accès"
   },
   "history": {
     "title": "Historique",
@@ -220,5 +234,11 @@
     "severityCritical": "Critique",
     "severityWarning": "À vérifier",
     "saveError": "Une erreur est survenue lors de l'enregistrement."
+  },
+  "employee": {
+    "loginSubtitle": "Espace employé",
+    "scheduleTitle": "Bonjour {name}",
+    "scheduleEmpty": "Aucun horaire disponible pour le moment.",
+    "totalHours": "Total sur la période : {hours}h"
   }
 }

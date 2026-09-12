@@ -39,7 +39,12 @@
     "invalidCredentials": "Incorrect email or password.",
     "invalidInput": "Please check the information entered.",
     "emailTaken": "An account already exists with this email address.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "newPasswordLabel": "New password (minimum 8 characters)",
+    "setPasswordTitle": "Set your password",
+    "setPasswordHint": "Last step before accessing your space.",
+    "setPasswordSubmit": "Confirm",
+    "setPasswordNoSession": "This link has expired or was already used. Ask for a new invitation."
   },
   "dashboard": {
     "greeting": "Hello {name}",
@@ -131,7 +136,16 @@
     "dayOnlyLabel": "Daytime only",
     "nightOnlyLabel": "Night shifts only",
     "minNightsLabel": "Min. nights / 4 weeks",
-    "maxNightsLabel": "Max. nights / 4 weeks"
+    "maxNightsLabel": "Max. nights / 4 weeks",
+    "appAccessTitle": "App access (employee)",
+    "appAccessHint": "Lets this employee view their schedule from their phone, with their own email and password.",
+    "appAccessNoEmail": "Add an email address for this employee first.",
+    "appAccessInvite": "Invite to the app",
+    "appAccessInviteSent": "Invitation sent by email.",
+    "appAccessAlreadyInvited": "This employee has already been invited.",
+    "appAccessEmailTaken": "This email address is already used by another account.",
+    "appAccessActive": "Access active",
+    "appAccessRevoke": "Revoke access"
   },
   "history": {
     "title": "History",
@@ -220,5 +234,11 @@
     "severityCritical": "Critical",
     "severityWarning": "To review",
     "saveError": "Something went wrong while saving."
+  },
+  "employee": {
+    "loginSubtitle": "Employee space",
+    "scheduleTitle": "Hello {name}",
+    "scheduleEmpty": "No schedule available yet.",
+    "totalHours": "Total for this period: {hours}h"
   }
 }

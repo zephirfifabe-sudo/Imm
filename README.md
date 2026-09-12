@@ -196,10 +196,39 @@ npm run lint          # ESLint
   glisser-déposer — l'outil d'origine les avait tous, mais le v1 se
   concentre sur le moteur de génération + l'édition + la conformité.
 
+- **Phase 13 (Compte personnel employé)** ✅ — un employé peut désormais,
+  en plus de son identification anonyme au terminal (PIN/QR/NFC,
+  inchangée), avoir un compte personnel (e-mail + mot de passe) pour
+  consulter **en lecture seule** son horaire depuis son téléphone
+  (`/employee/schedule`, avec un login dédié `/employee/login` — totalement
+  séparé de `/login`, réservé aux comptes employeur). Strictement
+  optionnel: sans invitation explicite depuis sa fiche (`/employees/[id]/edit`
+  → "Accès application"), l'employé n'a aucun compte. Nouvelle colonne
+  `employees.auth_user_id` (nullable, unique) + deux nouvelles fonctions
+  `security definer` et policies RLS additives strictement scopées à "ses
+  propres données" (`employees_select_own`,
+  `schedule_periods_select_own_employee`,
+  `schedule_shifts_select_own_employee`) — aucune policy d'écriture pour ce
+  type de session, un employé ne peut rien modifier depuis son compte.
+  Au passage, complété le flux d'invitation employeur (`/settings/users`),
+  qui envoyait déjà l'e-mail Supabase mais n'avait jamais eu de page pour
+  que l'invité y définisse son mot de passe: nouvelle route
+  `/auth/callback` (échange le code contre une session) + `/set-password`
+  (pose le mot de passe puis redirige vers `/dashboard` ou
+  `/employee/schedule` selon le type de compte), utilisée par les deux
+  flux d'invitation. **Prérequis pour que les e-mails d'invitation
+  fonctionnent réellement**: `{NEXT_PUBLIC_APP_URL}/auth/callback` doit
+  être ajouté aux "Redirect URLs" autorisées dans Supabase (Authentication
+  → URL Configuration), sinon Supabase refuse ou ignore le `redirectTo`.
+  **Non fait dans cette v1**: messagerie d'équipe (délibérément traitée
+  comme un chantier séparé, après l'authentification), écran de gestion
+  centralisé des accès employé (aujourd'hui: un par un, depuis chaque
+  fiche), et aucune app mobile native — c'est une page web responsive.
+
 Toutes les phases du plan de développement initial sont maintenant
-couvertes, plus ce nouveau module de planification. Les prochaines étapes
-dépendent des retours d'usage réel (voir l'audit ci-dessous pour ce qui
-reste ouvert côté phases 1-11).
+couvertes, plus ces deux nouveaux modules (planification, compte employé).
+Les prochaines étapes dépendent des retours d'usage réel (voir l'audit
+ci-dessous pour ce qui reste ouvert côté phases 1-11).
 
 ## Audit de durcissement (Phase 11)
 

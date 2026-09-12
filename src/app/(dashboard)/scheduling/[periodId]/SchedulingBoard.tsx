@@ -15,7 +15,6 @@ import {
   contractTargetHours,
 } from "@/lib/scheduling/engine";
 import {
-  ABSENCE_LABELS,
   SHIFT_DEFINITIONS,
   TOTAL_DAYS,
   WORK_CODES,
@@ -23,40 +22,10 @@ import {
   type SchedulingEmployee,
   type SchedulingSettings,
 } from "@/lib/scheduling/types";
+import { CELL_COLOR_CLASSES, DAY_NAMES, cellLabel, cellTitle, dateForDay } from "@/lib/scheduling/presentation";
 import { saveGridAction, setCellAction, updatePeriodSettingsAction } from "./actions";
 
 const t = getTranslator();
-
-const DAY_NAMES = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-
-function cellLabel(code: string): string {
-  if (code === "") return "";
-  if (code in SHIFT_DEFINITIONS) return code;
-  return code;
-}
-
-function cellTitle(code: string): string {
-  if (code === "") return "Repos";
-  if (code in SHIFT_DEFINITIONS) return SHIFT_DEFINITIONS[code as keyof typeof SHIFT_DEFINITIONS].label;
-  if (code in ABSENCE_LABELS) return ABSENCE_LABELS[code as keyof typeof ABSENCE_LABELS];
-  return code;
-}
-
-const CELL_COLOR_CLASSES: Record<string, string> = {
-  M: "bg-blue-50 text-blue-800",
-  A: "bg-amber-50 text-amber-800",
-  S: "bg-orange-50 text-orange-800",
-  N: "bg-slate-800 text-white",
-  C: "bg-emerald-50 text-emerald-800",
-  MA: "bg-red-50 text-red-800",
-  F: "bg-purple-50 text-purple-800",
-  RC: "bg-teal-50 text-teal-800",
-  JS: "bg-lime-50 text-lime-800",
-};
-
-function dateForDay(periodStart: Date, dayIndex: number): Date {
-  return new Date(periodStart.getTime() + dayIndex * 86_400_000);
-}
 
 export function SchedulingBoard({
   periodId,

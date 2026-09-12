@@ -39,7 +39,12 @@
     "invalidCredentials": "Onjuist e-mailadres of wachtwoord.",
     "invalidInput": "Controleer de ingevoerde gegevens.",
     "emailTaken": "Er bestaat al een account met dit e-mailadres.",
-    "genericError": "Er is een fout opgetreden. Probeer opnieuw."
+    "genericError": "Er is een fout opgetreden. Probeer opnieuw.",
+    "newPasswordLabel": "Nieuw wachtwoord (minimaal 8 tekens)",
+    "setPasswordTitle": "Wachtwoord instellen",
+    "setPasswordHint": "Laatste stap voor toegang tot uw ruimte.",
+    "setPasswordSubmit": "Bevestigen",
+    "setPasswordNoSession": "Deze link is verlopen of al gebruikt. Vraag een nieuwe uitnodiging aan."
   },
   "dashboard": {
     "greeting": "Hallo {name}",
@@ -131,7 +136,16 @@
     "dayOnlyLabel": "Enkel overdag",
     "nightOnlyLabel": "Enkel nachtwerk",
     "minNightsLabel": "Min. nachten / 4 weken",
-    "maxNightsLabel": "Max. nachten / 4 weken"
+    "maxNightsLabel": "Max. nachten / 4 weken",
+    "appAccessTitle": "Apptoegang (werknemer)",
+    "appAccessHint": "Laat deze werknemer zijn/haar rooster raadplegen via de telefoon, met een eigen e-mail en wachtwoord.",
+    "appAccessNoEmail": "Voeg eerst een e-mailadres toe voor deze werknemer.",
+    "appAccessInvite": "Uitnodigen voor de app",
+    "appAccessInviteSent": "Uitnodiging per e-mail verzonden.",
+    "appAccessAlreadyInvited": "Deze werknemer is al uitgenodigd.",
+    "appAccessEmailTaken": "Dit e-mailadres wordt al gebruikt door een ander account.",
+    "appAccessActive": "Toegang actief",
+    "appAccessRevoke": "Toegang intrekken"
   },
   "history": {
     "title": "Geschiedenis",
@@ -220,5 +234,11 @@
     "severityCritical": "Kritiek",
     "severityWarning": "Te controleren",
     "saveError": "Er is een fout opgetreden bij het opslaan."
+  },
+  "employee": {
+    "loginSubtitle": "Werknemersruimte",
+    "scheduleTitle": "Hallo {name}",
+    "scheduleEmpty": "Nog geen rooster beschikbaar.",
+    "totalHours": "Totaal voor deze periode: {hours}u"
   }
 }

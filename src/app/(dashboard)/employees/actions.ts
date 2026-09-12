@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireCurrentUser } from "@/lib/auth/current-user";
+import { requireAdmin, requireCurrentUser } from "@/lib/auth/current-user";
 import { employeeFormSchema } from "@/lib/employees/schema";
 import {
   createEmployee,
@@ -13,6 +13,11 @@ import {
 } from "@/lib/employees/mutations";
 import { employeeSchedulingProfileSchema } from "@/lib/scheduling/profile-schema";
 import { upsertEmployeeSchedulingProfile } from "@/lib/scheduling/mutations";
+import {
+  inviteEmployeeToApp,
+  revokeEmployeeAppAccess,
+  type InviteEmployeeToAppResult,
+} from "@/lib/employees/app-access";
 
 export type EmployeeFormState =
   | { ok: true }
@@ -118,5 +123,22 @@ export async function setEmployeeStatusAction(
 export async function regenerateQrTokenAction(employeeId: string) {
   const { company } = await requireCurrentUser();
   await regenerateQrToken(company.id, employeeId);
+  revalidatePath(`/employees/${employeeId}/edit`);
+}
+
+export type InviteEmployeeToAppState = InviteEmployeeToAppResult | undefined;
+
+export async function inviteEmployeeToAppAction(
+  employeeId: string,
+): Promise<InviteEmployeeToAppState> {
+  const { company } = await requireAdmin();
+  const result = await inviteEmployeeToApp(company.id, employeeId);
+  revalidatePath(`/employees/${employeeId}/edit`);
+  return result;
+}
+
+export async function revokeEmployeeAppAccessAction(employeeId: string) {
+  const { company } = await requireAdmin();
+  await revokeEmployeeAppAccess(company.id, employeeId);
   revalidatePath(`/employees/${employeeId}/edit`);
 }

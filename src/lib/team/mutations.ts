@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
+import { env } from "@/lib/config/env";
 import type { UserRole } from "@/types/database";
 
 export type InviteTeamMemberInput = {
@@ -38,8 +39,10 @@ export async function inviteTeamMember(
   }
 
   const serviceRole = createSupabaseServiceRoleClient();
-  const { data: invited, error: inviteError } =
-    await serviceRole.auth.admin.inviteUserByEmail(input.email);
+  const { data: invited, error: inviteError } = await serviceRole.auth.admin.inviteUserByEmail(
+    input.email,
+    { redirectTo: `${env.appUrl}/auth/callback` },
+  );
 
   if (inviteError || !invited.user) {
     return { ok: false, error: "generic_error" };
