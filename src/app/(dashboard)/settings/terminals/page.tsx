@@ -33,6 +33,7 @@ export default async function TerminalsSettingsPage() {
   ]);
 
   const siteNameById = new Map((sites ?? []).map((site) => [site.id, site.name]));
+  const nowMs = new Date().getTime();
 
   return (
     <div className="space-y-6">
@@ -43,45 +44,61 @@ export default async function TerminalsSettingsPage() {
       <Card>
         {terminals && terminals.length > 0 ? (
           <ul className="divide-y divide-border">
-            {terminals.map((terminal) => (
-              <li key={terminal.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{terminal.name}</p>
-                  <p className="text-xs text-muted">
-                    {terminal.site_id && siteNameById.has(terminal.site_id)
-                      ? siteNameById.get(terminal.site_id)
-                      : t("employees.siteNone")}
-                  </p>
-                  {terminal.activation_code && (
-                    <p className="mt-1 text-xs text-foreground">
-                      {t("settings.terminals.activationCodeIntro")}{" "}
-                      <span className="font-mono font-bold tracking-widest text-primary">
-                        {terminal.activation_code}
-                      </span>
+            {terminals.map((terminal) => {
+              const isCodeExpired =
+                !terminal.activation_code_expires_at ||
+                new Date(terminal.activation_code_expires_at).getTime() < nowMs;
+              const hasUsableCode = Boolean(terminal.activation_code) && !isCodeExpired;
+              // Toujours possible de générer un nouveau code, sauf quand un
+              // code valide et non expiré est déjà affiché (pas la peine de
+              // le remplacer avant qu'il n'ait été utilisé ou n'expire).
+              const canReissue = !hasUsableCode;
+
+              return (
+                <li key={terminal.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{terminal.name}</p>
+                    <p className="text-xs text-muted">
+                      {terminal.site_id && siteNameById.has(terminal.site_id)
+                        ? siteNameById.get(terminal.site_id)
+                        : t("employees.siteNone")}
                     </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge tone={STATUS_TONE[terminal.status]}>
-                    {t(`settings.terminals.status.${terminal.status}`)}
-                  </Badge>
-                  {terminal.status !== "PENDING_ACTIVATION" && (
-                    <form action={reissueActivationCodeAction.bind(null, terminal.id)}>
-                      <Button type="submit" variant="secondary" className="px-3 py-1.5 text-xs">
-                        {t("settings.terminals.reissueCode")}
-                      </Button>
-                    </form>
-                  )}
-                  {terminal.status !== "INACTIVE" && (
-                    <form action={deactivateTerminalAction.bind(null, terminal.id)}>
-                      <Button type="submit" variant="ghost" className="px-3 py-1.5 text-xs text-danger">
-                        {t("settings.terminals.deactivate")}
-                      </Button>
-                    </form>
-                  )}
-                </div>
-              </li>
-            ))}
+                    {hasUsableCode && (
+                      <p className="mt-1 text-xs text-foreground">
+                        {t("settings.terminals.activationCodeIntro")}{" "}
+                        <span className="font-mono font-bold tracking-widest text-primary">
+                          {terminal.activation_code}
+                        </span>
+                      </p>
+                    )}
+                    {terminal.status === "PENDING_ACTIVATION" && isCodeExpired && (
+                      <p className="mt-1 text-xs text-danger">
+                        {t("settings.terminals.codeExpired")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge tone={STATUS_TONE[terminal.status]}>
+                      {t(`settings.terminals.status.${terminal.status}`)}
+                    </Badge>
+                    {canReissue && (
+                      <form action={reissueActivationCodeAction.bind(null, terminal.id)}>
+                        <Button type="submit" variant="secondary" className="px-3 py-1.5 text-xs">
+                          {t("settings.terminals.reissueCode")}
+                        </Button>
+                      </form>
+                    )}
+                    {terminal.status !== "INACTIVE" && (
+                      <form action={deactivateTerminalAction.bind(null, terminal.id)}>
+                        <Button type="submit" variant="ghost" className="px-3 py-1.5 text-xs text-danger">
+                          {t("settings.terminals.deactivate")}
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-sm text-muted">{t("settings.terminals.empty")}</p>

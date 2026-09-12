@@ -5,9 +5,19 @@ import type { Terminal } from "@/types/database";
 
 const SALT_ROUNDS = 10;
 
+// Un code à 6 chiffres (1 000 000 de combinaisons) sans expiration reste
+// devinable indéfiniment, sans qu'aucune limitation de débit ne soit en
+// place au niveau applicatif. Une fenêtre de validité courte réduit
+// fortement la surface d'attaque exploitable.
+const ACTIVATION_CODE_TTL_MS = 24 * 60 * 60 * 1000;
+
 /** Code court (6 chiffres), à taper une seule fois sur la tablette lors de l'activation. */
 export function generateActivationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+export function getActivationCodeExpiry(): string {
+  return new Date(Date.now() + ACTIVATION_CODE_TTL_MS).toISOString();
 }
 
 function generateSecret(): string {
@@ -33,6 +43,7 @@ export async function activateTerminal(
     .select("id, name")
     .eq("activation_code", activationCode)
     .eq("status", "PENDING_ACTIVATION")
+    .gt("activation_code_expires_at", new Date().toISOString())
     .maybeSingle();
 
   if (!terminal) {
@@ -47,6 +58,7 @@ export async function activateTerminal(
     .update({
       terminal_secret_hash: secretHash,
       activation_code: null,
+      activation_code_expires_at: null,
       status: "ACTIVE",
       last_seen_at: new Date().toISOString(),
     })

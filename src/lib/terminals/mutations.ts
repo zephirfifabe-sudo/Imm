@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { generateActivationCode } from "@/lib/timeclock/terminal-auth";
+import { generateActivationCode, getActivationCodeExpiry } from "@/lib/timeclock/terminal-auth";
 
 function generateTerminalCode(): string {
   return `KLOCK-TERM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
@@ -32,6 +32,7 @@ export async function createTerminal(
       terminal_code: generateTerminalCode(),
       status: "PENDING_ACTIVATION",
       activation_code: activationCode,
+      activation_code_expires_at: getActivationCodeExpiry(),
       terminal_secret_hash: null,
       software_version: null,
       last_seen_at: null,
@@ -68,6 +69,7 @@ export async function reissueActivationCode(
       .update({
         status: "PENDING_ACTIVATION",
         activation_code: activationCode,
+        activation_code_expires_at: getActivationCodeExpiry(),
         terminal_secret_hash: null,
       })
       .eq("id", terminalId)
@@ -98,6 +100,7 @@ export async function deactivateTerminal(
       status: "INACTIVE",
       terminal_secret_hash: null,
       activation_code: null,
+      activation_code_expires_at: null,
     })
     .eq("id", terminalId)
     .eq("company_id", companyId);

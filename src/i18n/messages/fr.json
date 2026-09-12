@@ -91,6 +91,7 @@
       "addTitle": "Ajouter un terminal",
       "activationCodeIntro": "Code d'activation :",
       "reissueCode": "Nouveau code",
+      "codeExpired": "Code d'activation expiré — générez-en un nouveau.",
       "deactivate": "Désactiver",
       "status": {
         "ACTIVE": "En ligne",

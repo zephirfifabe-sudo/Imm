@@ -91,6 +91,7 @@
       "addTitle": "Terminal toevoegen",
       "activationCodeIntro": "Activeringscode:",
       "reissueCode": "Nieuwe code",
+      "codeExpired": "Activeringscode verlopen — genereer een nieuwe.",
       "deactivate": "Deactiveren",
       "status": {
         "ACTIVE": "Online",
