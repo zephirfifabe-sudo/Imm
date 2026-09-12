@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { Logo } from "@/components/ui/Logo";
 import { LoginForm } from "./LoginForm";
 import { getTranslator } from "@/i18n";
 
@@ -9,9 +10,11 @@ export default function EmployeeLoginPage() {
     <main className="flex min-h-screen flex-1 items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-foreground">
-            {t("common.appName")}
-          </h1>
+          <Logo
+            className="justify-center"
+            markClassName="h-9 w-9"
+            textClassName="text-2xl"
+          />
           <p className="mt-1 text-sm text-muted">{t("employee.loginSubtitle")}</p>
         </div>
         <Card>

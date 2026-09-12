@@ -26,6 +26,7 @@ import {
   WarningIcon,
   WifiOffIcon,
 } from "@/components/ui/icons";
+import { Logo } from "@/components/ui/Logo";
 
 const STORAGE_KEY = "klock_terminal_token";
 const SYNC_RETRY_INTERVAL_MS = 20000;
@@ -322,7 +323,7 @@ export default function TerminalPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-surface px-6 py-10 text-center">
-      <h1 className="mb-1 text-3xl font-bold tracking-tight text-primary">KLOCK</h1>
+      <Logo className="mb-1 justify-center" markClassName="h-10 w-10" textClassName="text-3xl" />
       <p className="mb-6 text-xs font-medium uppercase tracking-widest text-muted">
         Borne de pointage
       </p>

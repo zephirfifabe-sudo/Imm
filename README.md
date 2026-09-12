@@ -238,6 +238,15 @@ npm run lint          # ESLint
   fait**: dashboard admin, écran employé mobile, planificateur d'horaires
   — même système de design de base (`Button`/`Card`/`Input` déjà partagés),
   mais pas de passe dédiée pour l'instant.
+  Couleur ajustée juste après: le vert vif se rapprochait trop de Shyfter
+  (concurrent belge direct sur le même marché planning RH/pointage) —
+  remplacé par un violet, propagé partout via les mêmes tokens CSS
+  (`--primary`/`--primary-dark`/`--primary-light`/`--primary-soft`).
+  Logo créé dans la foulée: un cadran d'horloge minimaliste sur un badge
+  arrondi en dégradé violet (`src/components/ui/Logo.tsx`, SVG vectoriel —
+  pas d'image externe), utilisé en en-tête sur toutes les pages
+  employeur/employé/terminal, et comme favicon (`src/app/icon.svg`, servi
+  automatiquement par la convention Next.js).
 
 Toutes les phases du plan de développement initial sont maintenant
 couvertes, plus ces deux nouveaux modules (planification, compte employé).

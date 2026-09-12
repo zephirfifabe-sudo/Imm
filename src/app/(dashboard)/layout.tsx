@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { logoutAction } from "./actions";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { getTranslator } from "@/i18n";
 
 const t = getTranslator();
@@ -18,10 +19,8 @@ export default async function DashboardLayout({
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-4">
           <div>
-            <p className="text-sm font-semibold text-foreground">
-              {t("common.appName")}
-            </p>
-            <p className="text-xs text-muted">{company.name}</p>
+            <Logo markClassName="h-6 w-6" textClassName="text-sm" />
+            <p className="mt-0.5 text-xs text-muted">{company.name}</p>
           </div>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/dashboard" className="text-foreground hover:text-primary">
