@@ -27,6 +27,19 @@ export async function activateTerminalAction(
   return activateTerminal(parsed.data);
 }
 
+/**
+ * Vérifie qu'un token stocké sur l'appareil correspond toujours à un
+ * terminal actif, sans rien tenter d'autre (pas d'identification, pas de
+ * pointage). Utilisé au chargement de l'écran pour détecter un terminal
+ * désactivé entre-temps: sans ce contrôle, l'écran d'accueil (PIN/QR/NFC)
+ * reste affiché — basé uniquement sur la présence du token en local —
+ * jusqu'à ce qu'un employé tente réellement de s'identifier et échoue.
+ */
+export async function checkTerminalStatusAction(token: string): Promise<{ ok: boolean }> {
+  const terminal = await verifyTerminalToken(token);
+  return { ok: terminal !== null };
+}
+
 export type IdentifyResult =
   | {
       ok: true;

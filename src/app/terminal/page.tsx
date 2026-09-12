@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   activateTerminalAction,
+  checkTerminalStatusAction,
   identifyEmployeeAction,
   recordClockAction,
 } from "./actions";
@@ -152,6 +153,20 @@ export default function TerminalPage() {
     void flushQueue(token);
     const interval = setInterval(() => void flushQueue(token), SYNC_RETRY_INTERVAL_MS);
     return () => clearInterval(interval);
+  }, [token, isOnline]);
+
+  // Le token stocké localement ne prouve rien à lui seul: un terminal
+  // désactivé depuis le dashboard doit cesser d'afficher l'écran d'accueil
+  // (PIN/QR/NFC) dès que possible, pas seulement au moment où un employé
+  // tente de s'identifier et échoue.
+  useEffect(() => {
+    if (!token || !isOnline) return;
+    checkTerminalStatusAction(token).then((result) => {
+      if (!result.ok) {
+        window.localStorage.removeItem(STORAGE_KEY);
+        resetToHome();
+      }
+    });
   }, [token, isOnline]);
 
   function resetToHome() {
