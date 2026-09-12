@@ -137,6 +137,44 @@ export type Subscription = {
   updated_at: string;
 }
 
+export type EmployeeSchedulingProfile = {
+  id: string;
+  employee_id: string;
+  company_id: string;
+  contract_hours_per_week: number;
+  contract_type: string;
+  day_only: boolean;
+  night_only: boolean;
+  min_nights_per_period: number;
+  max_nights_per_period: number;
+  color: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SchedulePeriod = {
+  id: string;
+  company_id: string;
+  name: string;
+  period_start: string;
+  period_end: string;
+  settings: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ScheduleShift = {
+  id: string;
+  schedule_period_id: string;
+  employee_id: string;
+  company_id: string;
+  day_index: number;
+  code: string;
+  locked: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 type GeneratedColumns = "id" | "created_at" | "updated_at";
 
 /** Insert/Update dérivés du Row: les colonnes générées par la base restent optionnelles. */
@@ -161,6 +199,9 @@ export type Database = {
       audit_logs: TableDef<AuditLog>;
       plans: TableDef<Plan>;
       subscriptions: TableDef<Subscription>;
+      employee_scheduling_profiles: TableDef<EmployeeSchedulingProfile>;
+      schedule_periods: TableDef<SchedulePeriod>;
+      schedule_shifts: TableDef<ScheduleShift>;
     };
     Views: Record<string, never>;
     Functions: {

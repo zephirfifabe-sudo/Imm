@@ -35,6 +35,9 @@ export default async function DashboardLayout({
             </Link>
             {isAdmin && (
               <>
+                <Link href="/scheduling" className="text-foreground hover:text-primary">
+                  {t("nav.scheduling")}
+                </Link>
                 <Link
                   href="/settings/company"
                   className="text-foreground hover:text-primary"

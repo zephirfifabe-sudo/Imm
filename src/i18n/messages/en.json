@@ -19,6 +19,7 @@
     "auditLog": "Audit log",
     "settingsSubscription": "Subscription",
     "history": "History",
+    "scheduling": "Scheduling",
     "logout": "Log out"
   },
   "auth": {
@@ -122,7 +123,15 @@
     "backToList": "Back to list",
     "duplicateCode": "This employee code is already used in your company.",
     "duplicatePin": "This PIN code is already used by another employee.",
-    "planLimitReached": "Your plan's maximum number of active employees has been reached. Upgrade to a higher plan to add more."
+    "planLimitReached": "Your plan's maximum number of active employees has been reached. Upgrade to a higher plan to add more.",
+    "schedulingSectionTitle": "Scheduling",
+    "schedulingSectionHint": "Optional — fill in only if this employee should appear in the schedule planner.",
+    "contractHoursLabel": "Contract hours / week",
+    "contractTypeLabel": "Contract type",
+    "dayOnlyLabel": "Daytime only",
+    "nightOnlyLabel": "Night shifts only",
+    "minNightsLabel": "Min. nights / 4 weeks",
+    "maxNightsLabel": "Max. nights / 4 weeks"
   },
   "history": {
     "title": "History",
@@ -179,5 +188,37 @@
       "unpaid": "Unpaid",
       "paused": "Paused"
     }
+  },
+  "scheduling": {
+    "title": "Scheduling",
+    "empty": "No schedule yet.",
+    "createPeriodTitle": "Create a schedule",
+    "periodNameLabel": "Schedule name",
+    "periodStartLabel": "Start date (4-week cycle)",
+    "periodStartHint": "The period covers 28 days from this date.",
+    "createPeriod": "Create",
+    "periodSubtitle": "28-day cycle.",
+    "settingsTitle": "Staffing and rules",
+    "minLabel": "Min",
+    "maxLabel": "Max",
+    "minRestHoursLabel": "Minimum rest between shifts (h)",
+    "maxConsecutiveWorkDaysLabel": "Max consecutive work days",
+    "maxWeekendsLabel": "Max weekends worked / period",
+    "maxConsecutiveNightsLabel": "Max consecutive nights",
+    "requireNightChainingLabel": "Chain nights into blocks",
+    "enforceWeekendQuotaLabel": "Limit weekends worked",
+    "rulesDisclaimer": "These values are general Belgian labour law recommendations, to be adjusted to your situation — not legal advice.",
+    "gridTitle": "Schedule",
+    "generate": "Generate schedule",
+    "clear": "Clear schedule",
+    "exportCsv": "Export as CSV",
+    "noEmployees": "No employee has a scheduling profile yet. Add an employee's contract hours from their profile page for them to appear here.",
+    "weekLabel": "Week {number}",
+    "totalLabel": "Total",
+    "complianceTitle": "Rules check",
+    "complianceOk": "No issue detected.",
+    "severityCritical": "Critical",
+    "severityWarning": "To review",
+    "saveError": "Something went wrong while saving."
   }
 }

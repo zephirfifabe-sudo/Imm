@@ -19,6 +19,7 @@
     "auditLog": "Auditlog",
     "settingsSubscription": "Abonnement",
     "history": "Geschiedenis",
+    "scheduling": "Planning",
     "logout": "Uitloggen"
   },
   "auth": {
@@ -122,7 +123,15 @@
     "backToList": "Terug naar de lijst",
     "duplicateCode": "Dit personeelsnummer wordt al gebruikt in uw bedrijf.",
     "duplicatePin": "Deze PIN-code wordt al gebruikt door een andere werknemer.",
-    "planLimitReached": "Het maximum aantal actieve werknemers van uw abonnement is bereikt. Kies een hoger abonnement om er meer toe te voegen."
+    "planLimitReached": "Het maximum aantal actieve werknemers van uw abonnement is bereikt. Kies een hoger abonnement om er meer toe te voegen.",
+    "schedulingSectionTitle": "Planning",
+    "schedulingSectionHint": "Optioneel — enkel invullen als deze werknemer moet verschijnen in de planningstool.",
+    "contractHoursLabel": "Contracturen / week",
+    "contractTypeLabel": "Type contract",
+    "dayOnlyLabel": "Enkel overdag",
+    "nightOnlyLabel": "Enkel nachtwerk",
+    "minNightsLabel": "Min. nachten / 4 weken",
+    "maxNightsLabel": "Max. nachten / 4 weken"
   },
   "history": {
     "title": "Geschiedenis",
@@ -179,5 +188,37 @@
       "unpaid": "Onbetaald",
       "paused": "Gepauzeerd"
     }
+  },
+  "scheduling": {
+    "title": "Planning",
+    "empty": "Nog geen rooster.",
+    "createPeriodTitle": "Rooster aanmaken",
+    "periodNameLabel": "Naam van het rooster",
+    "periodStartLabel": "Startdatum (cyclus van 4 weken)",
+    "periodStartHint": "De periode loopt 28 dagen vanaf deze datum.",
+    "createPeriod": "Aanmaken",
+    "periodSubtitle": "Cyclus van 28 dagen.",
+    "settingsTitle": "Bezetting en regels",
+    "minLabel": "Min",
+    "maxLabel": "Max",
+    "minRestHoursLabel": "Minimale rust tussen twee shiften (u)",
+    "maxConsecutiveWorkDaysLabel": "Max opeenvolgende werkdagen",
+    "maxWeekendsLabel": "Max gewerkte weekends / periode",
+    "maxConsecutiveNightsLabel": "Max opeenvolgende nachten",
+    "requireNightChainingLabel": "Nachten in blokken aaneenschakelen",
+    "enforceWeekendQuotaLabel": "Gewerkte weekends beperken",
+    "rulesDisclaimer": "Deze waarden zijn algemene aanbevelingen van het Belgisch arbeidsrecht, aan te passen aan uw situatie — geen juridisch advies.",
+    "gridTitle": "Rooster",
+    "generate": "Rooster genereren",
+    "clear": "Rooster wissen",
+    "exportCsv": "Exporteren als CSV",
+    "noEmployees": "Nog geen werknemer heeft een planningsprofiel. Voeg de contracturen van een werknemer toe via zijn/haar fiche.",
+    "weekLabel": "Week {number}",
+    "totalLabel": "Totaal",
+    "complianceTitle": "Controle van de regels",
+    "complianceOk": "Geen afwijking gedetecteerd.",
+    "severityCritical": "Kritiek",
+    "severityWarning": "Te controleren",
+    "saveError": "Er is een fout opgetreden bij het opslaan."
   }
 }

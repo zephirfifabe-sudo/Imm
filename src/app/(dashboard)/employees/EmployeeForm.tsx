@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/Label";
 import { getTranslator } from "@/i18n";
 import type { Site } from "@/types/database";
 import type { EmployeeFormState } from "./actions";
+import { CONTRACT_TYPES } from "@/lib/scheduling/profile-schema";
 
 const t = getTranslator();
 
@@ -37,6 +38,12 @@ export function EmployeeForm({
     jobTitle?: string;
     siteId?: string;
     nfcToken?: string;
+    contractHoursPerWeek?: number;
+    contractType?: string;
+    dayOnly?: boolean;
+    nightOnly?: boolean;
+    minNightsPerPeriod?: number;
+    maxNightsPerPeriod?: number;
   };
   submitLabel: string;
 }) {
@@ -123,6 +130,91 @@ export function EmployeeForm({
           maxLength={200}
           defaultValue={defaultValues?.nfcToken}
         />
+      </div>
+      <div className="border-t border-border pt-4">
+        <p className="mb-3 text-sm font-medium text-foreground">
+          {t("employees.schedulingSectionTitle")}
+        </p>
+        <p className="mb-3 text-xs text-muted">{t("employees.schedulingSectionHint")}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="contractHoursPerWeek">
+              {t("employees.contractHoursLabel")}
+            </Label>
+            <Input
+              id="contractHoursPerWeek"
+              name="contractHoursPerWeek"
+              type="number"
+              min={1}
+              max={60}
+              step={0.5}
+              defaultValue={defaultValues?.contractHoursPerWeek}
+            />
+          </div>
+          <div>
+            <Label htmlFor="contractType">{t("employees.contractTypeLabel")}</Label>
+            <select
+              id="contractType"
+              name="contractType"
+              defaultValue={defaultValues?.contractType ?? "CDI"}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            >
+              {CONTRACT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-4">
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              name="dayOnly"
+              value="true"
+              defaultChecked={defaultValues?.dayOnly}
+            />
+            {t("employees.dayOnlyLabel")}
+          </label>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              name="nightOnly"
+              value="true"
+              defaultChecked={defaultValues?.nightOnly}
+            />
+            {t("employees.nightOnlyLabel")}
+          </label>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="minNightsPerPeriod">
+              {t("employees.minNightsLabel")}
+            </Label>
+            <Input
+              id="minNightsPerPeriod"
+              name="minNightsPerPeriod"
+              type="number"
+              min={0}
+              max={28}
+              defaultValue={defaultValues?.minNightsPerPeriod ?? 0}
+            />
+          </div>
+          <div>
+            <Label htmlFor="maxNightsPerPeriod">
+              {t("employees.maxNightsLabel")}
+            </Label>
+            <Input
+              id="maxNightsPerPeriod"
+              name="maxNightsPerPeriod"
+              type="number"
+              min={0}
+              max={28}
+              defaultValue={defaultValues?.maxNightsPerPeriod ?? 8}
+            />
+          </div>
+        </div>
       </div>
       {state?.ok === false && (
         <p role="alert" className="text-sm text-danger">

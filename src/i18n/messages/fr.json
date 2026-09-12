@@ -19,6 +19,7 @@
     "auditLog": "Journal d'audit",
     "settingsSubscription": "Abonnement",
     "history": "Historique",
+    "scheduling": "Planification",
     "logout": "Déconnexion"
   },
   "auth": {
@@ -122,7 +123,15 @@
     "backToList": "Retour à la liste",
     "duplicateCode": "Ce matricule est déjà utilisé dans votre entreprise.",
     "duplicatePin": "Ce code PIN est déjà utilisé par un autre employé.",
-    "planLimitReached": "Le nombre maximum d'employés actifs de votre plan est atteint. Passez à un plan supérieur pour en ajouter."
+    "planLimitReached": "Le nombre maximum d'employés actifs de votre plan est atteint. Passez à un plan supérieur pour en ajouter.",
+    "schedulingSectionTitle": "Planification",
+    "schedulingSectionHint": "Facultatif — à remplir uniquement si cet employé doit apparaître dans le planificateur d'horaires.",
+    "contractHoursLabel": "Heures contractuelles / semaine",
+    "contractTypeLabel": "Type de contrat",
+    "dayOnlyLabel": "Journée uniquement",
+    "nightOnlyLabel": "Nuit uniquement",
+    "minNightsLabel": "Min. nuits / 4 semaines",
+    "maxNightsLabel": "Max. nuits / 4 semaines"
   },
   "history": {
     "title": "Historique",
@@ -179,5 +188,37 @@
       "unpaid": "Impayé",
       "paused": "En pause"
     }
+  },
+  "scheduling": {
+    "title": "Planification",
+    "empty": "Aucun horaire pour le moment.",
+    "createPeriodTitle": "Créer un horaire",
+    "periodNameLabel": "Nom de l'horaire",
+    "periodStartLabel": "Date de début (cycle de 4 semaines)",
+    "periodStartHint": "La période couvre 28 jours à partir de cette date.",
+    "createPeriod": "Créer",
+    "periodSubtitle": "Cycle de 28 jours.",
+    "settingsTitle": "Effectifs et règles",
+    "minLabel": "Min",
+    "maxLabel": "Max",
+    "minRestHoursLabel": "Repos minimum entre deux vacations (h)",
+    "maxConsecutiveWorkDaysLabel": "Max jours de travail consécutifs",
+    "maxWeekendsLabel": "Max week-ends travaillés / période",
+    "maxConsecutiveNightsLabel": "Max nuits consécutives",
+    "requireNightChainingLabel": "Enchaîner les nuits par blocs",
+    "enforceWeekendQuotaLabel": "Limiter les week-ends travaillés",
+    "rulesDisclaimer": "Ces valeurs sont des recommandations générales de droit du travail belge, à ajuster selon votre situation — elles ne constituent pas un avis juridique.",
+    "gridTitle": "Planning",
+    "generate": "Générer le planning",
+    "clear": "Effacer le planning",
+    "exportCsv": "Exporter en CSV",
+    "noEmployees": "Aucun employé n'a encore de profil de planification. Ajoutez les heures contractuelles d'un employé depuis sa fiche pour qu'il apparaisse ici.",
+    "weekLabel": "Semaine {number}",
+    "totalLabel": "Total",
+    "complianceTitle": "Vérification des règles",
+    "complianceOk": "Aucune anomalie détectée.",
+    "severityCritical": "Critique",
+    "severityWarning": "À vérifier",
+    "saveError": "Une erreur est survenue lors de l'enregistrement."
   }
 }

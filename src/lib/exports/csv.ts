@@ -31,3 +31,10 @@ export function rowsToCsv(rows: ExportRow[]): string {
   );
   return ["﻿" + header, ...lines].join("\r\n");
 }
+
+/** Même convention (";", BOM UTF-8) pour un export en forme de simple grille. */
+export function matrixToCsv(rows: string[][]): string {
+  const lines = rows.map((row) => row.map(escapeCsvField).join(DELIMITER));
+  const [firstLine, ...rest] = lines;
+  return firstLine === undefined ? "" : ["﻿" + firstLine, ...rest].join("\r\n");
+}

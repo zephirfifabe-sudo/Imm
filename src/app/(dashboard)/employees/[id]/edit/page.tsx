@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { EmployeeForm } from "../../EmployeeForm";
 import { updateEmployeeAction, regenerateQrTokenAction } from "../../actions";
 import { getTranslator } from "@/i18n";
+import { getEmployeeSchedulingProfile } from "@/lib/scheduling/mutations";
 
 const t = getTranslator();
 
@@ -36,6 +37,7 @@ export default async function EditEmployeePage({
     notFound();
   }
 
+  const schedulingProfile = await getEmployeeSchedulingProfile(company.id, employee.id);
   const boundUpdateAction = updateEmployeeAction.bind(null, employee.id);
 
   return (
@@ -56,6 +58,14 @@ export default async function EditEmployeePage({
             jobTitle: employee.job_title ?? undefined,
             siteId: employee.site_id ?? undefined,
             nfcToken: employee.nfc_token ?? undefined,
+            contractHoursPerWeek: schedulingProfile
+              ? Number(schedulingProfile.contract_hours_per_week)
+              : undefined,
+            contractType: schedulingProfile?.contract_type,
+            dayOnly: schedulingProfile?.day_only,
+            nightOnly: schedulingProfile?.night_only,
+            minNightsPerPeriod: schedulingProfile?.min_nights_per_period,
+            maxNightsPerPeriod: schedulingProfile?.max_nights_per_period,
           }}
           submitLabel={t("common.save")}
         />

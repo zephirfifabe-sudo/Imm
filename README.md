@@ -174,10 +174,32 @@ npm run lint          # ESLint
 - **Phase 11 (Hardening)** ✅ — audit systématique sur les 10 dimensions du
   cahier des charges. Résultat détaillé ci-dessous: § [Audit de
   durcissement (Phase 11)](#audit-de-durcissement-phase-11).
+- **Phase 12 (Planificateur d'horaires)** ✅ — nouveau module `/scheduling`
+  (réservé aux ADMIN), généré à partir d'un outil existant repris et
+  adapté: générateur automatique de planning sur un cycle de 28 jours
+  (nuits enchaînées par blocs, repos minimum, jours de travail consécutifs,
+  quota de week-ends), édition manuelle case par case, contrôle de
+  conformité, export CSV. Volontairement générique dès le départ: **aucune
+  référence à une commission paritaire ou à un secteur précis** — les
+  seuils par défaut (repos 11h, max 6 jours/semaine...) sont présentés
+  comme des recommandations générales de droit du travail belge à ajuster,
+  jamais comme une certification légale. Deux nouvelles tables séparées de
+  `employees` (`employee_scheduling_profiles`, `schedule_periods`,
+  `schedule_shifts`) — un employé sans heures contractuelles renseignées
+  reste simplement hors du planificateur. Champs de planification
+  (heures/semaine, type de contrat, jour/nuit uniquement, quota de nuits)
+  ajoutés directement au formulaire employé existant plutôt que dans un
+  écran séparé. **Non repris dans cette v1** (laissé pour une itération
+  suivante): horaire de base récurrent, congés/indisponibilités
+  jour-par-jour, règles personnalisées (incompatibilités entre employés),
+  rapprochement avec les vrais pointages, scoring/alertes intelligentes,
+  glisser-déposer — l'outil d'origine les avait tous, mais le v1 se
+  concentre sur le moteur de génération + l'édition + la conformité.
 
 Toutes les phases du plan de développement initial sont maintenant
-couvertes. Les prochaines étapes dépendent des retours d'usage réel (voir
-l'audit ci-dessous pour ce qui reste ouvert).
+couvertes, plus ce nouveau module de planification. Les prochaines étapes
+dépendent des retours d'usage réel (voir l'audit ci-dessous pour ce qui
+reste ouvert côté phases 1-11).
 
 ## Audit de durcissement (Phase 11)
 
