@@ -57,7 +57,7 @@ export async function identifyEmployeeAction(
     return { ok: false, error: "not_found" };
   }
 
-  const lastType = await getLastEntryType(employee.id);
+  const lastType = await getLastEntryType(terminal.company_id, employee.id);
 
   return {
     ok: true,

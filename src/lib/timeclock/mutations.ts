@@ -3,7 +3,16 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 import { isValidNextAction } from "./service";
 import type { TimeEntry, TimeEntryType, TimeEntrySource } from "@/types/database";
 
+/**
+ * `companyId` est redondant avec `employeeId` dans les deux appelants
+ * actuels (l'employé est déjà vérifié comme appartenant à l'entreprise
+ * avant cet appel) mais rendu obligatoire ici quand même: cette fonction
+ * utilise le service_role (RLS ignorée), un futur appelant qui oublierait
+ * de vérifier l'employé au préalable ne doit pas pouvoir lire le dernier
+ * pointage d'un employé d'une autre entreprise.
+ */
 export async function getLastEntryType(
+  companyId: string,
   employeeId: string,
 ): Promise<TimeEntryType | null> {
   const serviceRole = createSupabaseServiceRoleClient();
@@ -11,6 +20,7 @@ export async function getLastEntryType(
     .from("time_entries")
     .select("type")
     .eq("employee_id", employeeId)
+    .eq("company_id", companyId)
     .order("occurred_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -72,7 +82,7 @@ export async function recordClockEvent(params: {
     return { ok: false, error: "not_found" };
   }
 
-  const lastType = await getLastEntryType(params.employeeId);
+  const lastType = await getLastEntryType(params.companyId, params.employeeId);
   if (!isValidNextAction(lastType, params.type)) {
     return { ok: false, error: "invalid_transition" };
   }
@@ -93,6 +103,12 @@ export async function recordClockEvent(params: {
     .single();
 
   if (error || !data) {
+    console.error("recordClockEvent: insert failed", {
+      companyId: params.companyId,
+      employeeId: params.employeeId,
+      eventId: params.eventId,
+      error,
+    });
     return { ok: false, error: "generic_error" };
   }
 
