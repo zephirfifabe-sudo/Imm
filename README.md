@@ -171,6 +171,109 @@ npm run lint          # ESLint
   travaillé en H:MIN et en décimal (utilisable directement pour un calcul
   de paie), pauses, anomalies. PDF volontairement laissé de côté pour
   l'instant (CSV/Excel couvrent le besoin immédiat).
+- **Phase 11 (Hardening)** ✅ — audit systématique sur les 10 dimensions du
+  cahier des charges. Résultat détaillé ci-dessous: § [Audit de
+  durcissement (Phase 11)](#audit-de-durcissement-phase-11).
 
-Les phases suivantes (
-hardening) sont décrites dans le plan de développement du projet.
+Toutes les phases du plan de développement initial sont maintenant
+couvertes. Les prochaines étapes dépendent des retours d'usage réel (voir
+l'audit ci-dessous pour ce qui reste ouvert).
+
+## Audit de durcissement (Phase 11)
+
+Audit mené sur le code existant (aucun projet Supabase/Stripe réel n'étant
+connecté à cet environnement, rien n'a pu être vérifié en conditions
+réelles — seulement au niveau code, schéma et typage). Les problèmes réels
+trouvés ont été corrigés; ce qui nécessite une décision produit/juridique
+ou une infrastructure non encore en place est listé comme tel, sans
+prétendre que c'est réglé.
+
+### Corrigé pendant cet audit
+
+- **RLS** : la policy `time_entry_corrections_insert` permettait à
+  n'importe quel membre de l'entreprise d'insérer directement une ligne de
+  correction fabriquée, sans passer par `correct_time_entry` — donc sans
+  mise à jour réelle du pointage ni entrée d'audit. Supprimée
+  (`0008_harden_corrections_insert.sql`); les corrections ne passent plus
+  que par la fonction atomique.
+- **Terminal — code d'activation** : 6 chiffres (1M de combinaisons), sans
+  expiration, sans limitation de débit possible côté application, et
+  l'index d'unicité est **global** (pas par entreprise) — un attaquant
+  distant aurait pu, à terme, détourner l'activation d'un terminal de
+  n'importe quelle entreprise cliente. Les codes expirent maintenant après
+  24h (`0010_activation_code_expiry.sql`). Une vraie limitation de débit
+  nécessite une infrastructure dédiée (Upstash/Redis) — non ajoutée ici
+  pour éviter un faux correctif (un compteur en mémoire serait silencieusement
+  inefficace sur un déploiement serverless multi-instance).
+- **Défense en profondeur** : `getLastEntryType` ne filtrait que par
+  `employee_id` côté service_role (RLS ignorée) — aucune fuite exploitable
+  aujourd'hui (les deux appelants vérifient déjà l'entreprise avant), mais
+  un futur appelant qui oublierait cette vérification aurait pu lire le
+  dernier pointage d'une autre entreprise. `company_id` est maintenant un
+  paramètre obligatoire.
+- **Observabilité** : plusieurs chemins critiques avalaient une erreur
+  Postgres/Stripe sans rien logger. Le pire cas: le webhook Stripe
+  renvoyait 200 même quand l'écriture en base échouait, donc Stripe ne
+  réessayait jamais — un abonnement aurait pu rester désynchronisé
+  silencieusement pour toujours. Renvoie maintenant 500 (Stripe réessaie)
+  et journalise systématiquement.
+- **En-têtes de sécurité** : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy` ajoutés. Pas de CSP complète pour l'instant — impossible
+  à valider sans navigateur réel contre l'app déployée, et une CSP mal
+  réglée casse silencieusement l'app plutôt que d'échouer bruyamment.
+- **Index de performance** : `(company_id, occurred_at desc)` sur
+  `time_entries`, le motif de requête le plus fréquent (dashboard,
+  historique, exports).
+- `server-only` ajouté explicitement sur `lib/auth/current-user` et
+  `lib/supabase/server` (défense en profondeur).
+
+### Vérifié sans problème trouvé
+
+- **Permissions** : chaque page et chaque server action du dashboard
+  utilise `requireAdmin()` ou `requireCurrentUser()` de façon cohérente
+  avec le rôle attendu (vérifié fichier par fichier).
+- **Isolation multi-tenant (au niveau code)** : chaque usage du
+  service_role (qui ignore RLS) filtre explicitement par `company_id`,
+  sauf les lookups légitimes d'un enregistrement précis par son propre id
+  (terminal par id/code d'activation).
+- **Injections** : aucune requête SQL construite par concaténation de
+  chaîne côté application (uniquement le query builder Supabase);
+  `dangerouslySetInnerHTML` jamais utilisé (React échappe tout par
+  défaut).
+- **Secrets** : aucun secret en dur trouvé dans le code; `.env*` non
+  suivi par git; aucune variable sensible préfixée `NEXT_PUBLIC_`.
+- **Validation des entrées** : chaque server action lisant un `FormData`
+  passe par un schéma Zod (`safeParse`) avant utilisation.
+- **Dépendance `exceljs`** : avis de sécurité modéré sur `uuid` en
+  dépendance transitive — vérifié dans le code source d'`exceljs`
+  qu'il n'appelle que `uuid.v4()`, pas le chemin concerné par l'avis
+  (v3/v5/v6 avec un buffer fourni). Pas de downgrade forcé.
+
+### Gaps documentés (décision produit/juridique/infra requise — non résolus ici)
+
+- **RGPD** : pas de mécanisme d'anonymisation d'un employé (le schéma
+  interdit volontairement la suppression pour préserver l'historique de
+  pointage — voir Phase 3 — mais rien ne permet aujourd'hui de répondre à
+  un droit à l'effacement autrement qu'en gardant les données). Pas de
+  politique de rétention configurable. Aucune durée n'a été inventée
+  (conforme à la consigne), donc rien n'est automatiquement purgé.
+- **Isolation MANAGER par site** : un MANAGER peut aujourd'hui gérer les
+  employés de toute l'entreprise, pas seulement "ses" sites comme
+  l'envisage le cahier des charges — limitation déjà documentée depuis la
+  Phase 3, nécessiterait une table d'association utilisateur↔site.
+- **Rate limiting** : aucune limitation de débit nulle part (connexion,
+  PIN au terminal, invitations) — nécessite une infrastructure dédiée non
+  encore choisie.
+- **Tests d'intégration** : les 52 tests couvrent toute la logique pure
+  (transitions de pointage, calcul du temps travaillé, anomalies,
+  échappement CSV, limite d'employés, abstraction d'identification, file
+  hors-ligne). Rien qui touche une vraie base de données n'a pu être testé
+  automatiquement — authentification, isolation multi-tenant réelle
+  (RLS), écriture effective d'un pointage/correction/entrée d'audit — faute
+  de projet Supabase connecté à cet environnement. **C'est la
+  recommandation la plus importante de cet audit** : connecter un projet
+  Supabase (même un projet de test) est le prérequis pour toute validation
+  sérieuse avant un premier client réel.
+- **Conformité légale** : rien dans KLOCK n'a été validé par un juriste;
+  le produit continue de se présenter comme "conçu pour répondre aux
+  besoins" plutôt que "conforme", conformément à la consigne initiale.
