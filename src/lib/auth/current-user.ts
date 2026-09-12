@@ -1,3 +1,4 @@
+import "server-only";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppUser, Company } from "@/types/database";
