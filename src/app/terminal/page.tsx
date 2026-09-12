@@ -360,7 +360,7 @@ export default function TerminalPage() {
             type="button"
             disabled={isPending || activationCode.length !== 6}
             onClick={handleActivate}
-            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             Activer
           </button>
@@ -373,7 +373,7 @@ export default function TerminalPage() {
           <button
             type="button"
             onClick={() => setScreen({ name: "pin" })}
-            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105"
+            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105"
           >
             <PinIcon className="h-8 w-8 shrink-0" />
             Code PIN
@@ -381,7 +381,7 @@ export default function TerminalPage() {
           <button
             type="button"
             onClick={() => setScreen({ name: "qr" })}
-            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105"
+            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105"
           >
             <QrIcon className="h-8 w-8 shrink-0" />
             Badge QR
@@ -389,7 +389,7 @@ export default function TerminalPage() {
           <button
             type="button"
             onClick={() => setScreen({ name: "nfc" })}
-            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105"
+            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105"
           >
             <NfcIcon className="h-8 w-8 shrink-0" />
             Badge NFC
@@ -470,7 +470,7 @@ export default function TerminalPage() {
             type="button"
             disabled={isPending || !qrValue.trim()}
             onClick={() => handleIdentify("QR", qrValue.trim())}
-            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             Valider
           </button>
@@ -506,7 +506,7 @@ export default function TerminalPage() {
             type="button"
             disabled={isPending || !nfcValue.trim()}
             onClick={() => handleIdentify("NFC", nfcValue.trim())}
-            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             Valider
           </button>
@@ -527,7 +527,7 @@ export default function TerminalPage() {
                 type="button"
                 disabled={isPending}
                 onClick={() => handleClock(action)}
-                className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-6 text-2xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-6 text-2xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(124,58,237,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
               >
                 {ACTION_LABELS[action]}
               </button>
