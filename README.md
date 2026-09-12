@@ -264,16 +264,37 @@ prétendre que c'est réglé.
 - **Rate limiting** : aucune limitation de débit nulle part (connexion,
   PIN au terminal, invitations) — nécessite une infrastructure dédiée non
   encore choisie.
-- **Tests d'intégration** : les 52 tests couvrent toute la logique pure
-  (transitions de pointage, calcul du temps travaillé, anomalies,
-  échappement CSV, limite d'employés, abstraction d'identification, file
-  hors-ligne). Rien qui touche une vraie base de données n'a pu être testé
-  automatiquement — authentification, isolation multi-tenant réelle
-  (RLS), écriture effective d'un pointage/correction/entrée d'audit — faute
-  de projet Supabase connecté à cet environnement. **C'est la
-  recommandation la plus importante de cet audit** : connecter un projet
-  Supabase (même un projet de test) est le prérequis pour toute validation
-  sérieuse avant un premier client réel.
+- **Tests d'intégration automatisés** : les 52 tests couvrent toute la
+  logique pure (transitions de pointage, calcul du temps travaillé,
+  anomalies, échappement CSV, limite d'employés, abstraction
+  d'identification, file hors-ligne). Aucun test automatisé ne touche
+  encore une vraie base de données — le parcours ci-dessous a été validé
+  **manuellement**, pas par une suite de tests reproductible. Écrire de
+  vrais tests d'intégration (contre un projet Supabase de test, avec
+  seed/teardown) reste à faire avant un premier client réel.
 - **Conformité légale** : rien dans KLOCK n'a été validé par un juriste;
   le produit continue de se présenter comme "conçu pour répondre aux
   besoins" plutôt que "conforme", conformément à la consigne initiale.
+
+### Validation manuelle en conditions réelles (post-audit)
+
+Un vrai projet Supabase a été créé et lié (schéma des 10 migrations
+appliqué via son SQL Editor — cette session de développement n'a pas
+d'accès réseau sortant vers `supabase.co`, donc l'application des
+migrations et tout le test ci-dessous ont été faits par l'utilisateur en
+local, pas depuis cette session). Parcours validé de bout en bout, pour
+de vrai, contre cette base:
+
+signup (création entreprise + premier ADMIN) → dashboard → création d'un
+employé avec PIN → création et activation d'un terminal → identification
+PIN sur `/terminal` → pointage ARRIVÉE enregistré → visible dans le
+dashboard.
+
+Cela confirme en conditions réelles: Supabase Auth (`admin.createUser`),
+la fonction atomique `create_company_with_admin`, les policies RLS (accès
+via la session authentifiée), l'authentification du terminal par token, et
+`recordClockEvent` (identification + validation de transition +
+écriture). **Non testé pour l'instant**: deuxième entreprise pour
+vérifier l'isolation croisée, corrections de pointage, journal d'audit,
+mode hors-ligne, exports, et tout le flux Stripe (aucune clé Stripe
+configurée).
