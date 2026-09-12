@@ -224,6 +224,20 @@ npm run lint          # ESLint
   comme un chantier séparé, après l'authentification), écran de gestion
   centralisé des accès employé (aujourd'hui: un par un, depuis chaque
   fiche), et aucune app mobile native — c'est une page web responsive.
+- **Phase 14 (Design)** ✅ — première passe d'identité visuelle: ton
+  "moderne/tech" retenu (vert vif à la place du vert institutionnel par
+  défaut), boutons primaires avec dégradé et ombre douce, radius et
+  transitions harmonisés sur `Button`/`Input`/`Card`. Le terminal de
+  pointage (l'écran le plus critique, utilisé plusieurs fois par jour par
+  les employés) remplace tous ses emojis par de vraies icônes SVG dessinées
+  à la main (`src/components/ui/icons.tsx`) — volontairement pas de
+  librairie d'icônes externe pour une dizaine de pictogrammes, pour ne pas
+  ajouter une dépendance supply-chain pour si peu. Chaque écran du
+  terminal (activation, PIN, QR, NFC, succès, en attente de synchro) vérifié
+  visuellement via capture d'écran (Playwright) avant validation. **Non
+  fait**: dashboard admin, écran employé mobile, planificateur d'horaires
+  — même système de design de base (`Button`/`Card`/`Input` déjà partagés),
+  mais pas de passe dédiée pour l'instant.
 
 Toutes les phases du plan de développement initial sont maintenant
 couvertes, plus ces deux nouveaux modules (planification, compte employé).

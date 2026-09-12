@@ -15,6 +15,17 @@ import {
   type QueuedClockEvent,
 } from "./offline-queue";
 import type { TimeEntryType } from "@/types/database";
+import {
+  BackspaceIcon,
+  CheckCircleIcon,
+  ClockPendingIcon,
+  LockIcon,
+  NfcIcon,
+  PinIcon,
+  QrIcon,
+  WarningIcon,
+  WifiOffIcon,
+} from "@/components/ui/icons";
 
 const STORAGE_KEY = "klock_terminal_token";
 const SYNC_RETRY_INTERVAL_MS = 20000;
@@ -311,22 +322,28 @@ export default function TerminalPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-surface px-6 py-10 text-center">
-      <h1 className="mb-4 text-4xl font-bold tracking-tight text-primary">KLOCK</h1>
+      <h1 className="mb-1 text-3xl font-bold tracking-tight text-primary">KLOCK</h1>
+      <p className="mb-6 text-xs font-medium uppercase tracking-widest text-muted">
+        Borne de pointage
+      </p>
 
       {!isOnline && (
-        <p className="mb-4 rounded-lg bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800">
-          ⚠ Hors ligne — les pointages seront synchronisés au retour du réseau
+        <p className="mb-4 flex items-center gap-2 rounded-xl bg-warning-soft px-4 py-2 text-sm font-medium text-warning">
+          <WarningIcon className="h-5 w-5 shrink-0" />
+          Hors ligne — les pointages seront synchronisés au retour du réseau
         </p>
       )}
       {pendingCount > 0 && (
-        <p className="mb-6 text-xs text-muted">
+        <p className="mb-6 flex items-center gap-1.5 text-xs text-muted">
+          <ClockPendingIcon className="h-3.5 w-3.5" />
           {pendingCount} pointage{pendingCount > 1 ? "s" : ""} en attente de synchronisation
         </p>
       )}
 
       {!token && (
-        <div className="w-full max-w-sm space-y-4">
-          <p className="text-lg text-foreground">Activation du terminal</p>
+        <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-background p-6 shadow-sm">
+          <LockIcon className="mx-auto h-8 w-8 text-primary" />
+          <p className="text-lg font-semibold text-foreground">Activation du terminal</p>
           <p className="text-sm text-muted">
             Saisissez le code fourni par votre employeur.
           </p>
@@ -335,15 +352,15 @@ export default function TerminalPage() {
             maxLength={6}
             value={activationCode}
             onChange={(e) => setActivationCode(e.target.value.replace(/\D/g, ""))}
-            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-3xl tracking-[0.5em]"
+            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-3xl tracking-[0.5em] focus:border-primary focus:outline-2 focus:outline-offset-1 focus:outline-primary"
             placeholder="000000"
           />
-          {error && <p className="text-danger">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <button
             type="button"
             disabled={isPending || activationCode.length !== 6}
             onClick={handleActivate}
-            className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50"
+            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             Activer
           </button>
@@ -351,46 +368,49 @@ export default function TerminalPage() {
       )}
 
       {token && screen.name === "home" && (
-        <div className="w-full max-w-sm space-y-4">
-          <p className="text-xl text-foreground">Comment pointer ?</p>
+        <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-background p-6 shadow-sm">
+          <p className="mb-1 text-lg font-semibold text-foreground">Comment pointer ?</p>
           <button
             type="button"
             onClick={() => setScreen({ name: "pin" })}
-            className="w-full rounded-xl bg-primary px-6 py-6 text-2xl font-semibold text-primary-foreground"
+            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105"
           >
-            🔢 PIN
+            <PinIcon className="h-8 w-8 shrink-0" />
+            Code PIN
           </button>
           <button
             type="button"
             onClick={() => setScreen({ name: "qr" })}
-            className="w-full rounded-xl bg-primary px-6 py-6 text-2xl font-semibold text-primary-foreground"
+            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105"
           >
-            📷 QR CODE
+            <QrIcon className="h-8 w-8 shrink-0" />
+            Badge QR
           </button>
           <button
             type="button"
             onClick={() => setScreen({ name: "nfc" })}
-            className="w-full rounded-xl bg-primary px-6 py-6 text-2xl font-semibold text-primary-foreground"
+            className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-5 text-left text-xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105"
           >
-            📶 NFC
+            <NfcIcon className="h-8 w-8 shrink-0" />
+            Badge NFC
           </button>
         </div>
       )}
 
       {token && screen.name === "pin" && (
-        <div className="w-full max-w-sm space-y-4">
-          <p className="text-lg text-foreground">Entrez votre code PIN</p>
+        <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-background p-6 shadow-sm">
+          <p className="text-lg font-semibold text-foreground">Entrez votre code PIN</p>
           <div className="flex justify-center gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-14 w-12 rounded-lg border border-border bg-background text-3xl leading-[3.5rem]"
+                className="flex h-14 w-12 items-center justify-center rounded-xl border border-border bg-surface text-3xl"
               >
                 {pin[i] ? "•" : ""}
               </div>
             ))}
           </div>
-          {error && <p className="text-danger">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <div className="grid grid-cols-3 gap-3">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map(
               (key, i) =>
@@ -413,22 +433,23 @@ export default function TerminalPage() {
                         void handleIdentify("PIN", next);
                       }
                     }}
-                    className="rounded-xl border border-border bg-background py-5 text-2xl font-semibold text-foreground disabled:opacity-50"
+                    className="flex items-center justify-center rounded-xl border border-border bg-surface py-5 text-2xl font-semibold text-foreground transition-colors hover:bg-border/40 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {key}
+                    {key === "⌫" ? <BackspaceIcon className="h-6 w-6" /> : key}
                   </button>
                 ),
             )}
           </div>
-          <button type="button" onClick={resetToHome} className="text-sm text-muted">
+          <button type="button" onClick={resetToHome} className="text-sm font-medium text-muted hover:text-foreground">
             Annuler
           </button>
         </div>
       )}
 
       {token && screen.name === "qr" && (
-        <div className="w-full max-w-sm space-y-4">
-          <p className="text-lg text-foreground">Scannez votre badge QR</p>
+        <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-background p-6 shadow-sm">
+          <QrIcon className="mx-auto h-8 w-8 text-primary" />
+          <p className="text-lg font-semibold text-foreground">Scannez votre badge QR</p>
           <p className="text-xs text-muted">
             Utilisez le lecteur QR de la borne, ou saisissez le code manuellement.
           </p>
@@ -441,27 +462,28 @@ export default function TerminalPage() {
                 void handleIdentify("QR", qrValue.trim());
               }
             }}
-            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-lg"
+            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-lg focus:border-primary focus:outline-2 focus:outline-offset-1 focus:outline-primary"
             placeholder="Code du badge"
           />
-          {error && <p className="text-danger">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <button
             type="button"
             disabled={isPending || !qrValue.trim()}
             onClick={() => handleIdentify("QR", qrValue.trim())}
-            className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50"
+            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             Valider
           </button>
-          <button type="button" onClick={resetToHome} className="text-sm text-muted">
+          <button type="button" onClick={resetToHome} className="text-sm font-medium text-muted hover:text-foreground">
             Annuler
           </button>
         </div>
       )}
 
       {token && screen.name === "nfc" && (
-        <div className="w-full max-w-sm space-y-4">
-          <p className="text-lg text-foreground">Approchez votre badge NFC</p>
+        <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-background p-6 shadow-sm">
+          <NfcIcon className="mx-auto h-8 w-8 text-primary" />
+          <p className="text-lg font-semibold text-foreground">Approchez votre badge NFC</p>
           <p className="text-xs text-muted">
             {nfcScanState === "scanning"
               ? "En attente du badge..."
@@ -476,28 +498,28 @@ export default function TerminalPage() {
                 void handleIdentify("NFC", nfcValue.trim());
               }
             }}
-            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-lg"
+            className="w-full rounded-xl border border-border bg-background px-4 py-4 text-center text-lg focus:border-primary focus:outline-2 focus:outline-offset-1 focus:outline-primary"
             placeholder="Code du badge"
           />
-          {error && <p className="text-danger">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <button
             type="button"
             disabled={isPending || !nfcValue.trim()}
             onClick={() => handleIdentify("NFC", nfcValue.trim())}
-            className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50"
+            className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-4 text-lg font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             Valider
           </button>
-          <button type="button" onClick={resetToHome} className="text-sm text-muted">
+          <button type="button" onClick={resetToHome} className="text-sm font-medium text-muted hover:text-foreground">
             Annuler
           </button>
         </div>
       )}
 
       {token && screen.name === "identified" && (
-        <div className="w-full max-w-sm space-y-4">
-          <p className="text-2xl text-foreground">Bonjour {screen.firstName} 👋</p>
-          {error && <p className="text-danger">{error}</p>}
+        <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-background p-6 shadow-sm">
+          <p className="text-2xl font-semibold text-foreground">Bonjour {screen.firstName}</p>
+          {error && <p className="text-sm text-danger">{error}</p>}
           <div className="space-y-3">
             {screen.validActions.map((action) => (
               <button
@@ -505,21 +527,23 @@ export default function TerminalPage() {
                 type="button"
                 disabled={isPending}
                 onClick={() => handleClock(action)}
-                className="w-full rounded-xl bg-primary px-6 py-6 text-2xl font-semibold text-primary-foreground disabled:opacity-50"
+                className="w-full rounded-xl bg-gradient-to-br from-primary-light to-primary-dark px-6 py-6 text-2xl font-semibold text-primary-foreground shadow-[0_6px_16px_-4px_rgba(5,150,105,0.45)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
               >
                 {ACTION_LABELS[action]}
               </button>
             ))}
           </div>
-          <button type="button" onClick={resetToHome} className="text-sm text-muted">
+          <button type="button" onClick={resetToHome} className="text-sm font-medium text-muted hover:text-foreground">
             Annuler
           </button>
         </div>
       )}
 
       {token && screen.name === "success" && (
-        <div className="w-full max-w-sm space-y-3">
-          <p className="text-4xl">✓</p>
+        <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-background p-8 shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-primary">
+            <CheckCircleIcon className="h-9 w-9" />
+          </div>
           <p className="text-xl font-semibold text-foreground">
             {CONFIRM_LABELS[screen.type]}
           </p>
@@ -534,8 +558,10 @@ export default function TerminalPage() {
       )}
 
       {token && screen.name === "queued" && (
-        <div className="w-full max-w-sm space-y-3">
-          <p className="text-4xl">⏳</p>
+        <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-background p-8 shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-warning-soft text-warning">
+            <WifiOffIcon className="h-9 w-9" />
+          </div>
           <p className="text-xl font-semibold text-foreground">
             {CONFIRM_LABELS[screen.type]}
           </p>
