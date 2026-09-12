@@ -144,6 +144,7 @@
     "appAccessInviteSent": "Invitation sent by email.",
     "appAccessAlreadyInvited": "This employee has already been invited.",
     "appAccessEmailTaken": "This email address is already used by another account.",
+    "appAccessRateLimited": "Too many emails sent recently (Supabase's free-plan limit). Try again in a few minutes, or configure a custom SMTP server in Supabase to lift this limit.",
     "appAccessActive": "Access active",
     "appAccessRevoke": "Revoke access"
   },

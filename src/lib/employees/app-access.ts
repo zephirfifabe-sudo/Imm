@@ -5,7 +5,16 @@ import { env } from "@/lib/config/env";
 
 export type InviteEmployeeToAppResult =
   | { ok: true }
-  | { ok: false; error: "no_email" | "already_invited" | "email_already_used" | "not_found" | "generic_error" };
+  | {
+      ok: false;
+      error:
+        | "no_email"
+        | "already_invited"
+        | "email_already_used"
+        | "rate_limited"
+        | "not_found"
+        | "generic_error";
+    };
 
 /**
  * Invite un employé à créer son compte personnel (accès à son horaire
@@ -43,10 +52,31 @@ export async function inviteEmployeeToApp(
   );
 
   if (inviteError || !invited.user) {
-    // Cause la plus probable: cet e-mail correspond déjà à un compte Auth
-    // (un compte employeur `users`, ou un autre employé) — les comptes
-    // partagent le même espace Supabase Auth, un e-mail y est unique.
-    return { ok: false, error: "email_already_used" };
+    // Toujours logué côté serveur: sans ça, "email_already_used" masquait
+    // silencieusement des causes très différentes (quota d'envoi Supabase
+    // atteint, SMTP mal configuré, etc.), impossibles à diagnostiquer
+    // depuis le message générique affiché à l'ADMIN.
+    console.error("inviteEmployeeToApp: échec de l'invitation Supabase", {
+      employeeId,
+      code: inviteError?.code,
+      status: inviteError?.status,
+      message: inviteError?.message,
+    });
+
+    if (inviteError?.code === "email_exists") {
+      // Cet e-mail correspond déjà à un compte Auth (un compte employeur
+      // `users`, ou un autre employé) — les comptes partagent le même
+      // espace Supabase Auth, un e-mail y est unique.
+      return { ok: false, error: "email_already_used" };
+    }
+    if (
+      inviteError?.code === "over_email_send_rate_limit" ||
+      inviteError?.code === "over_request_rate_limit" ||
+      inviteError?.status === 429
+    ) {
+      return { ok: false, error: "rate_limited" };
+    }
+    return { ok: false, error: "generic_error" };
   }
 
   const { error: updateError } = await supabase

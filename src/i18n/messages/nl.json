@@ -144,6 +144,7 @@
     "appAccessInviteSent": "Uitnodiging per e-mail verzonden.",
     "appAccessAlreadyInvited": "Deze werknemer is al uitgenodigd.",
     "appAccessEmailTaken": "Dit e-mailadres wordt al gebruikt door een ander account.",
+    "appAccessRateLimited": "Te veel e-mails recent verzonden (limiet van Supabase op het gratis plan). Probeer het over enkele minuten opnieuw, of configureer een eigen SMTP-server in Supabase om deze limiet op te heffen.",
     "appAccessActive": "Toegang actief",
     "appAccessRevoke": "Toegang intrekken"
   },

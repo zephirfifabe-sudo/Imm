@@ -144,6 +144,7 @@
     "appAccessInviteSent": "Invitation envoyée par e-mail.",
     "appAccessAlreadyInvited": "Cet employé a déjà été invité.",
     "appAccessEmailTaken": "Cette adresse e-mail est déjà utilisée par un autre compte.",
+    "appAccessRateLimited": "Trop d'e-mails envoyés récemment (limite de Supabase sur le plan gratuit). Réessayez dans quelques minutes, ou configurez un serveur SMTP personnalisé dans Supabase pour lever cette limite.",
     "appAccessActive": "Accès activé",
     "appAccessRevoke": "Révoquer l'accès"
   },

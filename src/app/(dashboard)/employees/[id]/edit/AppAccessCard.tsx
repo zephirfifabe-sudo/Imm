@@ -16,6 +16,7 @@ const ERROR_KEYS: Record<string, string> = {
   no_email: "employees.appAccessNoEmail",
   already_invited: "employees.appAccessAlreadyInvited",
   email_already_used: "employees.appAccessEmailTaken",
+  rate_limited: "employees.appAccessRateLimited",
   not_found: "auth.genericError",
   generic_error: "auth.genericError",
 };
