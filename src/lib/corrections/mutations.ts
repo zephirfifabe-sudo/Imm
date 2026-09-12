@@ -43,5 +43,14 @@ export async function correctTimeEntry(params: {
     p_corrected_by: params.correctedByUserId,
   });
 
-  return error ? { ok: false, error: "generic_error" } : { ok: true };
+  if (error) {
+    console.error("correctTimeEntry: correct_time_entry RPC failed", {
+      companyId: params.companyId,
+      timeEntryId: params.timeEntryId,
+      error,
+    });
+    return { ok: false, error: "generic_error" };
+  }
+
+  return { ok: true };
 }

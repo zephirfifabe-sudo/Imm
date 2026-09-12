@@ -42,6 +42,11 @@ export async function createCompanyWithAdmin(
     const isEmailTaken =
       createUserError?.code === "email_exists" ||
       createUserError?.status === 422;
+    if (!isEmailTaken) {
+      console.error("createCompanyWithAdmin: auth.admin.createUser failed", {
+        error: createUserError,
+      });
+    }
     return { ok: false, error: isEmailTaken ? "email_taken" : "generic_error" };
   }
 
@@ -57,7 +62,19 @@ export async function createCompanyWithAdmin(
   );
 
   if (onboardingError) {
-    await serviceRole.auth.admin.deleteUser(created.user.id);
+    console.error("createCompanyWithAdmin: create_company_with_admin RPC failed, rolling back auth user", {
+      authUserId: created.user.id,
+      error: onboardingError,
+    });
+    const { error: rollbackError } = await serviceRole.auth.admin.deleteUser(
+      created.user.id,
+    );
+    if (rollbackError) {
+      console.error("createCompanyWithAdmin: rollback deleteUser also failed — orphaned auth user", {
+        authUserId: created.user.id,
+        error: rollbackError,
+      });
+    }
     return { ok: false, error: "generic_error" };
   }
 

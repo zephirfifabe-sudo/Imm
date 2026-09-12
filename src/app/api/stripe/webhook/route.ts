@@ -29,6 +29,13 @@ export async function POST(request: Request) {
 
   const serviceRole = createSupabaseServiceRoleClient();
 
+  // Une écriture ratée ici ne doit jamais renvoyer 200: Stripe ne
+  // réessaiera plus l'événement, et l'abonnement resterait désynchronisé
+  // silencieusement (le client aurait payé sans que KLOCK le sache, ou
+  // l'inverse). On répond 500 pour déclencher le retry de Stripe, et on
+  // journalise pour pouvoir diagnostiquer si l'échec persiste.
+  let writeError: unknown = null;
+
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -41,7 +48,7 @@ export async function POST(request: Request) {
           : session.subscription?.id;
 
       if (companyId && customerId && subscriptionId) {
-        await serviceRole
+        const { error } = await serviceRole
           .from("subscriptions")
           .update({
             stripe_customer_id: customerId,
@@ -49,6 +56,14 @@ export async function POST(request: Request) {
             status: "active",
           })
           .eq("company_id", companyId);
+        writeError = error;
+      } else {
+        console.error("stripe webhook: checkout.session.completed missing company/customer/subscription id", {
+          eventId: event.id,
+          companyId,
+          customerId,
+          subscriptionId,
+        });
       }
       break;
     }
@@ -57,7 +72,13 @@ export async function POST(request: Request) {
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
       const companyId = subscription.metadata?.company_id;
-      if (!companyId) break;
+      if (!companyId) {
+        console.error("stripe webhook: subscription event missing company_id metadata", {
+          eventId: event.id,
+          subscriptionId: subscription.id,
+        });
+        break;
+      }
 
       const item = subscription.items.data[0];
       const priceId = item?.price.id;
@@ -81,12 +102,25 @@ export async function POST(request: Request) {
         }
       }
 
-      await serviceRole.from("subscriptions").update(update).eq("company_id", companyId);
+      const { error } = await serviceRole
+        .from("subscriptions")
+        .update(update)
+        .eq("company_id", companyId);
+      writeError = error;
       break;
     }
 
     default:
       break;
+  }
+
+  if (writeError) {
+    console.error("stripe webhook: failed to sync subscription state", {
+      eventId: event.id,
+      eventType: event.type,
+      error: writeError,
+    });
+    return NextResponse.json({ error: "sync_failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
