@@ -1,0 +1,16 @@
+# MalleTranscriber - dépendances (versions testées ensemble)
+# Moteur de transcription (CTranslate2, int8 CPU)
+faster-whisper>=1.1.1,<1.3
+ctranslate2>=4.4,<5
+# PyAV 16+ casse le décodeur intégré de faster-whisper (paramètre metadata_errors supprimé)
+av>=12,<16
+# huggingface_hub 1.x non validé avec faster-whisper 1.x
+huggingface_hub>=0.23,<1.0
+numpy
+
+# Interface
+customtkinter>=5.2.2,<6
+tkinterdnd2>=0.4.2
+
+# Construction du .exe
+pyinstaller>=6.10
