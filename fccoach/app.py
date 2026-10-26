@@ -35,6 +35,19 @@ from fccoach.vision.types import Detection
 log = logging.getLogger(__name__)
 
 
+def build_detector(cfg: Config, hw: HardwareInfo) -> tuple[YoloOnnxDetector | None, str]:
+    """Charge le détecteur ONNX ; None (mode dégradé) si le modèle est absent."""
+    model = choose_model(hw, cfg.detector.model, cfg.detector.model_precision, cfg.detector.precision_mode)
+    try:
+        d = cfg.detector
+        return YoloOnnxDetector(resolve_path(model), hw.providers, d.mode, d.tile_size, d.tile_overlap,
+                                d.conf_threshold, d.iou_threshold, d.roi), model
+    except Exception as exc:
+        log.error("Détecteur indisponible : %s", exc)
+        log.warning("Mode dégradé : curseurs + OCR seulement (pas d'attribution d'équipes sans boîtes joueurs)")
+        return None, model
+
+
 class Pipeline:
     def __init__(self, cfg: Config) -> None:
         self.cfg = cfg
@@ -48,19 +61,11 @@ class Pipeline:
         self.kits = KitsDB(resolve_path(cfg.teams.kits_db))
         self.teams = TeamClassifier(cfg.teams, self.kits)
         self.cadence = AdaptiveCadence(cfg.hardware.cadence_steps, cfg.hardware.budget_ratio)
-        self.detector: YoloOnnxDetector | None = None
         self._dets: list[Detection] = []
         self._dets_lock = threading.Lock()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
-        model = choose_model(self.hw, cfg.detector.model, cfg.detector.model_precision, cfg.detector.precision_mode)
-        try:
-            d = cfg.detector
-            self.detector = YoloOnnxDetector(resolve_path(model), self.hw.providers, d.mode, d.tile_size,
-                                             d.tile_overlap, d.conf_threshold, d.iou_threshold, d.roi)
-        except Exception as exc:
-            log.error("Détecteur indisponible : %s", exc)
-            log.warning("Mode dégradé : curseurs + OCR seulement (pas d'attribution d'équipes sans boîtes joueurs)")
+        self.detector, model = build_detector(cfg, self.hw)
         zones = load_zones(resolve_path(cfg.ocr.zones_file))
         engine = create_engine(cfg.ocr.engine, self.hw.is_gpu, cfg.ocr.tesseract_cmd)
         self.ocr = OcrWorker(zones, engine, self.buffer, self.state, self.cursors.anchor, self._on_ocr_event)

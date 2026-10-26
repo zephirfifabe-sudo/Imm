@@ -60,6 +60,7 @@ class OcrWorker(threading.Thread):
         self._overlay_reads = 0
         self._last_lum_check = 0.0
         self.read_ms: dict[str, float] = {}
+        self._now: float | None = None
 
     # --- API publique -----------------------------------------------------
     def request(self, zone: str) -> None:
@@ -75,29 +76,34 @@ class OcrWorker(threading.Thread):
         if self.engine.name == "aucun":
             log.warning("OCR désactivé (aucun moteur)")
         while not self._stop_evt.is_set():
-            now = time.monotonic()
             frame = self.buffer.latest()
             if frame is None:
                 time.sleep(0.05)
                 continue
-            if now - self._last_lum_check >= 0.5:
-                self._check_overlay(frame.image)
-                self._last_lum_check = now
-            with self._req_lock:
-                requested, self._requests = self._requests, set()
-            for name, zone in self.zones.items():
-                due = name in requested
-                if zone.mode in ("periodic", "relative"):
-                    due = due or now >= self._next_due[name]
-                elif zone.mode == "on_demand":
-                    due = due or (self._overlay_active and self._overlay_reads < 3 and now >= self._next_due[name])
-                if not due:
-                    continue
-                self._next_due[name] = now + 1.0 / max(zone.rate_hz, 0.1)
-                self._read_zone(zone, frame.image)
-            if self._overlay_active:
-                self._overlay_reads += 1
+            self.step(frame.image, time.monotonic())
             time.sleep(0.02)
+
+    def step(self, image, now: float) -> None:
+        """Lit les zones dues à l'instant `now` (horloge monotone en direct,
+        temps de la vidéo pour un clip analysé hors ligne)."""
+        self._now = now
+        if now - self._last_lum_check >= 0.5:
+            self._check_overlay(image)
+            self._last_lum_check = now
+        with self._req_lock:
+            requested, self._requests = self._requests, set()
+        for name, zone in self.zones.items():
+            due = name in requested
+            if zone.mode in ("periodic", "relative"):
+                due = due or now >= self._next_due[name]
+            elif zone.mode == "on_demand":
+                due = due or (self._overlay_active and self._overlay_reads < 3 and now >= self._next_due[name])
+            if not due:
+                continue
+            self._next_due[name] = now + 1.0 / max(zone.rate_hz, 0.1)
+            self._read_zone(zone, image)
+        if self._overlay_active:
+            self._overlay_reads += 1
 
     def _check_overlay(self, image) -> None:
         lum = dark_overlay_score(image)
@@ -126,12 +132,12 @@ class OcrWorker(threading.Thread):
             log.debug("OCR %s : %s", zone.name, exc)
             return
         self.read_ms[zone.name] = (time.perf_counter() - t0) * 1000
-        self._handle(zone, text)
+        self._handle_text(zone, text)
 
-    def _handle(self, zone: OcrZone, text: str) -> None:
+    def _handle_text(self, zone: OcrZone, text: str) -> None:
         if zone.kind == "clock":
             before, period_before = self.clock.value, self.clock.period_started
-            self.clock.feed(text)
+            self.clock.feed(text, self._now)
             if self.clock.period_started != period_before:
                 log.info("Reprise de période détectée au chrono (%s)", self.clock.text)
                 self.on_event({"type": "period_start", "clock_s": self.clock.value, "ts": time.time()})
@@ -141,7 +147,8 @@ class OcrWorker(threading.Thread):
                 self.on_event({"type": "clock", "value": self.clock.value, "text": self.clock.text})
         elif zone.kind == "score":
             value, goal = self.score.feed(text)
-            self.state.update("ocr", {"score": list(value), "score_rejected": self.score.rejected})
+            if self.score.initialized:  # pas de « 0-0 » affiché tant que rien n'a été lu
+                self.state.update("ocr", {"score": list(value), "score_rejected": self.score.rejected})
             if goal:
                 log.info("But détecté par l'OCR : score %d-%d", *value)
                 self.on_event({"type": "goal", "score": list(value), "ts": time.time()})

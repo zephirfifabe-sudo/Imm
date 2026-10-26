@@ -62,6 +62,15 @@ tracking:
   iou_match: 0.3
   max_missed: 15
 
+clips:
+  # Clips téléchargés (PS5, Twitter, YouTube…) analysés hors ligne
+  dir: data/clips
+  analysis_fps: 15            # détections par seconde de vidéo (plus = plus précis, plus lent)
+  annotated_video: true       # produit une vidéo avec l'overlay (équipes, curseurs)
+  annotated_width: 960
+  max_upload_mb: 4096
+  max_event_snapshots: 300    # images clés enregistrées (changements de joueur, buts…)
+
 ui:
   host: 127.0.0.1
   port: 8000

@@ -30,6 +30,14 @@
   .events { max-height:260px; overflow:auto; font-size:13px; }
   .coach { font-size:20px; font-weight:700; min-height:56px; }
   .coach small { display:block; font-size:12px; color:var(--muted); font-weight:400; }
+  .drop { display:block; border:2px dashed var(--line); border-radius:8px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop.over { border-color:var(--accent); color:var(--text); }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:4px; }
+  .bar > div { height:100%; background:var(--accent); }
+  .clip { padding:8px 0; border-bottom:1px solid var(--line); }
+  .clip:last-child { border-bottom:none; }
+  .clip a { color:var(--accent); }
+  button.link { background:none; border:none; color:var(--muted); cursor:pointer; font:inherit; padding:0; }
 </style>
 </head>
 <body>
@@ -45,9 +53,18 @@
       <h2>Conseil</h2>
       <div class="coach" id="coach">Aucun conseil (Phase 1 : vérification curseurs et équipes)<small>Les conseils arrivent en Phase 4, uniquement depuis knowledge/rules.yaml.</small></div>
     </div>
+    <div class="panel" style="margin-bottom:16px" id="live_panel">
+      <h2>Overlay debug (direct)</h2>
+      <img class="video" id="live" alt="Flux d'analyse">
+    </div>
     <div class="panel">
-      <h2>Overlay debug</h2>
-      <img class="video" src="/video/debug.mjpg" alt="Flux d'analyse">
+      <h2>Analyser un clip téléchargé</h2>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="video/*,.mkv,.ts" multiple hidden>
+        Glisse un clip ici ou clique pour choisir (MP4, MKV, MOV, WebM…)
+      </label>
+      <div id="upload_status" class="muted" style="margin-top:8px"></div>
+      <div id="clips" style="margin-top:8px"></div>
     </div>
   </section>
   <aside>
@@ -104,9 +121,12 @@ async function tick() {
   try {
     const s = await (await fetch("/api/state")).json();
     const o = s.ocr || {}, sys = s.system || {}, c = s.cursors || {}, tm = s.teams || {};
+    // Flux direct seulement si une capture tourne (pas en mode « clips seulement »)
+    if (sys.mode === "clips") { $("live_panel").hidden = true; }
+    else if (!$("live").src) { $("live").src = "/video/debug.mjpg"; }
     $("score").textContent = o.score ? `${o.score[0]} : ${o.score[1]}` : "– : –";
     $("clock").textContent = o.clock || "--:--";
-    $("sys").innerHTML = `${sys.accelerator || "?"} · détection ${sys.detect_fps ?? "–"} i/s (${sys.detect_latency_ms ?? "–"} ms)<br>`
+    $("sys").innerHTML = sys.mode === "clips" ? "Mode clips seulement (pas de capture en direct)" : `${sys.accelerator || "?"} · détection ${sys.detect_fps ?? "–"} i/s (${sys.detect_latency_ms ?? "–"} ms)<br>`
       + `capture ${sys.capture_fps ?? "–"} i/s · curseurs ${sys.cursor_ms ?? "–"} ms · OCR ${sys.ocr_engine || "–"} · retard ${sys.lag_ms ?? "–"} ms`;
     for (const side of ["me", "opp"]) {
       const t = c[side] || {};
@@ -130,6 +150,63 @@ async function tick() {
 }
 setInterval(tick, 500);
 tick();
+
+// ---- Clips téléchargés ----------------------------------------------------
+function upload(file) {
+  return new Promise((resolve) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/clips");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) $("upload_status").textContent = `Envoi de ${file.name} : ${Math.round(100 * e.loaded / e.total)} %`;
+    };
+    xhr.onload = () => {
+      let msg = `${file.name} ajouté à la file d'analyse`;
+      if (xhr.status !== 200) {
+        try { msg = JSON.parse(xhr.responseText).detail; } catch (_) { msg = `Erreur ${xhr.status}`; }
+      }
+      $("upload_status").textContent = msg;
+      refreshClips();
+      resolve();
+    };
+    xhr.onerror = () => { $("upload_status").textContent = "Envoi impossible"; resolve(); };
+    xhr.send(fd);
+  });
+}
+async function uploadAll(files) { for (const f of files) await upload(f); }
+$("file").addEventListener("change", (e) => { uploadAll([...e.target.files]); e.target.value = ""; });
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); uploadAll([...e.dataTransfer.files]); });
+
+async function deleteClip(id) {
+  if (!confirm("Supprimer ce clip et son analyse ?")) return;
+  await fetch(`/api/clips/${id}`, { method: "DELETE" });
+  refreshClips();
+}
+function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+async function refreshClips() {
+  try {
+    const r = await fetch("/api/clips");
+    if (!r.ok) { $("clips").innerHTML = `<div class="muted">Analyse de clips indisponible</div>`; return; }
+    const list = await r.json();
+    $("clips").innerHTML = list.length ? list.map(c => {
+      const s = c.summary || {};
+      const detail = c.status === "done"
+        ? `${s.duration_s ?? "?"} s · moi ${s.selection_changes?.me ?? 0} / adv ${s.selection_changes?.opp ?? 0} changements de joueur · <a href="/clips/${c.id}">voir le résultat</a>`
+        : c.status === "error" ? `<span class="bad">${esc(c.error || "erreur")}</span>` : c.status_label;
+      const bar = c.status === "running" || c.status === "queued"
+        ? `<div class="bar"><div style="width:${Math.round(c.progress * 100)}%"></div></div>` : "";
+      return `<div class="clip"><div class="row" style="border:none;padding:0"><strong>${esc(c.name)}</strong>`
+        + `<button class="link" onclick="deleteClip('${c.id}')">supprimer</button></div>`
+        + `<div class="muted" style="font-size:13px">${detail}${c.status === "running" ? ` · ${Math.round(c.progress * 100)} %` : ""}</div>${bar}</div>`;
+    }).join("") : `<div class="muted">Aucun clip pour l'instant.</div>`;
+  } catch (e) { /* dashboard déconnecté */ }
+}
+setInterval(refreshClips, 1500);
+refreshClips();
 </script>
 </body>
 </html>

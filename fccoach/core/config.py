@@ -84,6 +84,16 @@ class TrackingConfig:
 
 
 @dataclass
+class ClipsConfig:
+    dir: str = "data/clips"
+    analysis_fps: float = 15.0          # détections par seconde DE VIDÉO
+    annotated_video: bool = True        # vidéo avec l'overlay debug (WebM, lisible dans le navigateur)
+    annotated_width: int = 960
+    max_upload_mb: int = 4096
+    max_event_snapshots: int = 300
+
+
+@dataclass
 class UiConfig:
     host: str = "127.0.0.1"
     port: int = 8000
@@ -108,6 +118,7 @@ class Config:
     cursor: CursorSection = field(default_factory=CursorSection)
     teams: TeamsConfig = field(default_factory=TeamsConfig)
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
+    clips: ClipsConfig = field(default_factory=ClipsConfig)
     ui: UiConfig = field(default_factory=UiConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 

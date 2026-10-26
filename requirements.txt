@@ -4,6 +4,7 @@ opencv-python>=4.9          # capture, couleurs, curseurs, overlay
 PyYAML>=6.0
 fastapi>=0.110              # dashboard local
 uvicorn>=0.29
+python-multipart>=0.0.9   # dépôt de clips depuis le dashboard
 
 # --- Inférence ONNX : installer UN SEUL de ces paquets selon ta machine ----
 #   Nvidia (CUDA)           : pip install onnxruntime-gpu

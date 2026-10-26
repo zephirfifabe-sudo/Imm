@@ -12,7 +12,7 @@ Le coach n'affichera **que** des conseils de ce fichier, en citant leur fiche.
 | Phase | Contenu | État |
 |---|---|---|
 | 0 | Capture de frames + export Roboflow | ✅ livrée |
-| 1 | Capture, benchmark, OCR, curseurs, équipes (overlay debug), dashboard minimal | ✅ livrée — **à valider sur tes vidéos** |
+| 1 | Capture, benchmark, OCR, curseurs, équipes (overlay debug), dashboard minimal, analyse de clips téléchargés | ✅ livrée — **à valider sur tes vidéos** |
 | 2 | Joueurs/balle, tracking, terrain 2D, heatmaps | après validation Phase 1 |
 | 3 | Événements, bilan automatique | — |
 | 4 | Conseils adversaire en direct, coach (rules.yaml), démarrage de match | — |
@@ -39,7 +39,8 @@ fccoach/
                        kits_db.py (kits.sqlite), debug_overlay.py
   tracking/            suivi IoU léger (remplacé par ByteTrack + homographie en Phase 2)
   coach/rules.py       chargement/validation de rules.yaml (moteur de conseils en Phase 4)
-  ui/                  FastAPI + page web (second écran)
+  clips/               analyse hors ligne des clips téléchargés (file d'attente, rapport, vidéo annotée)
+  ui/                  FastAPI + pages web (dashboard, résultat d'un clip)
   app.py               orchestration des threads
 scripts/
   phase0_capture_frames.py   capture automatique de frames (par combinaison de maillots / mi-temps)
@@ -138,6 +139,33 @@ Ce que fait la Phase 1 :
   curseur, pseudo adverse sur l'overlay « Pause demandée par … », écrans de mi-temps/fin à la demande.
   Le chrono ne recule jamais (sauf reprise de période à 45:00), le score ne monte que de 1.
 
+### Analyser un clip téléchargé
+
+Un clip récupéré ailleurs (partage PS5, OBS, réseau social, YouTube…) passe par la même analyse que
+le direct : détection, équipes, curseurs, OCR. Il est lu **au rythme de la vidéo** (temps du clip),
+aussi vite que la machine le permet, dans un thread à part : la capture en direct n'est jamais bloquée.
+
+- **Depuis le dashboard** : section « Analyser un clip téléchargé ». Glisse un ou plusieurs fichiers
+  (MP4, MKV, MOV, AVI, WebM, M4V, TS). Ils passent en file d'attente, un à la fois, avec une barre de
+  progression, puis « voir le résultat » ouvre la page du clip.
+- **Sans carte de capture** : `python -m fccoach --clips-only` ouvre seulement le dashboard des clips.
+- **En ligne de commande** : `python -m fccoach.clips mon_clip.mp4 [autre.mp4 …] [--no-video]`.
+
+Résultat (dossier `data/clips/<id>/`, aussi affiché sur la page du clip) :
+- `report.json` : durée, vitesse d'analyse, équipes (couleurs, confiance, clash), chrono et score lus,
+  pseudo adverse, changements de joueur (moi / adversaire, par minute pour un clip d'au moins 1 min,
+  zones des switchs adverses), événements horodatés **en temps du clip**, une ligne par seconde ;
+- `annotated.webm` : la vidéo avec l'overlay debug, lisible dans le navigateur. Un clic sur un
+  événement saute au bon moment ;
+- `events/*.jpg` : une image clé par événement.
+
+Réglages dans `config.yaml > clips` : `analysis_fps` (15 détections par seconde de vidéo),
+`annotated_video`, taille maximale du fichier. Un clip en 720p ou d'un autre format que le 16:9 est
+ramené en 1920×1080 (bandes noires si besoin), avec un avertissement : sous 1080p, la balle, les
+curseurs et l'OCR sont moins fiables. Un clip qui ne commence pas au coup d'envoi est calibré par les
+curseurs. Les ralentis (caméra différente) faussent l'analyse. Les conseils sur un clip
+(« ce que j'aurais dû faire ») arrivent avec le coach en Phase 4.
+
 ### Porte de validation Phase 1
 
 1. Capture des séquences serrées (`--interval 0.2`) sur ≥ 10 combinaisons, deux mi-temps, ≥ 1 clash.
@@ -158,7 +186,8 @@ python -m pytest
 Tests unitaires sur images synthétiques : règles (format, 15 mots max, 11 fiches, règles
 prioritaires), CIEDE2000 (valeurs de référence Sharma), validation OCR, curseurs (rouge vs maillot
 rouge, blanc vs ligne, triangle à l'envers, interpolation/repli, changement de joueur), équipes
-(coup d'envoi, repli curseurs, kits.sqlite, clash, mi-temps), tuiles 1080p, décodage ONNX, dashboard.
+(coup d'envoi, repli curseurs, kits.sqlite, clash, mi-temps), tuiles 1080p, décodage ONNX, dashboard,
+clips (mise au 1080p, analyse complète, fichier refusé, dépôt par l'API).
 
 ## Ce qui dépend de ton matériel ou de réglages — à vérifier chez toi
 

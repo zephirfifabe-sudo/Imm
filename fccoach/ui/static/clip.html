@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analyse de clip</title>
+<style>
+  :root { --bg:#111311; --panel:#1b1e1b; --line:#2c302c; --text:#f1efe8; --muted:#9a9d96;
+          --accent:#c8f031; --red:#e8453c; --white:#f4f4f4; --warn:#f0a531; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 system-ui, "Segoe UI", sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header a { color:var(--accent); text-decoration:none; }
+  header h1 { font-size:18px; margin:0; overflow-wrap:anywhere; }
+  main { display:grid; grid-template-columns: minmax(0,2fr) minmax(280px,1fr); gap:16px; padding:16px 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--accent); margin:0 0 10px; }
+  video, img.snap { width:100%; border-radius:6px; background:#000; }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:4px 0; border-bottom:1px solid var(--line); }
+  .row:last-child { border-bottom:none; }
+  .muted { color:var(--muted); }
+  .ok { color:var(--accent); } .bad { color:var(--red); }
+  .alert { background:#3a2410; border:1px solid var(--warn); color:#ffd59a; border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+  .ev { display:flex; gap:10px; padding:6px 4px; border-bottom:1px solid var(--line); cursor:pointer; border-radius:4px; }
+  .ev:hover { background:#252925; }
+  .ev .t { font-variant-numeric:tabular-nums; color:var(--accent); min-width:62px; }
+  .events { max-height:520px; overflow:auto; }
+  .sw { display:inline-block; width:22px; height:16px; border:1px solid #fff4; border-radius:3px; vertical-align:middle; margin-left:4px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← Dashboard</a>
+  <h1 id="title">Analyse de clip</h1>
+  <span id="status" class="muted"></span>
+</header>
+<main>
+  <section>
+    <div class="panel">
+      <h2>Vidéo annotée</h2>
+      <video id="video" controls preload="metadata"></video>
+      <div id="novideo" class="muted" hidden>Pas de vidéo annotée : clique un événement pour voir son image clé.</div>
+    </div>
+    <div class="panel" id="snap_panel" hidden>
+      <h2>Image clé</h2>
+      <img class="snap" id="snap" alt="Image clé de l'événement">
+    </div>
+  </section>
+  <aside>
+    <div class="panel">
+      <h2>Résumé</h2>
+      <div id="warnings"></div>
+      <div id="summary"></div>
+    </div>
+    <div class="panel">
+      <h2>Événements</h2>
+      <div class="events" id="events"><div class="muted">Analyse en cours…</div></div>
+    </div>
+    <div class="panel">
+      <h2>Conseils</h2>
+      <div class="muted">Les conseils (« ce que j'aurais dû faire ») viendront en Phase 4, uniquement depuis knowledge/rules.yaml.</div>
+    </div>
+  </aside>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const id = location.pathname.split("/").pop();
+const SIDE = { me: "Moi", opp: "Adversaire" };
+function esc(t) { const d = document.createElement("div"); d.textContent = t ?? ""; return d.innerHTML; }
+function row(k, v) { return `<div class="row"><span>${k}</span><span>${v}</span></div>`; }
+function swatches(p) {
+  if (!p) return `<span class="muted">non calibré</span>`;
+  return ["shirt", "shorts", "socks"].filter(k => p[k]).map(k => `<span class="sw" style="background:${p[k]}"></span>`).join("");
+}
+function evText(e) {
+  switch (e.type) {
+    case "selection_change": return `<span class="dot" style="background:${e.side === "me" ? "var(--red)" : "var(--white)"}"></span>${SIDE[e.side]} change de joueur (${esc(e.zone)})`;
+    case "goal": return `But ! ${e.score[0]}-${e.score[1]}`;
+    case "pause": return `Pause demandée par ${esc(e.by)}`;
+    case "halftime": return "Mi-temps";
+    case "fulltime": return "Fin du match";
+    case "period_start": return "Reprise (chrono 45:00)";
+    default: return esc(e.type);
+  }
+}
+function render(job, rep) {
+  $("title").textContent = job.name;
+  document.title = `Analyse — ${job.name}`;
+  $("status").textContent = job.status === "done" ? `analysé à x${rep.speed_x} la vitesse réelle` : `${job.status_label} ${Math.round(job.progress * 100)} %`;
+  if (!rep) return;
+  const s = rep.summary, t = rep.teams;
+  $("warnings").innerHTML = (rep.warnings || []).map(w => `<div class="alert">${esc(w)}</div>`).join("");
+  $("summary").innerHTML =
+    row("Durée", `${rep.duration_s} s`)
+    + row("Source", `${rep.source.width}x${rep.source.height} @ ${rep.source.fps} i/s`)
+    + row("Changements de joueur", `moi ${s.selection_changes.me} · adv ${s.selection_changes.opp}`)
+    + row("Par minute", s.selection_changes_per_min ? `moi ${s.selection_changes_per_min.me} · adv ${s.selection_changes_per_min.opp}` : `<span class="muted">clip < 1 min</span>`)
+    + row("Zones des switchs adverses", Object.entries(s.opp_switch_zones).map(([z, n]) => `${esc(z)} ×${n}`).join(", ") || "–")
+    + row("Équipes", !rep.detector ? `<span class="muted">sans détecteur</span>` : `<span class="${s.teams_reliable ? "ok" : "bad"}">${Math.round(s.teams_confidence * 100)} %</span>${s.clash ? " · clash" : ""}`)
+    + row("Maillot moi", swatches(t.prototypes.me))
+    + row("Maillot adversaire", swatches(t.prototypes.opp))
+    + row("Score lu", rep.ocr.score ? `${rep.ocr.score[0]} - ${rep.ocr.score[1]}` : "–")
+    + row("Chrono lu", rep.ocr.clock || "–")
+    + row("Pseudo adverse", esc(s.opponent_pseudo) || "–");
+  const video = $("video");
+  if (rep.annotated_video) { video.src = `/api/clips/${id}/video`; } else { video.hidden = true; $("novideo").hidden = false; }
+  $("events").innerHTML = rep.events.length ? rep.events.map((e, i) =>
+    `<div class="ev" data-i="${i}"><span class="t">${e.t_text}</span><span>${evText(e)}</span></div>`).join("")
+    : `<div class="muted">Aucun événement détecté.</div>`;
+  for (const el of document.querySelectorAll(".ev")) {
+    el.addEventListener("click", () => {
+      const e = rep.events[+el.dataset.i];
+      if (rep.annotated_video) { video.currentTime = Math.max(0, e.t - 1); video.play(); }
+      if (e.snapshot) { $("snap").src = `/api/clips/${id}/events/${e.snapshot}`; $("snap_panel").hidden = false; }
+    });
+  }
+}
+async function load() {
+  const r = await fetch(`/api/clips/${id}`);
+  if (!r.ok) { $("title").textContent = "Clip introuvable"; return; }
+  const { job, report } = await r.json();
+  render(job, report);
+  if (job.status === "queued" || job.status === "running") setTimeout(load, 1500);
+}
+load();
+</script>
+</body>
+</html>
