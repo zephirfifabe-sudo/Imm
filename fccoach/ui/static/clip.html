@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analyse de clip</title>
+<link rel="stylesheet" href="/static/common.css">
+<script src="/static/bilan.js"></script>
 <style>
   :root { --bg:#111311; --panel:#1b1e1b; --line:#2c302c; --text:#f1efe8; --muted:#9a9d96;
           --accent:#c8f031; --red:#e8453c; --white:#f4f4f4; --warn:#f0a531; }
@@ -47,6 +49,11 @@
       <h2>Image clé</h2>
       <img class="snap" id="snap" alt="Image clé de l'événement">
     </div>
+    <div class="panel" id="extract_panel" hidden>
+      <h2>Extrait</h2>
+      <video id="extract" controls></video>
+    </div>
+    <div id="bilan"></div>
   </section>
   <aside>
     <div class="panel">
@@ -59,8 +66,8 @@
       <div class="events" id="events"><div class="muted">Analyse en cours…</div></div>
     </div>
     <div class="panel">
-      <h2>Conseils</h2>
-      <div class="muted">Les conseils (« ce que j'aurais dû faire ») viendront en Phase 4, uniquement depuis knowledge/rules.yaml.</div>
+      <h2>Conseils qui auraient été donnés</h2>
+      <div id="advice" class="muted">–</div>
     </div>
   </aside>
 </main>
@@ -68,7 +75,6 @@
 const $ = (id) => document.getElementById(id);
 const id = location.pathname.split("/").pop();
 const SIDE = { me: "Moi", opp: "Adversaire" };
-function esc(t) { const d = document.createElement("div"); d.textContent = t ?? ""; return d.innerHTML; }
 function row(k, v) { return `<div class="row"><span>${k}</span><span>${v}</span></div>`; }
 function swatches(p) {
   if (!p) return `<span class="muted">non calibré</span>`;
@@ -82,6 +88,7 @@ function evText(e) {
     case "halftime": return "Mi-temps";
     case "fulltime": return "Fin du match";
     case "period_start": return "Reprise (chrono 45:00)";
+    case "advice": return `Conseil : ${esc(e.text)}`;
     default: return esc(e.type);
   }
 }
@@ -109,6 +116,14 @@ function render(job, rep) {
   $("events").innerHTML = rep.events.length ? rep.events.map((e, i) =>
     `<div class="ev" data-i="${i}"><span class="t">${e.t_text}</span><span>${evText(e)}</span></div>`).join("")
     : `<div class="muted">Aucun événement détecté.</div>`;
+  if (rep.match) {
+    const fileUrl = (rel) => `/api/clips/${id}/files/${rep.match.dir}/${rel}`;
+    const root = $("bilan");
+    root.innerHTML = renderBilan(rep.match, fileUrl);
+    bindClips(root, (url) => { const v = $("extract"); v.src = url; $("extract_panel").hidden = false; v.play(); v.scrollIntoView({ behavior: "smooth" }); });
+    $("advice").innerHTML = rep.match.advice_shown.length
+      ? rep.match.advice_shown.map(a => `<div class="row"><span>${esc(a.text)}</span></div>`).join("") : "Aucun.";
+  }
   for (const el of document.querySelectorAll(".ev")) {
     el.addEventListener("click", () => {
       const e = rep.events[+el.dataset.i];

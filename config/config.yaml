@@ -15,7 +15,9 @@ capture:
   height: 1080
   fps: 60                    # 60 ou 30 selon la carte de capture
   fourcc: MJPG               # MJPG conseillé en USB ; vide = format par défaut du pilote
-  buffer_seconds: 30         # buffer circulaire (extraits vidéo du bilan)
+  buffer_seconds: 30         # buffer circulaire des extraits vidéo du bilan (compressé 960x540)
+  raw_buffer_seconds: 1      # images 1080p brutes gardées pour l'analyse (30 s brutes = ~11 Go)
+  clip_fps: 15
   realtime_file_playback: true   # fichier : lecture à la vitesse réelle
 
 hardware:
@@ -61,6 +63,26 @@ teams:
 tracking:
   iou_match: 0.3
   max_missed: 15
+
+pitch:
+  # Calibration du terrain (page « Calibration » du dashboard), suivie ensuite automatiquement
+  calibration_file: config/pitch_calibration.json
+  homography_hz: 10
+
+coach:
+  rules_file: knowledge/rules.yaml
+  min_interval_s: 20         # un conseil toutes les 20 à 30 s au plus
+  display_s: 30
+  repeat_after_s: 90         # même conseil pas avant 90 s
+  min_confidence: 0.70       # équipe / formation sous 70 % : règles dépendantes bloquées
+  clip_before_s: 6           # extrait vidéo du bilan : 6 s avant…
+  clip_after_s: 3            # …et 3 s après la situation
+  max_clips_per_rule_half: 3
+
+storage:
+  matches_db: data/matches.sqlite
+  opponents_db: data/opponents.sqlite
+  matches_dir: data/matches
 
 clips:
   # Clips téléchargés (PS5, Twitter, YouTube…) analysés hors ligne

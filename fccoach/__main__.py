@@ -52,7 +52,7 @@ def main() -> None:
 
             from fccoach.ui.server import create_app
 
-            app = create_app(state, cfg.ui.mjpeg_fps, cfg.ui.jpeg_quality, clips, cfg.clips.max_upload_mb)
+            app = create_app(state, cfg.ui.mjpeg_fps, cfg.ui.jpeg_quality, clips, cfg.clips.max_upload_mb, pipe, cfg)
             log.info("Dashboard : http://%s:%d", cfg.ui.host, cfg.ui.port)
             uvicorn.run(app, host=cfg.ui.host, port=cfg.ui.port, log_level="warning")
     except KeyboardInterrupt:

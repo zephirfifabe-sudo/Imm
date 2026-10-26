@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calibration du terrain</title>
+<link rel="stylesheet" href="/static/common.css">
+<style>
+  .stage { position:relative; }
+  .stage img { width:100%; display:block; border-radius:6px; cursor:crosshair; }
+  .stage canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #mini { width:100%; background:#1f5a25; border-radius:6px; }
+  .pt { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  ol { padding-left:18px; margin:0; }
+  ol li { margin-bottom:6px; }
+</style>
+</head>
+<body>
+<header><a href="/">← Dashboard</a><h1>Calibration du terrain</h1><span id="status" class="muted"></span></header>
+<main class="grid">
+  <section>
+    <div class="panel">
+      <h2>1. Image de référence</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <select id="src"></select>
+        <label id="tlabel">à <input id="t" type="number" value="2" min="0" step="0.5" style="width:80px"> s</label>
+        <button class="primary" id="freeze">Figer l'image</button>
+      </div>
+      <p class="muted" style="font-size:13px">Prends une image de jeu normale (caméra habituelle, pas de ralenti), où l'on voit bien des lignes du terrain.</p>
+      <div class="stage" id="stage" hidden>
+        <img id="frame" alt="Image figée">
+        <canvas id="marks"></canvas>
+      </div>
+    </div>
+    <div class="panel" id="preview_panel" hidden>
+      <h2>Contrôle : lignes du terrain reprojetées</h2>
+      <img class="full" id="preview" alt="Contrôle de la calibration">
+      <p class="muted" style="font-size:13px">Les lignes jaunes doivent tomber sur les lignes blanches. Sinon, corrige les points et enregistre à nouveau.</p>
+    </div>
+  </section>
+  <aside>
+    <div class="panel">
+      <h2>2. Cliquer les points</h2>
+      <ol class="muted" style="font-size:13px">
+        <li>Choisis un point du terrain ci-dessous (il s'allume sur le schéma).</li>
+        <li>Clique exactement sur ce point dans l'image.</li>
+        <li>Au moins 4 points, bien répartis (pas tous alignés) ; 6 à 8 c'est mieux.</li>
+      </ol>
+      <select id="kp" style="width:100%; margin:8px 0"></select>
+      <canvas id="mini" width="420" height="272"></canvas>
+      <div id="points" style="margin-top:8px"></div>
+      <div style="display:flex; gap:8px; margin-top:10px">
+        <button class="primary" id="save">Enregistrer</button>
+        <button id="clear">Tout effacer</button>
+      </div>
+      <div id="msg" style="margin-top:8px"></div>
+    </div>
+    <div class="panel">
+      <h2>Ensuite</h2>
+      <div class="muted" style="font-size:13px">La calibration est gardée pour les matchs suivants. Quand la caméra bouge (panoramique, zoom),
+      l'homographie se recalcule toute seule à partir des lignes. Recalibre seulement si tu changes de réglage de caméra dans le jeu.</div>
+    </div>
+  </aside>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let KP = {}, points = [];
+const W = 1920, H = 1080;
+function label(n) { return n.replaceAll("_", " "); }
+async function init() {
+  const info = await (await fetch("/api/calibration")).json();
+  KP = info.keypoints;
+  $("status").textContent = `État : ${info.status}`;
+  const src = $("src");
+  if (info.live) src.add(new Option("Image du direct", ""));
+  for (const c of info.clips) src.add(new Option(`Clip : ${c.name}`, c.id));
+  if (!src.options.length) { src.add(new Option("Aucune source (lance la capture ou dépose un clip)", "")); $("freeze").disabled = true; }
+  const upd = () => { $("tlabel").hidden = !src.value; };
+  src.onchange = upd; upd();
+  for (const n of Object.keys(KP)) $("kp").add(new Option(label(n), n));
+  if (info.calibration) points = info.calibration.points.map(p => ({ name: p.name, px: p.px }));
+  $("kp").onchange = drawMini;
+  renderPoints(); drawMini();
+}
+function drawMini() {
+  const c = $("mini"), g = c.getContext("2d"), s = c.width / 105;
+  const P = (x, y) => [(x + 52.5) * s, (y + 34) * s];
+  g.fillStyle = "#1f5a25"; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = "#e8e8e8"; g.lineWidth = 1.5;
+  const seg = (a, b) => { g.beginPath(); g.moveTo(...P(...a)); g.lineTo(...P(...b)); g.stroke(); };
+  seg([-52.5, -34], [52.5, -34]); seg([-52.5, 34], [52.5, 34]); seg([-52.5, -34], [-52.5, 34]); seg([52.5, -34], [52.5, 34]); seg([0, -34], [0, 34]);
+  for (const sg of [-1, 1]) {
+    const gx = sg * 52.5, bx = sg * 36, sx = sg * 47;
+    seg([gx, -20.16], [bx, -20.16]); seg([bx, -20.16], [bx, 20.16]); seg([bx, 20.16], [gx, 20.16]);
+    seg([gx, -9.16], [sx, -9.16]); seg([sx, -9.16], [sx, 9.16]); seg([sx, 9.16], [gx, 9.16]);
+  }
+  g.beginPath(); g.arc(...P(0, 0), 9.15 * s, 0, 2 * Math.PI); g.stroke();
+  for (const p of points) { const [x, y] = P(...KP[p.name]); g.fillStyle = "#c8f031"; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+  const sel = KP[$("kp").value];
+  if (sel) { const [x, y] = P(...sel); g.strokeStyle = "#e8453c"; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 8, 0, 7); g.stroke(); }
+}
+function renderPoints() {
+  $("points").innerHTML = points.map((p, i) => `<div class="pt"><span>${label(p.name)}</span><span class="muted">${Math.round(p.px[0])}, ${Math.round(p.px[1])}</span><button onclick="removePt(${i})">×</button></div>`).join("")
+    || `<div class="muted" style="font-size:13px">Aucun point.</div>`;
+  drawMarks(); drawMini();
+}
+function removePt(i) { points.splice(i, 1); renderPoints(); }
+function drawMarks() {
+  const img = $("frame"), c = $("marks");
+  if (!img.clientWidth) return;
+  c.width = img.clientWidth; c.height = img.clientHeight;
+  const g = c.getContext("2d"), k = c.width / W;
+  for (const p of points) {
+    g.strokeStyle = "#e8453c"; g.lineWidth = 2;
+    g.beginPath(); g.arc(p.px[0] * k, p.px[1] * k, 7, 0, 7); g.stroke();
+    g.fillStyle = "#fff"; g.font = "12px system-ui"; g.fillText(label(p.name), p.px[0] * k + 9, p.px[1] * k - 6);
+  }
+}
+$("frame").addEventListener("click", (e) => {
+  const r = e.target.getBoundingClientRect();
+  const px = [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
+  const name = $("kp").value;
+  points = points.filter(p => p.name !== name);
+  points.push({ name, px });
+  // point suivant non utilisé
+  const used = new Set(points.map(p => p.name));
+  const next = Object.keys(KP).find(n => !used.has(n));
+  if (next) $("kp").value = next;
+  renderPoints();
+});
+$("frame").addEventListener("load", drawMarks);
+window.addEventListener("resize", drawMarks);
+$("freeze").onclick = async () => {
+  const clip = $("src").value, t = $("t").value;
+  const q = clip ? `?clip=${clip}&t=${t}` : "";
+  const r = await fetch(`/api/calibration/freeze${q}`, { method: "POST" });
+  if (!r.ok) { $("msg").innerHTML = `<div class="alert">${(await r.json()).detail}</div>`; return; }
+  $("frame").src = `/api/calibration/frame.jpg?${Date.now()}`;
+  $("stage").hidden = false; $("msg").innerHTML = "";
+};
+$("clear").onclick = () => { points = []; renderPoints(); };
+$("save").onclick = async () => {
+  const r = await fetch("/api/calibration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ points }) });
+  const d = await r.json();
+  if (!r.ok) { $("msg").innerHTML = `<div class="alert">${d.detail}</div>`; return; }
+  $("msg").innerHTML = `<span class="ok">Calibration enregistrée (${d.points} points, erreur ${d.error_m} m).</span>`;
+  $("preview").src = `/api/calibration/preview.jpg?${Date.now()}`; $("preview_panel").hidden = false;
+};
+init();
+</script>
+</body>
+</html>

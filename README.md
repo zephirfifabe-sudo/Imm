@@ -11,15 +11,18 @@ Le coach n'affichera **que** des conseils de ce fichier, en citant leur fiche.
 
 | Phase | Contenu | État |
 |---|---|---|
-| 0 | Capture de frames + export Roboflow | ✅ livrée |
-| 1 | Capture, benchmark, OCR, curseurs, équipes (overlay debug), dashboard minimal, analyse de clips téléchargés | ✅ livrée — **à valider sur tes vidéos** |
-| 2 | Joueurs/balle, tracking, terrain 2D, heatmaps | après validation Phase 1 |
-| 3 | Événements, bilan automatique | — |
-| 4 | Conseils adversaire en direct, coach (rules.yaml), démarrage de match | — |
-| 5 | Historique, conseils personnalisés | — |
+| 0 | Capture de frames + export Roboflow | ✅ codée |
+| 1 | Capture, benchmark, OCR, curseurs, équipes (overlay debug), dashboard, analyse de clips téléchargés | ✅ codée |
+| 2 | Joueurs/balle, suivi à identités stables, homographie auto, terrain 2D, heatmaps | ✅ codée |
+| 3 | Événements (passes, pertes, tirs, corners, conduites, pressing, buts, changements de joueur), bilans mi-temps / fin avec extraits vidéo | ✅ codée |
+| 4 | Formations (19), postes, lecture de l'adversaire en direct + habitudes, coach `rules.yaml`, démarrage de match | ✅ codée |
+| 5 | Historique SQLite, progression par semaine, profils adversaires, conseils personnalisés | ✅ codée |
 
-> **Porte Phase 1** : on ne passe pas à la Phase 2 tant que `scripts/eval_phase1.py` n'affiche pas
-> `PORTE PHASE 1 : PASS` sur au moins 10 combinaisons de maillots (dont un clash, les deux mi-temps).
+> **Important — rien n'est encore validé sur de vraies images d'EA FC 27.** Tout est testé sur des
+> vidéos et matchs **synthétiques** (102 tests). La porte de validation reste ton contrôle :
+> `scripts/eval_phase1.py` doit afficher `PORTE PHASE 1 : PASS` sur ≥ 10 combinaisons de maillots
+> avant de faire confiance aux conseils. Tant que les curseurs ou les équipes sont faux, tout ce qui
+> est construit dessus l'est aussi.
 
 ## Arborescence
 
@@ -33,14 +36,20 @@ knowledge/
   rules.yaml           règles extraites : id, fiche, contexte, déclencheur, conseil, bouton, priorité, source
 fccoach/
   core/                config typée, logs, matériel (accélérateur + cadence adaptative), état partagé
-  capture/             source vidéo, thread de capture, buffer circulaire 30 s horodaté
+  capture/             source vidéo, thread de capture, buffer brut 1 s + buffer d'extraits 30 s compressé
   ocr/                 moteurs (Tesseract/PaddleOCR), zones, validation, thread OCR
   vision/              detector.py (YOLO ONNX, tuiles 1080p), cursor.py, teams.py, color.py (CIEDE2000),
                        kits_db.py (kits.sqlite), debug_overlay.py
-  tracking/            suivi IoU léger (remplacé par ByteTrack + homographie en Phase 2)
-  coach/rules.py       chargement/validation de rules.yaml (moteur de conseils en Phase 4)
+  tracking/            pitch.py (terrain 105×68), homography.py (calibration + suivi auto par les lignes),
+                       tracker.py (joueurs façon ByteTrack, balle)
+  analysis/            world.py (terrain 2D normalisé), formation.py (19 formations + postes),
+                       opponent_live.py / opponent_profile.py (curseur blanc, habitudes), signals.py
+                       (62 signaux des règles), match.py (match complet, bilans, heatmaps), session.py
+  events/              passes, pertes, récupérations, tirs, corners, conduites, pressing
+  coach/               rules.py (chargement), engine.py (règles -> un conseil à la fois)
+  storage/db.py        matches.sqlite : matchs, événements, conseils, situations, progression
   clips/               analyse hors ligne des clips téléchargés (file d'attente, rapport, vidéo annotée)
-  ui/                  FastAPI + pages web (dashboard, résultat d'un clip)
+  ui/                  FastAPI + pages web (dashboard, calibration, clip, bilan, historique)
   app.py               orchestration des threads
 scripts/
   phase0_capture_frames.py   capture automatique de frames (par combinaison de maillots / mi-temps)
@@ -183,11 +192,46 @@ curseurs. Les ralentis (caméra différente) faussent l'analyse. Les conseils su
 ```bat
 python -m pytest
 ```
-Tests unitaires sur images synthétiques : règles (format, 15 mots max, 11 fiches, règles
+102 tests sur données synthétiques, dont une intégration complète (clip « vue télé » avec caméra qui
+panote : calibration, homographie, équipes, formation, passes, coach, bilan, heatmaps). Règles (format, 15 mots max, 11 fiches, règles
 prioritaires), CIEDE2000 (valeurs de référence Sharma), validation OCR, curseurs (rouge vs maillot
 rouge, blanc vs ligne, triangle à l'envers, interpolation/repli, changement de joueur), équipes
 (coup d'envoi, repli curseurs, kits.sqlite, clash, mi-temps), tuiles 1080p, décodage ONNX, dashboard,
 clips (mise au 1080p, analyse complète, fichier refusé, dépôt par l'API).
+
+## Phases 2 à 5 — terrain, événements, coach, historique
+
+### 1. Calibrer le terrain (une fois)
+Dashboard → **Calibration** : fige une image de jeu (direct ou clip), choisis un point du terrain
+(il s'allume sur le schéma) et clique-le dans l'image ; 4 points minimum, 6 à 8 bien répartis c'est
+mieux (milieu haut / bas, centre, coins de surface…). Les lignes reprojetées en jaune doivent tomber
+sur les lignes blanches. Ensuite l'homographie **suit seule** la caméra (panoramique, zoom) en
+alignant les lignes du terrain, et se retrouve après un ralenti. Recalibre seulement si tu changes
+le réglage de caméra du jeu. Sans calibration : pas de terrain 2D, d'événements ni de conseils.
+
+### 2. Pendant le match (`python -m fccoach`)
+- **Terrain 2D** : joueurs en rouge (moi) / blanc (adversaire) avec leur poste, ballon, joueurs sélectionnés.
+- **Conseil** : un seul à la fois, uniquement depuis `rules.yaml`, avec sa fiche et le bouton *suggéré*.
+  Rien pendant l'engagement ni en pause ; ensuite au plus un toutes les 20 s, le même pas avant 90 s.
+  Équipes ou formation sous 70 % → règles dépendantes bloquées. Signal non mesurable → règle ignorée.
+- **Adversaire** : poste du joueur sous son curseur, formation, hauteur de ligne, habitudes
+  (2 fois = « à confirmer », 3 fois = installée). Profil gardé par pseudo (lu sur l'overlay de pause).
+- **Formations reconnues (19)** : 4312, 41212, 4213, 433, 4231, 442, 4321, 4141, 4411, 4222, 352, 343,
+  3412, 3421, 3142, 532, 5212, 523, 541. Les variantes très proches (ex. 433 (1) / 433 (4)) ne sont pas
+  distinguées ; quand les joueurs bougent beaucoup, 433 / 4231 / 4213 peuvent se confondre et la
+  confiance reste sous 70 % → aucun conseil de formation.
+
+### 3. Bilans et historique
+- À la mi-temps et à la fin : `data/matches/match_NNNNN/bilan_*.json`, page **Bilan** : « Ce que
+  j'aurais dû faire » (règles déclenchées, fiche, moments, **extraits vidéo** de 6 s avant à 3 s après),
+  stats (possession, passes, pertes, tirs, corners…), formations, habitudes adverses, heatmaps.
+- Page **Historique** : matchs, score, et progression **semaine après semaine** (situations ratées par
+  match, règles à travailler). Les règles que tu rates le plus passent en priorité (conseils personnalisés).
+- Les clips téléchargés passent par la même analyse (bilan sur la page du clip), sans entrer dans l'historique.
+
+### Mémoire (correctif)
+Le buffer de 30 s de la Phase 1 gardait des images 1080p brutes : ~11 Go de RAM à 60 i/s. Désormais
+1 s d'images brutes pour l'analyse + 30 s compressées (≈ 50 Mo) pour les extraits.
 
 ## Ce qui dépend de ton matériel ou de réglages — à vérifier chez toi
 
@@ -208,9 +252,11 @@ clips (mise au 1080p, analyse complète, fichier refusé, dépôt par l'API).
 
 ## Limites connues (honnêtement)
 
-- Tout a été testé sur des **images synthétiques** : aucune vidéo réelle d'EA FC 27 n'était
-  disponible. La Phase 1 doit être validée par `eval_phase1.py` sur tes captures.
-- Le suivi actuel est un IoU simple (suffisant pour le vote d'équipe) ; ByteTrack + homographie en Phase 2.
-- `rules.yaml` contient les **déclencheurs en clair + une condition sur des signaux** qui seront produits
-  en Phases 2 à 4 ; tant qu'un signal n'existe pas, la règle est simplement ignorée (aucun conseil douteux).
-- `live_coaching: true` est déjà dans la config, mais aucun conseil n'est affiché avant la Phase 4.
+- Tout a été testé sur des **images synthétiques** (vue « télé » générée, joueurs rectangulaires) :
+  aucune vidéo réelle d'EA FC 27 n'était disponible. Les seuils (distances, vitesses, hauteur de
+  ligne en « prof », zones OCR, couleurs des curseurs) sont des estimations à affiner sur tes matchs.
+- Le terrain n'est jamais vu en entier : formation et habitudes adverses s'accumulent sur la durée ;
+  un côté hors champ n'est jamais considéré comme « vide ».
+- Les buts sont lus par l'OCR ; qui a marqué est déduit du dernier tir / de la possession.
+- LLM optionnel : non intégré. Le coach n'utilise que `rules.yaml` (c'est le repli prévu).
+- `live_coaching: false` coupe l'affichage des conseils mais garde les bilans et l'historique.

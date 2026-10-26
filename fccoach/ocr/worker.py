@@ -71,6 +71,11 @@ class OcrWorker(threading.Thread):
     def stop(self) -> None:
         self._stop_evt.set()
 
+    @property
+    def overlay_active(self) -> bool:
+        """Écran assombri (pause, mi-temps) : pas de jeu, pas de conseil."""
+        return self._overlay_active
+
     # --- boucle -----------------------------------------------------------
     def run(self) -> None:
         if self.engine.name == "aucun":

@@ -29,7 +29,9 @@ class CaptureConfig:
     height: int = 1080
     fps: int = 60
     fourcc: str = "MJPG"
-    buffer_seconds: float = 30.0
+    buffer_seconds: float = 30.0          # extraits vidéo (compressés, 960x540)
+    raw_buffer_seconds: float = 1.0       # images 1080p brutes pour l'analyse
+    clip_fps: float = 15.0
     realtime_file_playback: bool = True
 
 
@@ -84,6 +86,31 @@ class TrackingConfig:
 
 
 @dataclass
+class PitchConfig:
+    calibration_file: str = "config/pitch_calibration.json"
+    homography_hz: float = 10.0
+
+
+@dataclass
+class CoachSection:
+    rules_file: str = "knowledge/rules.yaml"
+    min_interval_s: float = 20.0
+    display_s: float = 30.0
+    repeat_after_s: float = 90.0
+    min_confidence: float = 0.70
+    clip_before_s: float = 6.0
+    clip_after_s: float = 3.0
+    max_clips_per_rule_half: int = 3
+
+
+@dataclass
+class StorageConfig:
+    matches_db: str = "data/matches.sqlite"
+    opponents_db: str = "data/opponents.sqlite"
+    matches_dir: str = "data/matches"
+
+
+@dataclass
 class ClipsConfig:
     dir: str = "data/clips"
     analysis_fps: float = 15.0          # détections par seconde DE VIDÉO
@@ -118,6 +145,9 @@ class Config:
     cursor: CursorSection = field(default_factory=CursorSection)
     teams: TeamsConfig = field(default_factory=TeamsConfig)
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
+    pitch: PitchConfig = field(default_factory=PitchConfig)
+    coach: CoachSection = field(default_factory=CoachSection)
+    storage: StorageConfig = field(default_factory=StorageConfig)
     clips: ClipsConfig = field(default_factory=ClipsConfig)
     ui: UiConfig = field(default_factory=UiConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)

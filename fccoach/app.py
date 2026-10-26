@@ -1,8 +1,10 @@
-"""Orchestration Phase 1 : capture -> (détection + équipes) / curseurs / OCR -> dashboard.
+"""Orchestration du direct : capture -> vision / curseurs / OCR -> analyse du match -> dashboard.
 
 Threads indépendants, chacun à sa cadence :
   capture   : pleine vitesse (60 i/s), ne bloque jamais
-  vision    : détection YOLO + suivi + équipes, cadence adaptative 60/30/15/10
+  extraits  : 30 s compressées pour les extraits vidéo du bilan
+  vision    : détection YOLO, puis Session (suivi, équipes, terrain 2D, événements,
+              formations, adversaire, coach), cadence adaptative 60/30/15/10
   curseurs  : masque couleur + forme, cadence propre (30 Hz par défaut)
   ocr       : chrono / score / noms / écrans, cadences propres
   ui        : FastAPI (thread principal)
@@ -16,6 +18,8 @@ import time
 
 import numpy as np
 
+from fccoach.analysis.session import Session
+from fccoach.capture.clip_buffer import ClipBuffer
 from fccoach.capture.grabber import CaptureThread
 from fccoach.capture.ring_buffer import FrameRingBuffer
 from fccoach.core.config import Config, load_yaml, resolve_path
@@ -24,7 +28,6 @@ from fccoach.core.state import SharedState
 from fccoach.ocr.engines import create_engine
 from fccoach.ocr.worker import OcrWorker
 from fccoach.ocr.zones import load_zones
-from fccoach.tracking.iou_tracker import IouTracker
 from fccoach.vision.cursor import SIDE_LABEL, CursorSystem
 from fccoach.vision.debug_overlay import draw_debug
 from fccoach.vision.detector import YoloOnnxDetector
@@ -53,18 +56,21 @@ class Pipeline:
         self.cfg = cfg
         self.state = SharedState()
         self.hw: HardwareInfo = detect_hardware(cfg.hardware.accelerator)
-        self.buffer = FrameRingBuffer(cfg.capture.buffer_seconds, cfg.capture.fps)
+        # 1 s d'images brutes pour l'analyse ; les 30 s d'extraits sont compressées à part
+        self.buffer = FrameRingBuffer(cfg.capture.raw_buffer_seconds, cfg.capture.fps)
+        self.clips = ClipBuffer(self.buffer, cfg.capture.buffer_seconds, cfg.capture.clip_fps)
         self.capture = CaptureThread(cfg.capture, self.buffer)
         self.cursor_cfg = load_yaml(cfg.cursor.config_file)
         self.cursors = CursorSystem(self.cursor_cfg)
-        self.tracker = IouTracker(cfg.tracking.iou_match, cfg.tracking.max_missed)
         self.kits = KitsDB(resolve_path(cfg.teams.kits_db))
         self.teams = TeamClassifier(cfg.teams, self.kits)
+        self.session = Session(cfg, self.cursors, self.teams, "live", clip_request=self.clips.request)
         self.cadence = AdaptiveCadence(cfg.hardware.cadence_steps, cfg.hardware.budget_ratio)
         self._dets: list[Detection] = []
         self._dets_lock = threading.Lock()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
+        self.calibration_frame: np.ndarray | None = None
         self.detector, model = build_detector(cfg, self.hw)
         zones = load_zones(resolve_path(cfg.ocr.zones_file))
         engine = create_engine(cfg.ocr.engine, self.hw.is_gpu, cfg.ocr.tesseract_cmd)
@@ -72,12 +78,13 @@ class Pipeline:
         self.state.update("system", {
             "accelerator": self.hw.summary(), "providers": self.hw.available,
             "detector": None if self.detector is None else model, "ocr_engine": engine.name,
-            "live_coaching": cfg.live_coaching, "phase": 1,
+            "live_coaching": cfg.live_coaching, "phase": 5,
         })
 
     # ------------------------------------------------------------------
     def start(self) -> None:
         self.capture.start()
+        self.clips.start()
         log.info("Attente des premières images…")
         t0 = time.monotonic()
         while self.buffer.latest() is None and not self.capture.ended.is_set():
@@ -96,6 +103,10 @@ class Pipeline:
         self._stop.set()
         self.capture.stop()
         self.ocr.stop()
+        self.clips.stop()
+        for t in self._threads:
+            t.join(timeout=2)
+        self.session.close()       # bilan de fin si le match n'était pas terminé
         self.kits.close()
 
     def _calibrate_cadence(self) -> None:
@@ -122,25 +133,23 @@ class Pipeline:
             dets: list[Detection] = []
             if self.detector is not None:
                 t0 = time.perf_counter()
-                dets = self.detector.detect(frame.image)
+                raw = self.detector.detect(frame.image)
                 lat = time.perf_counter() - t0
                 self.cadence.update(lat)
-                dets = self.tracker.update(dets)
-                players = [d for d in dets if d.cls == "player"]
-                cursor_players = {}
-                for side, tr in self.cursors.tracks.items():
-                    cursor_players[side] = (self.cursors.detector.player_below(tr.pos, players)
-                                            if tr.pos is not None and tr.status == "visible" else None)
-                clock_s = self.state.get("ocr", {}).get("clock_s")
-                self.teams.process(frame.image, dets, cursor_players, clock_s)
+                self.session.set_ocr(self.state.get("ocr", {}), self.ocr.overlay_active)
+                dets, advice = self.session.step(frame.ts, frame.image, raw)
+                if advice is not None:
+                    self.state.push_event({"type": "advice", "wall": time.time(), "text": advice.text})
                 with self._dets_lock:
                     self._dets = dets
                 summary = TeamAssignmentSummary.from_dets(dets)
                 self.state.set("teams", {**self.teams.snapshot(), "count_me": summary.me,
                                          "count_opp": summary.opp, "count_unknown": summary.unknown})
+                self.state.set("match", self.session.snapshot())
                 self.state.update("system", {"detect_fps": self.cadence.current,
                                              "detect_latency_ms": round(lat * 1000, 1),
-                                             "players": len(players)})
+                                             "analysis_ms": round((time.perf_counter() - t0) * 1000, 1),
+                                             "players": summary.me + summary.opp + summary.unknown})
             self.state.update("system", {"capture_fps": round(self.capture.fps_measured, 1),
                                          "buffer_s": round(self.buffer.duration(), 1),
                                          "lag_ms": round((time.monotonic() - frame.ts) * 1000)})
@@ -168,6 +177,7 @@ class Pipeline:
             for ev in self.cursors.process(frame.image, frame.ts, players):
                 log.info("Changement de joueur sélectionné — %s, zone %s", SIDE_LABEL[ev.side], ev.zone)
                 self.state.push_event(ev.as_dict())
+                self.session.push_selection(ev)
             self.state.update("cursors", {
                 side: t.as_dict() for side, t in self.cursors.tracks.items()
             })
@@ -177,7 +187,23 @@ class Pipeline:
                 time.sleep(sleep)
 
     def _on_ocr_event(self, ev: dict) -> None:
-        if ev["type"] == "halftime" or (ev["type"] == "period_start" and ev.get("clock_s") == 45 * 60):
-            self.teams.new_half()
+        # Mi-temps et équipes : traitées par la Session, dans le thread de vision
         if ev["type"] in ("goal", "pause", "halftime", "fulltime", "period_start"):
             self.state.push_event(ev)
+            self.session.push_ocr_event(ev)
+            if ev["type"] == "goal":
+                self.ocr.request("score")
+
+    def calibrate(self, points: list[dict]) -> dict:
+        """Calibration du terrain sur l'image figée par le dashboard."""
+        frame = self.calibration_frame if self.calibration_frame is not None else self.buffer.latest()
+        if frame is None:
+            raise ValueError("aucune image reçue de la capture")
+        img = frame if isinstance(frame, np.ndarray) else frame.image
+        cal = self.session.calibrate(points, img)
+        return {"error_m": round(cal.error_m or 0, 2), "points": len(cal.points)}
+
+    def freeze_frame(self) -> np.ndarray | None:
+        f = self.buffer.latest()
+        self.calibration_frame = None if f is None else f.image.copy()
+        return self.calibration_frame

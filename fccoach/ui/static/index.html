@@ -37,6 +37,11 @@
   .clip { padding:8px 0; border-bottom:1px solid var(--line); }
   .clip:last-child { border-bottom:none; }
   .clip a { color:var(--accent); }
+  a { color:var(--accent); }
+  .nav { display:flex; gap:14px; } .nav a { color:var(--accent); text-decoration:none; font-size:14px; }
+  canvas.pitch { width:100%; border-radius:6px; background:#1f5a25; display:block; }
+  .coach .meta { display:block; font-size:13px; color:var(--muted); font-weight:400; margin-top:4px; }
+  .confirm { color:var(--warn); }
   button.link { background:none; border:none; color:var(--muted); cursor:pointer; font:inherit; padding:0; }
 </style>
 </head>
@@ -45,13 +50,20 @@
   <h1>COACH <span>EA FC 27</span></h1>
   <div class="score" id="score">– : –</div>
   <div class="clock" id="clock">--:--</div>
+  <nav class="nav"><a href="/calibration">Calibration</a><a href="/historique">Historique</a></nav>
   <div class="sys" id="sys">démarrage…</div>
 </header>
 <main>
   <section>
     <div class="panel" style="margin-bottom:16px">
       <h2>Conseil</h2>
-      <div class="coach" id="coach">Aucun conseil (Phase 1 : vérification curseurs et équipes)<small>Les conseils arrivent en Phase 4, uniquement depuis knowledge/rules.yaml.</small></div>
+      <div class="coach" id="coach"><span class="muted">Aucun conseil pour l'instant.</span></div>
+      <div id="match_alert"></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Terrain 2D <span id="pitch_status" class="muted" style="text-transform:none;letter-spacing:0"></span></h2>
+      <canvas class="pitch" id="pitch" width="840" height="544"></canvas>
+      <div class="muted" style="font-size:13px;margin-top:6px">J'attaque vers la droite → · rouge = moi, blanc = adversaire, anneau = joueur sélectionné.</div>
     </div>
     <div class="panel" style="margin-bottom:16px" id="live_panel">
       <h2>Overlay debug (direct)</h2>
@@ -74,7 +86,20 @@
       <div class="row"><span>Joueur sélectionné</span><span id="opp_name" class="muted">–</span></div>
       <div class="row"><span>Changements de joueur</span><span id="opp_changes">0</span></div>
       <div class="row"><span>Pseudo</span><span id="opp_pseudo" class="muted">–</span></div>
-      <div class="row"><span>Habitudes repérées</span><span class="muted">Phase 4</span></div>
+      <div class="row"><span>Poste sélectionné</span><span id="opp_role" class="muted">–</span></div>
+      <div class="row"><span>Formation</span><span id="opp_form" class="muted">–</span></div>
+      <div class="row"><span>Hauteur de ligne</span><span id="opp_line" class="muted">–</span></div>
+      <div id="opp_habits" style="margin-top:6px"></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Match</h2>
+      <div class="row"><span>Ma formation</span><span id="me_form" class="muted">–</span></div>
+      <div class="row"><span>Possession (moi / adv)</span><span id="poss">–</span></div>
+      <div class="row"><span>Passes (moi / adv)</span><span id="passes">–</span></div>
+      <div class="row"><span>Pertes / récupérations</span><span id="losses">–</span></div>
+      <div class="row"><span>Tirs (moi / adv)</span><span id="shots">–</span></div>
+      <div class="row"><span>Situations notées pour le bilan</span><span id="occ">0</span></div>
+      <div class="row"><span>Bilan</span><span id="bilan_link" class="muted">à la mi-temps</span></div>
     </div>
     <div class="panel" style="margin-bottom:16px">
       <h2>Moi</h2>
@@ -114,6 +139,7 @@ function eventText(e) {
     case "pause": return `${t} — Pause demandée par ${e.by}`;
     case "halftime": return `${t} — Mi-temps`;
     case "fulltime": return `${t} — Fin du match`;
+    case "advice": return `${t} — Conseil : ${esc(e.text)}`;
     default: return `${t} — ${e.type}`;
   }
 }
@@ -135,6 +161,7 @@ async function tick() {
       $(`${side}_name`).textContent = o[`selected_name_${side}`] || "–";
     }
     $("opp_pseudo").textContent = o.pause_by || "–";
+    renderMatch(s.match, tm);
     $("proto_me").innerHTML = swatches(tm.prototypes && tm.prototypes.me);
     $("proto_opp").innerHTML = swatches(tm.prototypes && tm.prototypes.opp);
     $("team_conf").innerHTML = tm.confidence != null
@@ -147,6 +174,60 @@ async function tick() {
   } catch (e) {
     $("sys").textContent = "dashboard déconnecté…";
   }
+}
+function form(f) { return f && f.name ? `${f.name} (${Math.round(f.confidence * 100)} %)` : "–"; }
+function pair(st, a, b) { return `${st[a] ?? 0} / ${st[b] ?? 0}`; }
+function renderMatch(m, tm) {
+  if (!m) return;
+  const a = m.advice;
+  $("coach").innerHTML = a
+    ? `${esc(a.conseil)}${a.to_confirm ? ` <span class="confirm">(à confirmer)</span>` : ""}`
+      + `<span class="meta">Fiche ${a.source} « ${esc(a.fiche)} »${a.bouton ? ` · bouton suggéré : ${esc(a.bouton)}` : ""}</span>`
+    : `<span class="muted">${m.play_running ? "Rien à signaler." : "En attente du jeu (engagement, pause ou terrain non reconnu)."}</span>`;
+  const p = m.pitch;
+  $("match_alert").innerHTML = !p.calibrated
+    ? `<div class="alert">Terrain non calibré : terrain 2D, événements et conseils inactifs. <a href="/calibration">Calibrer</a></div>`
+    : (tm && tm.reliable === false ? `<div class="alert">Équipes sous 70 % : conseils dépendant de l'équipe suspendus.</div>` : "");
+  $("pitch_status").textContent = `· homographie ${p.status}${p.attack_known ? "" : " · sens d'attaque supposé"}`;
+  drawPitch(p);
+  const o = m.opponent || {};
+  $("opp_role").textContent = o.selected_role || "–";
+  $("opp_form").textContent = form(m.formations && m.formations.opp);
+  $("opp_line").textContent = o.line_height != null ? `${o.line_height} de prof` : "–";
+  if (o.pseudo) $("opp_pseudo").textContent = o.pseudo + (o.known ? " (déjà rencontré)" : "");
+  $("opp_habits").innerHTML = (o.habits || []).map(h => `<div class="row"><span>${esc(h.label)}</span>`
+    + `<span class="${h.status === "installée" ? "ok" : "confirm"}">${h.count}× · ${h.status} · ${Math.round(h.confidence * 100)} %</span></div>`).join("")
+    || `<div class="muted" style="font-size:13px">Aucune habitude repérée pour l'instant.</div>`;
+  $("me_form").textContent = form(m.formations && m.formations.me);
+  const st = m.stats || {};
+  $("poss").textContent = st.possession_pct ? `${st.possession_pct.me} % / ${st.possession_pct.opp} %` : "–";
+  $("passes").textContent = pair(st, "passes_me", "passes_opp");
+  $("losses").textContent = `${st.pertes ?? 0} / ${st.recuperations ?? 0}`;
+  $("shots").textContent = pair(st, "tirs_me", "tirs_opp");
+  $("occ").textContent = m.occurrences;
+  if (m.match_id) $("bilan_link").innerHTML = `<a href="/bilan/${m.match_id}">voir</a> <span class="muted">(dispo à la mi-temps)</span>`;
+}
+function drawPitch(p) {
+  const c = $("pitch"), g = c.getContext("2d"), s = c.width / 105;
+  const P = (x, y) => [(x + 52.5) * s, (y + 34) * s];
+  g.fillStyle = "#1f5a25"; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 2;
+  const seg = (a, b) => { g.beginPath(); g.moveTo(...P(...a)); g.lineTo(...P(...b)); g.stroke(); };
+  seg([-52.5, -34], [52.5, -34]); seg([-52.5, 34], [52.5, 34]); seg([-52.5, -34], [-52.5, 34]); seg([52.5, -34], [52.5, 34]); seg([0, -34], [0, 34]);
+  for (const sg of [-1, 1]) {
+    const gx = sg * 52.5, bx = sg * 36;
+    seg([gx, -20.16], [bx, -20.16]); seg([bx, -20.16], [bx, 20.16]); seg([bx, 20.16], [gx, 20.16]);
+  }
+  g.beginPath(); g.arc(...P(0, 0), 9.15 * s, 0, 2 * Math.PI); g.stroke();
+  for (const pl of p.players) {
+    const [x, y] = P(pl.x, pl.y);
+    g.fillStyle = pl.team === "me" ? "#e8453c" : "#f4f4f4";
+    g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill();
+    if (pl.selected) { g.strokeStyle = "#c8f031"; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 14, 0, 7); g.stroke(); }
+    if (pl.role) { g.fillStyle = pl.team === "me" ? "#fff" : "#111"; g.font = "bold 9px system-ui"; g.textAlign = "center"; g.fillText(pl.role, x, y + 3); }
+  }
+  if (p.ball) { const [x, y] = P(...p.ball); g.fillStyle = "#ffd400"; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); }
+  if (p.status !== "ok") { g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#fff"; g.font = "20px system-ui"; g.textAlign = "center"; g.fillText(p.calibrated ? "Terrain non reconnu (ralenti, gros plan…)" : "Terrain non calibré", c.width / 2, c.height / 2); }
 }
 setInterval(tick, 500);
 tick();
@@ -186,7 +267,7 @@ async function deleteClip(id) {
   await fetch(`/api/clips/${id}`, { method: "DELETE" });
   refreshClips();
 }
-function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+function esc(t) { const d = document.createElement("div"); d.textContent = t ?? ""; return d.innerHTML; }
 async function refreshClips() {
   try {
     const r = await fetch("/api/clips");

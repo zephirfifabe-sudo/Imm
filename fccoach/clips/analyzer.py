@@ -21,12 +21,13 @@ from typing import Any, Callable
 import cv2
 import numpy as np
 
+from fccoach.analysis.session import Session
+from fccoach.capture.clip_buffer import write_clip
 from fccoach.core.config import Config, resolve_path
 from fccoach.core.state import SharedState
 from fccoach.ocr.engines import OcrEngine
 from fccoach.ocr.worker import OcrWorker
 from fccoach.ocr.zones import load_zones
-from fccoach.tracking.iou_tracker import IouTracker
 from fccoach.vision.cursor import SIDE_LABEL, CursorSystem
 from fccoach.vision.debug_overlay import draw_debug
 from fccoach.vision.detector import YoloOnnxDetector
@@ -85,6 +86,23 @@ def probe(path: str | Path) -> dict[str, Any]:
             "duration_s": round(n / fps, 2) if n else None}
 
 
+def extract_segment(src: str | Path, t0: float, t1: float, dest: Path, fps: float,
+                    size: tuple[int, int] = (960, 540)) -> bool:
+    """Extrait [t0, t1] du clip source (« ce que j'aurais dû faire »)."""
+    cap = cv2.VideoCapture(str(src))
+    cap.set(cv2.CAP_PROP_POS_MSEC, t0 * 1000)
+    frames = []
+    while True:
+        ok, img = cap.read()
+        if not ok or cap.get(cv2.CAP_PROP_POS_MSEC) / 1000 > t1 + 1 / fps:
+            break
+        ok, buf = cv2.imencode(".jpg", cv2.resize(img, size, interpolation=cv2.INTER_AREA))
+        if ok:
+            frames.append(buf.tobytes())
+    cap.release()
+    return bool(frames) and write_clip(frames, dest, fps, size)
+
+
 class ClipAnalyzer:
     """Analyse un clip complet. Une instance par clip (états neufs)."""
 
@@ -95,7 +113,8 @@ class ClipAnalyzer:
         self.cursor_cfg = cursor_cfg
         self.state = SharedState()
         self.cursors = CursorSystem(cursor_cfg)
-        self.tracker = IouTracker(cfg.tracking.iou_match, cfg.tracking.max_missed)
+        self.session: Session | None = None
+        self._segments: list[tuple[float, float, Path]] = []
         self.kits = KitsDB(resolve_path(cfg.teams.kits_db))
         self.teams = TeamClassifier(cfg.teams, self.kits)
         self.events: list[dict[str, Any]] = []
@@ -111,6 +130,9 @@ class ClipAnalyzer:
     def analyze(self, path: str | Path, out_dir: str | Path, progress: ProgressFn | None = None,
                 should_stop: Callable[[], bool] | None = None) -> dict[str, Any]:
         out_dir = Path(out_dir)
+        # Analyse du jeu (terrain 2D, événements, coach) : pas d'écriture dans l'historique des matchs
+        self.session = Session(self.cfg, self.cursors, self.teams, "clip", out_root=out_dir, use_db=False,
+                               clip_request=lambda t0, t1, p: self._segments.append((t0, t1, p)))
         self._events_dir = out_dir / "events"
         self._events_dir.mkdir(parents=True, exist_ok=True)
         info = probe(path)
@@ -148,6 +170,7 @@ class ClipAnalyzer:
                     players = [d for d in dets if d.cls in ("player", "goalkeeper")] if self.detector else None
                     for ev in self.cursors.process(img, t, players):
                         self._add_event({**ev.as_dict(), "t": round(t, 2)}, img, dets)
+                        self.session.push_selection(ev)
                     next_cur += cur_period
                 self.ocr.step(img, t)
                 if t >= next_sample:
@@ -166,8 +189,19 @@ class ClipAnalyzer:
             if writer is not None:
                 writer.release()
             self.kits.close()
+        match = self.session.match
+        bilan = match.finish()
+        self.session.close()
+        for t0, t1, dest in self._segments:
+            extract_segment(path, max(0.0, t0), t1, dest, fps)
         elapsed = time.perf_counter() - t_start
         duration = idx / fps if fps else 0.0
+        homo = self.session.homography
+        if homo.calibration is None:
+            warnings.append("terrain non calibré : pas de terrain 2D, d'événements ni de conseils "
+                            "(calibre-le une fois dans le dashboard, page « Calibration »)")
+        elif not match.pitch_ok_steps:
+            warnings.append("lignes du terrain jamais reconnues sur ce clip (caméra différente de la calibration ?)")
         if self.detector is None:
             warnings.append("aucun détecteur chargé : pas de boîtes joueurs, donc pas d'attribution d'équipes")
         if self.ocr_engine_name == "aucun":
@@ -186,6 +220,7 @@ class ClipAnalyzer:
             "teams": self.teams.snapshot(),
             "ocr": self.state.get("ocr", {}),
             "summary": self._summary(duration),
+            "match": {**bilan, "dir": match.out_dir.relative_to(out_dir).as_posix()},
             "events": self.events,
             "timeline": timeline,
             "annotated_video": "annotated.webm" if writer is not None and (out_dir / "annotated.webm").exists() else None,
@@ -197,15 +232,12 @@ class ClipAnalyzer:
 
     # ------------------------------------------------------------------
     def _detect(self, img: np.ndarray) -> list[Detection]:
-        assert self.detector is not None
-        dets = self.tracker.update(self.detector.detect(img))
-        players = [d for d in dets if d.cls == "player"]
-        cursor_players = {
-            side: (self.cursors.detector.player_below(tr.pos, players)
-                   if tr.pos is not None and tr.status == "visible" else None)
-            for side, tr in self.cursors.tracks.items()
-        }
-        self.teams.process(img, dets, cursor_players, self.ocr.clock.value)
+        assert self.detector is not None and self.session is not None
+        self.session.set_ocr(self.state.get("ocr", {}), self.ocr.overlay_active)
+        dets, advice = self.session.step(self._t, img, self.detector.detect(img))
+        if advice is not None:
+            self._add_event({"type": "advice", "t": round(self._t, 2), "text": advice.text,
+                             "rule_id": advice.rule_id}, img, dets)
         return dets
 
     def _sample(self, t: float, dets: list[Detection]) -> dict[str, Any]:
@@ -229,8 +261,8 @@ class ClipAnalyzer:
         self.events.append(ev)
 
     def _on_ocr_event(self, ev: dict[str, Any]) -> None:
-        if ev["type"] == "halftime" or (ev["type"] == "period_start" and ev.get("clock_s") == 45 * 60):
-            self.teams.new_half()
+        if self.session is not None:
+            self.session.push_ocr_event(ev)
         if ev["type"] in ("goal", "pause", "halftime", "fulltime", "period_start"):
             self.events.append({**ev, "t": round(self._t, 2), "t_text": fmt_t(self._t)})
 

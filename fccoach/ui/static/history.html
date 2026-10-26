@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Historique</title>
+<link rel="stylesheet" href="/static/common.css">
+</head>
+<body>
+<header><a href="/">← Dashboard</a><h1>Historique et progression</h1></header>
+<main>
+  <div class="panel"><h2>Semaine après semaine</h2>
+    <p class="muted" style="font-size:13px">« Situations ratées » = règles du carnet déclenchées par match : plus c'est bas, mieux c'est.</p>
+    <div style="overflow-x:auto"><table id="weeks"><thead><tr><th>Semaine</th><th>Matchs</th><th>V / N / D</th><th>Situations ratées / match</th><th>À travailler</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="panel"><h2>Matchs</h2>
+    <div style="overflow-x:auto"><table id="matches"><thead><tr><th>Date</th><th>Adversaire</th><th>Score</th><th>Formations</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+</main>
+<script>
+function esc(t) { const d = document.createElement("div"); d.textContent = t ?? ""; return d.innerHTML; }
+(async () => {
+  const [weeks, matches] = await Promise.all([fetch("/api/weekly").then(r => r.json()), fetch("/api/matches").then(r => r.json())]);
+  document.querySelector("#weeks tbody").innerHTML = weeks.length ? weeks.slice().reverse().map(w =>
+    `<tr><td>${w.week}</td><td>${w.matches}</td><td>${w.wins} / ${w.draws} / ${w.losses}</td><td>${w.occurrences_per_match}</td>`
+    + `<td>${w.top_rules.slice(0, 3).map(([r, n]) => `<span class="chip">${esc(r.replaceAll("_", " "))} · ${n}</span>`).join("")}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="muted">Pas encore de match terminé.</td></tr>`;
+  document.querySelector("#matches tbody").innerHTML = matches.length ? matches.map(m =>
+    `<tr><td>${new Date(m.started * 1000).toLocaleString("fr-FR")}</td><td>${esc(m.opponent) || "–"}</td>`
+    + `<td>${m.score_me != null ? `${m.score_me} - ${m.score_opp}` : "–"}</td><td>${m.my_formation || "?"} / ${m.opp_formation || "?"}</td>`
+    + `<td>${m.ended ? `<a href="/bilan/${m.id}">bilan</a>` : "<span class='muted'>en cours</span>"}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="muted">Aucun match enregistré.</td></tr>`;
+})();
+</script>
+</body>
+</html>

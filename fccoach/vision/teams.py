@@ -151,6 +151,7 @@ class TeamClassifier:
         self._detect_half_change(clock_s)
         self._maybe_kickoff(image, players, samples, cursor_players, clock_s)
         self._anchor(image, cursor_players)
+        self._bootstrap_other(players, samples, cursor_players)
         if self.protos["me"] is None or self.protos["opp"] is None:
             self.status.reliable = False
             self.status.alert = "Calibration des équipes en cours…"
@@ -299,6 +300,38 @@ class TeamClassifier:
                 and min(self._anchor_counts.values()) >= 5):
             self.status.calibrated_by = "curseurs"
             log.info("Équipes calibrées par les curseurs (coup d'envoi non détecté)")
+            self._save_kits()
+
+    def _bootstrap_other(self, players: list[Detection], samples: dict[int, KitSample],
+                         cursor_players: dict[str, Detection | None]) -> None:
+        """Un seul curseur visible (l'autre hors champ) : l'équipe inconnue est déduite
+        des joueurs nettement différents de l'équipe connue (cohérents entre eux)."""
+        known = [t for t in TEAMS if self.protos[t] is not None and self._anchor_counts[t] >= 5]
+        if len(known) != 1:
+            return
+        k = known[0]
+        other = "opp" if k == "me" else "me"
+        if self.protos[other] is not None:
+            return
+        pk = self.protos[k]
+        assert pk is not None
+        sel = {id(p) for p in cursor_players.values() if p is not None}
+        far = [s for i, s in samples.items() if id(players[i]) not in sel
+               and float(ciede2000(s.shirt, pk.shirt)) > self.cfg.clash_delta_e * 1.5]
+        far = robust_subset(far, max_de=10.0)
+        if len(far) < 4:
+            self._boot_hits = 0
+            return
+        cand = TeamPrototype.from_samples(far)
+        prev = getattr(self, "_boot_cand", None)
+        same = prev is not None and float(ciede2000(prev.shirt, cand.shirt)) < 6.0
+        self._boot_cand = cand
+        self._boot_hits = getattr(self, "_boot_hits", 0) + 1 if same else 1
+        if self._boot_hits >= 5:      # même couleur sur 5 images d'affilée
+            self.protos[other] = cand
+            self._anchor_counts[other] = 5
+            self.status.calibrated_by = self.status.calibrated_by or f"curseur {'rouge' if k == 'me' else 'blanc'} + couleurs"
+            log.info("Équipe %s déduite par contraste de couleur (un seul curseur visible)", TEAM_LABEL[other])
             self._save_kits()
 
     def _detect_half_change(self, clock_s: int | None) -> None:

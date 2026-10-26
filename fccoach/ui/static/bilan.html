@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilan du match</title>
+<link rel="stylesheet" href="/static/common.css">
+<script src="/static/bilan.js"></script>
+</head>
+<body>
+<header><a href="/historique">← Historique</a><h1 id="title">Bilan</h1>
+  <select id="which"><option value="fin">Fin de match</option><option value="mi_temps">Mi-temps</option></select></header>
+<main class="grid">
+  <section>
+    <div class="panel" id="player" hidden><h2>Extrait</h2><video id="video" controls autoplay></video></div>
+    <div id="bilan"></div>
+  </section>
+  <aside><div class="panel"><h2>Conseils affichés pendant le match</h2><div id="advice" class="muted">–</div></div></aside>
+</main>
+<script>
+const id = location.pathname.split("/").pop();
+let data = null;
+const fileUrl = (rel) => `/api/matches/${id}/files/${rel}`;
+function show() {
+  const b = data.bilans[document.getElementById("which").value] || data.bilans.fin || data.bilans.mi_temps;
+  const root = document.getElementById("bilan");
+  root.innerHTML = renderBilan(b, fileUrl);
+  bindClips(root, (url) => { const v = document.getElementById("video"); v.src = url; document.getElementById("player").hidden = false; v.scrollIntoView({ behavior: "smooth" }); });
+  document.getElementById("advice").innerHTML = b && b.advice_shown.length
+    ? b.advice_shown.map(a => `<div class="row"><span>${esc(a.text)}</span></div>`).join("") : "Aucun.";
+}
+(async () => {
+  const r = await fetch(`/api/matches/${id}`);
+  if (!r.ok) { document.getElementById("title").textContent = "Match introuvable"; return; }
+  data = await r.json();
+  const m = data.match;
+  document.getElementById("title").textContent = `Match du ${new Date(m.started * 1000).toLocaleString("fr-FR")}${m.opponent ? " contre " + m.opponent : ""}`;
+  document.getElementById("which").onchange = show;
+  show();
+})();
+</script>
+</body>
+</html>
