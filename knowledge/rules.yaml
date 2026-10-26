@@ -1,0 +1,790 @@
+# =============================================================================
+# knowledge/rules.yaml — SOURCE DE VÉRITÉ TACTIQUE
+# Conversion de knowledge/paastek.pdf (Carnet du coaching Paastek, 11 fiches).
+#
+# Règle absolue du coach : AUCUN conseil hors de ce fichier. Si aucune règle
+# ne correspond à la situation, rien n'est affiché.
+#
+# Champs :
+#   id          identifiant unique (snake_case)
+#   fiche       titre de la fiche d'origine
+#   contexte    attaque | defense | relance | perte | adversaire
+#   declencheur
+#     description  condition en clair (français)
+#     condition    expression sur les signaux de vision (évaluée en Phase 4,
+#                  voir la liste des signaux en bas de fichier)
+#     historique   0 = règle instantanée ; N = N occurrences nécessaires
+#                  (2 → « à confirmer », 3 → habitude installée, fiche 10)
+#     depend_equipe / depend_formation : bloquée sous 70 % de confiance
+#   conseil     français, 15 mots maximum
+#   bouton      suggestion de bouton (optionnel). Les boutons sont INVISIBLES
+#               à l'image : le logiciel suggère, il ne prétend jamais avoir vu.
+#   priorite    1 (haute) à 3 (basse)
+#   source      numéro de fiche (1 à 11)
+# =============================================================================
+
+version: 1
+source_pdf: knowledge/paastek.pdf
+
+fiches:
+  1: "Analyse 4312"
+  2: "2e séance collective"
+  3: "3e séance collective"
+  4: "Les relances"
+  5: "Les contrôles"
+  6: "La ligne du 10"
+  7: "La défense haute"
+  8: "Les zones"
+  9: "La perte de balle"
+  10: "Lire l'adversaire"
+  11: "Le R1 qui rappelle"
+
+rules:
+
+  # ---------------------------------------------------------------------------
+  # RÈGLES PRIORITAIRES (demandées en premier)
+  # ---------------------------------------------------------------------------
+
+  - id: ligne_du_10_fais_tourner
+    fiche: "La ligne du 10"
+    contexte: attaque
+    declencheur:
+      description: "Moi en 41212/4312 contre un 4213, ballon derrière sa ligne du 10."
+      condition: "my_formation in ['41212','4312'] and opp_formation == '4213' and my_possession and ball_behind_opp_line10"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Fais tourner : 4 milieux contre 2"
+    bouton: null
+    priorite: 1
+    source: 6
+
+  - id: defense_haute_balance
+    fiche: "La défense haute"
+    contexte: attaque
+    declencheur:
+      description: "Ligne adverse haute (70 à 95 de prof), ballon dans mon camp."
+      condition: "my_possession and ball_in_my_half and opp_line_height >= 70"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Pas d'axe : balance L1+△ avec un joueur lancé de loin"
+    bouton: "L1+△"
+    priorite: 1
+    source: 7
+
+  - id: porte_le_ballon
+    fiche: "Analyse 4312"
+    contexte: attaque
+    declencheur:
+      description: "Espace libre devant le porteur, plusieurs passes sans avancer."
+      condition: "my_possession and space_ahead_m >= 10 and passes_without_progress >= 3"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Porte le ballon"
+    bouton: null
+    priorite: 1
+    source: 1
+
+  - id: perte_quadrille
+    fiche: "La perte de balle"
+    contexte: perte
+    declencheur:
+      description: "Ballon perdu depuis plus de 3 s (fin du contre-pressing)."
+      condition: "ball_lost and seconds_since_loss >= 3 and seconds_since_loss <= 8"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Quadrille, reforme le bloc"
+    bouton: null
+    priorite: 1
+    source: 9
+
+  - id: ramene_ton_dc
+    fiche: "3e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Mon défenseur central est sorti de sa ligne défensive."
+      condition: "not my_possession and my_dc_out_of_line_m >= 12"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ramène ton DC"
+    bouton: null
+    priorite: 1
+    source: 3
+
+  - id: mdc_dans_axe
+    fiche: "Les zones"
+    contexte: defense
+    declencheur:
+      description: "Mon MDC est sorti de l'axe (dézoné sur un côté)."
+      condition: "not my_possession and my_mdc_off_axis_m >= 15"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "MDC dans l'axe, ne le dézone pas"
+    bouton: null
+    priorite: 1
+    source: 8
+
+  - id: il_fonce_joue_en_arriere
+    fiche: "2e séance collective"
+    contexte: adversaire
+    declencheur:
+      description: "L'adversaire a foncé sur mon porteur au moins 3 fois."
+      condition: "opp_rush_on_carrier_count >= 3 and my_possession"
+      historique: 3
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Joue en arrière, puis profondeur dans son dos"
+    bouton: "L1+✕ puis L1+△"
+    priorite: 1
+    source: 2
+
+  - id: bu_colle_r1
+    fiche: "Le R1 qui rappelle"
+    contexte: attaque
+    declencheur:
+      description: "Mon buteur est collé à son défenseur central (aucune séparation)."
+      condition: "my_possession and my_bu_to_opp_dc_m <= 1.5 and not ball_in_my_half"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "R1 sur l'attaquant pour le décrocher"
+    bouton: "R1"
+    priorite: 1
+    source: 11
+
+  - id: relance_compo_axiale
+    fiche: "Les relances"
+    contexte: relance
+    declencheur:
+      description: "Relance depuis ma zone défensive contre une compo axiale (4312, 41212)."
+      condition: "my_possession and ball_zone == 'my_third' and opp_formation in ['4312','41212']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Sors par le latéral, une touche côté, reviens"
+    bouton: null
+    priorite: 1
+    source: 4
+
+  # ---------------------------------------------------------------------------
+  # LECTURE DU CURSEUR ADVERSE EN DIRECT (analysis/opponent_live.py)
+  # ---------------------------------------------------------------------------
+
+  - id: curseur_milieu_lache_dc
+    fiche: "Lire l'adversaire"
+    contexte: adversaire
+    declencheur:
+      description: "Il sélectionne un milieu alors que le ballon est dans la zone d'un de ses défenseurs."
+      condition: "my_possession and opp_cursor_role in ['MDC','MC','MOC'] and ball_zone_owner_opp in ['DC','LAT']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il a lâché son DC : va tout droit en R2"
+    bouton: "R2"
+    priorite: 1
+    source: 10
+
+  - id: curseur_dc_coupe
+    fiche: "Le R1 qui rappelle"
+    contexte: adversaire
+    declencheur:
+      description: "Il sélectionne son DC pour couper la passe vers mon attaquant qui décroche."
+      condition: "my_possession and opp_cursor_role == 'DC' and opp_cursor_moving_to_lane"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ton attaquant est déjà parti : un temps d'avance"
+    bouton: "R1"
+    priorite: 2
+    source: 11
+
+  - id: curseur_presse_ligne_vide
+    fiche: "Analyse 4312"
+    contexte: adversaire
+    declencheur:
+      description: "Son joueur sélectionné presse le porteur et laisse une ligne de passe vide."
+      condition: "my_possession and opp_cursor_pressing_carrier and free_lane_count >= 1"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Joue à l'inverse du curseur"
+    bouton: null
+    priorite: 1
+    source: 1
+
+  - id: curseur_dezone
+    fiche: "Les zones"
+    contexte: adversaire
+    declencheur:
+      description: "Son joueur sélectionné (hors BU et 10) est sorti de sa zone."
+      condition: "my_possession and opp_cursor_dezoned and opp_cursor_role not in ['BU','MOC']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il est dézoné : attaque son côté"
+    bouton: null
+    priorite: 2
+    source: 8
+
+  - id: curseur_reaction_tardive
+    fiche: "2e séance collective"
+    contexte: adversaire
+    declencheur:
+      description: "Il change de joueur plus de 0,5 s après ma passe."
+      condition: "my_possession and opp_switch_delay_s > 0.5"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il réagit trop tard : prends l'espace"
+    bouton: "R1"
+    priorite: 2
+    source: 2
+
+  # ---------------------------------------------------------------------------
+  # HABITUDES ADVERSES (analysis/opponent_profile.py — 2 occ. = à confirmer)
+  # ---------------------------------------------------------------------------
+
+  - id: habitude_ramene_milieux
+    fiche: "Lire l'adversaire"
+    contexte: adversaire
+    declencheur:
+      description: "Il revient toujours avec son milieu sans prendre un défenseur."
+      condition: "habit_midfield_only_count >= 2 and my_possession"
+      historique: 2
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il ne prend jamais ses défenseurs : va tout droit"
+    bouton: "R2"
+    priorite: 1
+    source: 10
+
+  - id: habitude_sort_dc
+    fiche: "3e séance collective"
+    contexte: adversaire
+    declencheur:
+      description: "Il sort régulièrement son DC de la ligne."
+      condition: "habit_opp_dc_out_count >= 2 and my_possession"
+      historique: 2
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il sort son DC : donne ton dos, puis joue l'espace laissé"
+    bouton: null
+    priorite: 2
+    source: 3
+
+  - id: habitude_ferme_lignes
+    fiche: "3e séance collective"
+    contexte: adversaire
+    declencheur:
+      description: "Il coupe les lignes de passe sans presser le porteur."
+      condition: "habit_closes_lanes_count >= 2 and my_possession and space_ahead_m >= 8"
+      historique: 2
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il ferme les lignes : avance, prends ce qu'il laisse"
+    bouton: null
+    priorite: 2
+    source: 3
+
+  - id: habitude_ne_couvre_pas_appel
+    fiche: "2e séance collective"
+    contexte: adversaire
+    declencheur:
+      description: "Il presse au lieu de suivre mon joueur en appel."
+      condition: "habit_ignores_runs_count >= 2 and my_possession and my_run_in_progress"
+      historique: 2
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il ne couvre pas l'appel : balance dans le dos"
+    bouton: "L1+△"
+    priorite: 2
+    source: 2
+
+  # ---------------------------------------------------------------------------
+  # ATTAQUE
+  # ---------------------------------------------------------------------------
+
+  - id: surnombre_zone_vide
+    fiche: "Analyse 4312"
+    contexte: attaque
+    declencheur:
+      description: "Zone vide de l'autre côté du terrain alors que le jeu est concentré d'un côté."
+      condition: "my_possession and weak_side_empty and ball_zone in ['mid','opp_third']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Utilise le surnombre : va chercher la zone vide"
+    bouton: null
+    priorite: 3
+    source: 1
+
+  - id: recup_pas_de_spam
+    fiche: "Analyse 4312"
+    contexte: attaque
+    declencheur:
+      description: "Ballon récupéré à l'instant et passe longue immédiate vers l'avant."
+      condition: "seconds_since_recovery <= 2 and long_forward_pass_started and not clear_forward_lane"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ballon récupéré : porte d'abord, ne balance pas"
+    bouton: null
+    priorite: 3
+    source: 1
+
+  - id: recup_trou_vers_avant
+    fiche: "2e séance collective"
+    contexte: attaque
+    declencheur:
+      description: "Ballon récupéré depuis moins de 2 s avec une ligne claire vers l'avant."
+      condition: "seconds_since_recovery <= 2 and clear_forward_lane"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ligne claire : passe vers l'avant, ça casse le contre-pressing"
+    bouton: null
+    priorite: 2
+    source: 2
+
+  - id: trou_dc_lateral_attaque
+    fiche: "2e séance collective"
+    contexte: attaque
+    declencheur:
+      description: "Mon BU est placé entre le DC et le latéral adverses."
+      condition: "my_possession and my_bu_in_dc_lat_gap"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ton BU est entre DC et latéral : donne-lui"
+    bouton: null
+    priorite: 2
+    source: 2
+
+  - id: lateral_10_metres
+    fiche: "2e séance collective"
+    contexte: relance
+    declencheur:
+      description: "Mon latéral a le ballon, espace devant, pas de milieu adverse sur lui."
+      condition: "my_possession and carrier_role == 'LAT' and space_ahead_m >= 10 and ball_zone != 'opp_third'"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Latéral : conduis 10 mètres, puis trouve l'intérieur"
+    bouton: null
+    priorite: 3
+    source: 2
+
+  - id: duel_libere
+    fiche: "3e séance collective"
+    contexte: attaque
+    declencheur:
+      description: "Un adversaire est collé à mon porteur depuis plus de 1,5 s."
+      condition: "my_possession and carrier_marked_s >= 1.5"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il te colle : donne ton dos ou libère"
+    bouton: "Lâche R1"
+    priorite: 2
+    source: 3
+
+  - id: r2_pres_adversaire
+    fiche: "3e séance collective"
+    contexte: attaque
+    declencheur:
+      description: "Porteur en accélération (R2 probable) avec un adversaire à moins de 3 m."
+      condition: "my_possession and carrier_speed_high and nearest_opp_to_carrier_m <= 3 and ball_zone != 'wing'"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Pas de R2 près d'un adversaire : côté ou grand espace"
+    bouton: "R2"
+    priorite: 3
+    source: 3
+
+  - id: six_libre
+    fiche: "3e séance collective"
+    contexte: relance
+    declencheur:
+      description: "Moi en 4312, mon numéro 6 est libre (aucun adversaire à 8 m)."
+      condition: "my_formation == '4312' and my_possession and my_6_free_m >= 8 and ball_zone == 'my_third'"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Ton 6 est libre : appuie-toi dessus pour relancer"
+    bouton: null
+    priorite: 3
+    source: 3
+
+  - id: aile_relation_lateral_milieu
+    fiche: "La défense haute"
+    contexte: attaque
+    declencheur:
+      description: "Ligne adverse haute, mon latéral reçoit sur le côté avec mon milieu excentré proche."
+      condition: "my_possession and opp_line_height >= 70 and carrier_role == 'LAT' and ball_zone == 'wing'"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Latéral puis L1+△ : ton milieu part dans le dos"
+    bouton: "L1+△"
+    priorite: 2
+    source: 7
+
+  - id: defense_haute_pas_bu_colles
+    fiche: "La défense haute"
+    contexte: attaque
+    declencheur:
+      description: "Ligne haute adverse, mes BU déjà collés à sa ligne (hors-jeu probable)."
+      condition: "my_possession and opp_line_height >= 70 and my_bu_on_opp_line"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Pas tes BU collés : lance ton 10 de loin"
+    bouton: "L1"
+    priorite: 2
+    source: 7
+
+  - id: ligne_du_10_avant_zero_risque
+    fiche: "La ligne du 10"
+    contexte: relance
+    declencheur:
+      description: "41212/4312 contre 4213, ballon devant sa ligne du 10 dans mon camp."
+      condition: "my_formation in ['41212','4312'] and opp_formation == '4213' and my_possession and not ball_behind_opp_line10 and ball_in_my_half"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Avant la ligne du 10 : progresse tranquille, zéro risque"
+    bouton: null
+    priorite: 3
+    source: 6
+
+  - id: controle_deux_temps
+    fiche: "Les contrôles"
+    contexte: attaque
+    declencheur:
+      description: "Mon receveur se retourne dès la réception et perd le ballon (contrôle trop long)."
+      condition: "last_reception_turned and lost_within_s <= 1.5"
+      historique: 2
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Contrôle d'où vient le ballon, puis oriente-toi"
+    bouton: null
+    priorite: 3
+    source: 5
+
+  # ---------------------------------------------------------------------------
+  # RELANCE
+  # ---------------------------------------------------------------------------
+
+  - id: relance_compo_ailiers
+    fiche: "Les relances"
+    contexte: relance
+    declencheur:
+      description: "Relance depuis ma zone contre une compo avec ailiers."
+      condition: "my_possession and ball_zone == 'my_third' and opp_formation in ['4213','433','4231','4321']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Trouve tes milieux : une touche latérale, puis ressors"
+    bouton: null
+    priorite: 2
+    source: 4
+
+  - id: relance_pas_axe_pressee
+    fiche: "Les relances"
+    contexte: relance
+    declencheur:
+      description: "Passe axiale depuis ma surface alors que le receveur est pressé."
+      condition: "my_possession and ball_zone == 'my_third' and axial_pass_started and receiver_pressed"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Protège ton receveur : pas de passe forcée dans l'axe"
+    bouton: null
+    priorite: 2
+    source: 4
+
+  - id: relance_corner_assure
+    fiche: "2e séance collective"
+    contexte: relance
+    declencheur:
+      description: "Ballon récupéré dans ma surface juste après un corner adverse."
+      condition: "my_possession and seconds_since_opp_corner <= 6 and ball_in_my_box"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Après corner : assure, aucune passe forcée"
+    bouton: null
+    priorite: 2
+    source: 2
+
+  # ---------------------------------------------------------------------------
+  # DÉFENSE
+  # ---------------------------------------------------------------------------
+
+  - id: protege_ta_cage
+    fiche: "Analyse 4312"
+    contexte: defense
+    declencheur:
+      description: "Mon joueur sélectionné n'est plus entre le ballon et mon but."
+      condition: "not my_possession and ball_zone == 'my_third' and my_cursor_not_goal_side"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Protège ta cage : entre le ballon et le but"
+    bouton: null
+    priorite: 2
+    source: 1
+
+  - id: trou_dc_lateral_defense
+    fiche: "Analyse 4312"
+    contexte: defense
+    declencheur:
+      description: "Appel adverse dans l'espace entre mon DC et mon latéral."
+      condition: "not my_possession and opp_run_in_dc_lat_gap"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Appel dans le trou DC-latéral : prends le latéral et ferme"
+    bouton: null
+    priorite: 1
+    source: 1
+
+  - id: ne_te_jette_pas
+    fiche: "3e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Mon joueur sélectionné (hors attaquants) fonce sur le porteur dans mon camp."
+      condition: "not my_possession and ball_in_my_half and my_cursor_rushing_carrier and my_cursor_role not in ['BU','MOC']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ne te jette pas : ferme l'axe et attends"
+    bouton: "L2"
+    priorite: 2
+    source: 3
+
+  - id: ramene_milieux_lignes
+    fiche: "3e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Adversaire en construction, aucun appel, mes milieux loin des lignes de passe."
+      condition: "not my_possession and no_opp_run and my_midfield_off_lanes"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ramène tes milieux sur les lignes de passe"
+    bouton: null
+    priorite: 3
+    source: 3
+
+  - id: switch_ligne_dangereuse
+    fiche: "3e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Appel dangereux en profondeur alors que je contrôle un milieu."
+      condition: "not my_possession and opp_deep_run and my_cursor_role in ['MDC','MC','MOC']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Appel dangereux : lâche ton milieu, prends celui qui coupe"
+    bouton: null
+    priorite: 1
+    source: 3
+
+  - id: milieu_mort_switch
+    fiche: "2e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Mon joueur sélectionné est dépassé (derrière le ballon) depuis plus de 0,5 s."
+      condition: "not my_possession and my_cursor_beaten_s > 0.5"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Ton milieu est dépassé : switch tout de suite"
+    bouton: null
+    priorite: 1
+    source: 2
+
+  - id: lateral_3e_dc
+    fiche: "2e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Adversaire sans ailier en face, mon latéral reste écarté loin de mon DC."
+      condition: "not my_possession and opp_no_winger_my_side and my_lat_to_dc_m >= 15"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Pas d'ailier en face : latéral resserré en 3e DC"
+    bouton: null
+    priorite: 3
+    source: 2
+
+  - id: dc_ne_sort_pas_aile
+    fiche: "Les zones"
+    contexte: defense
+    declencheur:
+      description: "Mon DC sélectionné presse un attaquant sur l'aile."
+      condition: "not my_possession and my_cursor_role == 'DC' and ball_zone == 'wing' and my_cursor_pressing_carrier"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Attaquant sur le côté : c'est ton latéral qui presse"
+    bouton: null
+    priorite: 2
+    source: 8
+
+  - id: joueur_de_la_zone
+    fiche: "Les zones"
+    contexte: defense
+    declencheur:
+      description: "Je défends avec un joueur qui n'est pas celui de la zone du ballon."
+      condition: "not my_possession and my_cursor_role != ball_zone_owner_me and my_cursor_to_ball_m >= 10"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Défends avec le joueur de la zone"
+    bouton: null
+    priorite: 3
+    source: 8
+
+  - id: deux_mdc_4213
+    fiche: "Les zones"
+    contexte: defense
+    declencheur:
+      description: "Moi en 4213, mes deux MDC sont du même côté du ballon."
+      condition: "not my_possession and my_formation == '4213' and both_mdc_ball_side"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "2 MDC : jamais ensemble côté ballon, l'un reste"
+    bouton: null
+    priorite: 2
+    source: 8
+
+  - id: controle_long_fonce
+    fiche: "2e séance collective"
+    contexte: defense
+    declencheur:
+      description: "Contrôle adverse trop long (ballon éloigné du pied) près de mon joueur."
+      condition: "not my_possession and opp_heavy_touch and my_cursor_to_ball_m <= 4"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Contrôle trop long : fonce et prends le ballon"
+    bouton: "○"
+    priorite: 2
+    source: 2
+
+  - id: hors_jeu_retour_arriere
+    fiche: "3e séance collective"
+    contexte: defense
+    declencheur:
+      description: "L'adversaire joue en arrière ou est dos au jeu."
+      condition: "not my_possession and opp_back_pass_started"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Il revient en arrière : piège du hors-jeu possible"
+    bouton: null
+    priorite: 3
+    source: 3
+
+  - id: defense_433_contre_41212
+    fiche: "La ligne du 10"
+    contexte: defense
+    declencheur:
+      description: "Moi en 4213 contre un 41212/4312 : son losange fait circuler devant ma surface."
+      condition: "my_formation == '4213' and opp_formation in ['41212','4312'] and not my_possession"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "En 4213 contre losange : passe en 433 (2), ton 6 sur son 10"
+    bouton: null
+    priorite: 2
+    source: 6
+
+  # ---------------------------------------------------------------------------
+  # PERTE DE BALLE
+  # ---------------------------------------------------------------------------
+
+  - id: perte_contre_pressing
+    fiche: "La perte de balle"
+    contexte: perte
+    declencheur:
+      description: "Ballon perdu haut (camp adverse), moins de 3 s écoulées."
+      condition: "ball_lost and seconds_since_loss < 3 and loss_zone == 'opp_half'"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "3 secondes : contre-presse fort avec tes attaquants"
+    bouton: null
+    priorite: 2
+    source: 9
+
+  - id: perte_milieux_casses
+    fiche: "La perte de balle"
+    contexte: perte
+    declencheur:
+      description: "Après la perte, l'adversaire a trouvé son 10 dans le dos de mes milieux."
+      condition: "ball_lost and opp_carrier_behind_my_midfield"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Milieux cassés : replace-toi, ne presse pas"
+    bouton: null
+    priorite: 1
+    source: 9
+
+  - id: perte_6_dans_axe
+    fiche: "2e séance collective"
+    contexte: perte
+    declencheur:
+      description: "Après la perte, mon MDC sort sur le côté."
+      condition: "ball_lost and seconds_since_loss >= 1 and my_mdc_off_axis_m >= 12"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Perte : le 6 reste dans l'axe, il ne se jette pas"
+    bouton: null
+    priorite: 2
+    source: 2
+
+# -----------------------------------------------------------------------------
+# Signaux attendus par les conditions (produits par vision/tracking/analysis).
+# Tant qu'un signal n'existe pas encore (phase non livrée), la règle qui
+# l'utilise est simplement ignorée : jamais de conseil approximatif.
+# -----------------------------------------------------------------------------
+signals:
+  my_possession: "bool — mon équipe a le ballon (Phase 3)"
+  my_formation: "str — formation estimée (Phase 4)"
+  opp_formation: "str — formation adverse estimée (Phase 4)"
+  ball_zone: "my_third | mid | opp_third | wing"
+  ball_in_my_half: "bool"
+  ball_in_my_box: "bool"
+  ball_behind_opp_line10: "bool — ballon derrière la hauteur du 10 adverse"
+  ball_zone_owner_me: "str — rôle de mon joueur responsable de la zone du ballon"
+  ball_zone_owner_opp: "str — rôle adverse responsable de la zone du ballon"
+  opp_line_height: "0-100 — hauteur de la ligne défensive adverse (échelle « prof »)"
+  space_ahead_m: "float — espace libre devant le porteur (m)"
+  passes_without_progress: "int — passes consécutives sans gain de terrain"
+  ball_lost: "bool"
+  seconds_since_loss: "float"
+  loss_zone: "own_half | opp_half"
+  seconds_since_recovery: "float"
+  my_dc_out_of_line_m: "float"
+  my_mdc_off_axis_m: "float"
+  my_bu_to_opp_dc_m: "float"
+  opp_cursor_role: "str — rôle du joueur sous le curseur blanc"
+  my_cursor_role: "str — rôle du joueur sous le curseur rouge"
+  opp_switch_delay_s: "float — délai entre ma passe et son changement de joueur"
+  opp_rush_on_carrier_count: "int — nombre de fois où il a foncé sur mon porteur"
+  habit_midfield_only_count: "int"
+  habit_opp_dc_out_count: "int"
+  habit_closes_lanes_count: "int"
+  habit_ignores_runs_count: "int"

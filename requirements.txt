@@ -1,0 +1,26 @@
+# --- Cœur (Phases 0 et 1) -----------------------------------------------
+numpy>=1.26
+opencv-python>=4.9          # capture, couleurs, curseurs, overlay
+PyYAML>=6.0
+fastapi>=0.110              # dashboard local
+uvicorn>=0.29
+
+# --- Inférence ONNX : installer UN SEUL de ces paquets selon ta machine ----
+#   Nvidia (CUDA)           : pip install onnxruntime-gpu
+#   AMD / Intel / Nvidia    : pip install onnxruntime-directml   (Windows, DirectX 12)
+#   Intel (CPU, iGPU, Arc)  : pip install onnxruntime-openvino
+#   CPU seul                : pip install onnxruntime            (installé par défaut ci-dessous)
+onnxruntime>=1.17
+
+# --- OCR (choisir) ----------------------------------------------------------
+pytesseract>=0.3.10         # + installer Tesseract (voir README)
+# paddleocr>=2.7 ; paddlepaddle(-gpu)   # option : meilleur OCR, plus lourd
+
+# --- Données / entraînement (optionnel sur le PC : possible sur Colab) ------
+# ultralytics>=8.3          # entraînement YOLO + export ONNX (installe PyTorch)
+# onnx>=1.16
+# roboflow>=1.1             # upload direct vers Roboflow
+
+# --- Tests ------------------------------------------------------------------
+pytest>=8.0
+httpx>=0.27                 # client de test FastAPI

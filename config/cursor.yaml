@@ -1,0 +1,51 @@
+# =============================================================================
+# config/cursor.yaml — détection des curseurs (valeurs par défaut en dur)
+#
+# Règle fixe : MON curseur est TOUJOURS ROUGE, celui de l'ADVERSAIRE TOUJOURS BLANC.
+# Forme : petit triangle pointant vers le bas, au-dessus de la tête du joueur.
+# Pas d'assistant de calibration : si la détection se trompe, corrige ici.
+# Plages HSV au format OpenCV : H 0-179, S 0-255, V 0-255. Mesures en pixels 1080p.
+# =============================================================================
+
+# Cadence propre des curseurs (indépendante de la détection YOLO)
+rate_hz: 30
+
+me:            # curseur ROUGE
+  # Le rouge est à cheval sur 0 : deux plages de teinte
+  hsv_ranges:
+    - [[0, 150, 140], [8, 255, 255]]
+    - [[170, 150, 140], [179, 255, 255]]
+  min_saturation_mean: 170     # anti-confusion avec maillots roses/rouges délavés
+
+opp:           # curseur BLANC
+  hsv_ranges:
+    - [[0, 0, 225], [179, 40, 255]]
+  # anti-lignes : autour du triangle, la couronne doit être quasi vide de blanc
+  isolation_ring_px: 6
+  isolation_max_fill: 0.15
+
+shape:
+  min_area: 25            # px² (triangle ~ 10-25 px de côté en 1080p)
+  max_area: 900
+  min_side_px: 6
+  max_side_px: 45
+  approx_epsilon: 0.12    # tolérance approxPolyDP (fraction du périmètre)
+  min_solidity: 0.80      # aire / aire de l'enveloppe convexe
+  max_aspect: 2.2         # largeur/hauteur maxi (une ligne est très allongée)
+  min_aspect: 0.6
+  min_triangle_fill: 0.70 # aire du contour / aire du triangle ajusté
+
+position:
+  require_player_below: true   # ignoré tant qu'aucun détecteur de joueurs n'est chargé
+  max_dx_px: 40                # écart horizontal max entre pointe et centre de la boîte
+  max_gap_px: 60               # distance max pointe -> haut de la boîte
+  max_overlap_px: 25           # le curseur peut chevaucher un peu le haut de la boîte
+  exclude_regions:             # zones HUD (relatives) où aucun curseur n'est cherché
+    - [0.0, 0.0, 0.32, 0.09]   # score/chrono en haut à gauche
+    - [0.0, 0.88, 1.0, 1.0]    # bandeau bas (noms, radar)
+
+tracking:
+  smoothing: 0.5               # lissage temporel (EMA) de la position
+  interpolate_max_s: 2.0       # interpolation si le curseur est masqué
+  switch_jump_px: 80           # saut au-delà duquel on considère un changement de joueur
+  switch_confirm_frames: 2     # nombre d'images pour confirmer un changement

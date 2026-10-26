@@ -1,0 +1,55 @@
+{
+  "_comment": "Zones OCR en coordonnées relatives (0-1) d'une image 1920x1080. Ajuste x,y,w,h si ton HUD diffère. mode: periodic (rate_hz) | on_demand (trigger) | relative (relative_to un curseur).",
+  "zones": {
+    "clock": {
+      "mode": "periodic",
+      "rate_hz": 2,
+      "box": [0.115, 0.035, 0.055, 0.035],
+      "kind": "clock",
+      "whitelist": "0123456789:",
+      "preprocess": {"scale": 3, "invert": "auto", "threshold": "otsu"}
+    },
+    "score": {
+      "mode": "periodic",
+      "rate_hz": 1,
+      "box": [0.055, 0.035, 0.055, 0.035],
+      "kind": "score",
+      "whitelist": "0123456789-",
+      "preprocess": {"scale": 3, "invert": "auto", "threshold": "otsu"}
+    },
+    "selected_name_me": {
+      "mode": "relative",
+      "relative_to": "cursor_me",
+      "rate_hz": 3,
+      "offset_px": [-120, -45, 240, 32],
+      "kind": "name",
+      "whitelist": "",
+      "preprocess": {"scale": 2, "invert": "auto", "threshold": "otsu"}
+    },
+    "selected_name_opp": {
+      "mode": "relative",
+      "relative_to": "cursor_opp",
+      "rate_hz": 3,
+      "offset_px": [-120, -45, 240, 32],
+      "kind": "name",
+      "whitelist": "",
+      "preprocess": {"scale": 2, "invert": "auto", "threshold": "otsu"}
+    },
+    "pause_overlay": {
+      "mode": "on_demand",
+      "trigger": "dark_overlay",
+      "box": [0.30, 0.40, 0.40, 0.08],
+      "kind": "pause",
+      "whitelist": "",
+      "preprocess": {"scale": 2, "invert": "auto", "threshold": "otsu"}
+    },
+    "halftime_screen": {
+      "mode": "on_demand",
+      "trigger": "dark_overlay",
+      "box": [0.30, 0.08, 0.40, 0.08],
+      "kind": "screen_title",
+      "whitelist": "",
+      "preprocess": {"scale": 2, "invert": "auto", "threshold": "otsu"}
+    }
+  }
+}

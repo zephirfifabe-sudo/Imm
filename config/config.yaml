@@ -1,0 +1,74 @@
+# =============================================================================
+# config/config.yaml — configuration principale du coach EA FC 27
+# Logiciel 100 % passif : il ne fait que LIRE la vidéo de la carte de capture.
+# =============================================================================
+
+live_coaching: true          # false = analyse seule, aucun conseil en direct
+
+capture:
+  # Source vidéo :
+  #   - un entier = index du périphérique (carte de capture ou caméra virtuelle OBS)
+  #   - un chemin de fichier vidéo (.mp4, .mkv) pour rejouer un match enregistré
+  source: 0
+  backend: auto              # auto | dshow | msmf | any  (Windows : dshow conseillé pour OBS)
+  width: 1920
+  height: 1080
+  fps: 60                    # 60 ou 30 selon la carte de capture
+  fourcc: MJPG               # MJPG conseillé en USB ; vide = format par défaut du pilote
+  buffer_seconds: 30         # buffer circulaire (extraits vidéo du bilan)
+  realtime_file_playback: true   # fichier : lecture à la vitesse réelle
+
+hardware:
+  # auto = CUDA > DirectML/ROCm > OpenVINO > CPU
+  # ou forcer : cuda | directml | rocm | openvino | cpu
+  accelerator: auto
+  cadence_steps: [60, 30, 15, 10]   # images analysées/s par la détection
+  benchmark_frames: 30              # images mesurées au démarrage
+  budget_ratio: 0.8                 # part du temps réel réservée à la détection
+
+detector:
+  # Modèle ONNX exporté par Ultralytics (scripts/train_yolo.py ou export_onnx.py).
+  # Tant que le modèle maison n'est pas entraîné, un YOLO COCO (yolo11n.onnx)
+  # fonctionne en repli : « person » -> player, « sports ball » -> ball.
+  model: models/fc_yolo_n.onnx
+  model_precision: models/fc_yolo_s.onnx   # option « précision » (GPU puissant)
+  precision_mode: false
+  mode: tiles               # tiles | native  (JAMAIS d'image réduite à 640 px)
+  tile_size: 640            # taille d'entrée du modèle par tuile
+  tile_overlap: 96          # recouvrement entre tuiles (px)
+  conf_threshold: 0.30
+  iou_threshold: 0.50
+  # Zone du terrain analysée (relative, 0-1). Exclut le HUD du haut si besoin.
+  roi: [0.0, 0.0, 1.0, 1.0]
+
+ocr:
+  engine: auto              # auto | paddle | tesseract | none
+  zones_file: config/ocr_zones.json
+  tesseract_cmd: ""         # Windows : C:\Program Files\Tesseract-OCR\tesseract.exe
+
+cursor:
+  config_file: config/cursor.yaml
+
+teams:
+  vote_window: 15                 # images pour le vote majoritaire par track
+  prototype_ema: 0.05             # vitesse d'adaptation des prototypes
+  cursor_sample_weight: 1.0       # poids des échantillons sûrs (sous curseur)
+  clash_delta_e: 12.0             # sous ce ΔE00 entre maillots : mode « clash »
+  min_confidence: 0.70            # sous 70 % : aucun conseil dépendant de l'équipe
+  kits_db: data/kits.sqlite
+  kickoff_clock: ["00:00", "45:00"]
+
+tracking:
+  iou_match: 0.3
+  max_missed: 15
+
+ui:
+  host: 127.0.0.1
+  port: 8000
+  debug_overlay: true
+  mjpeg_fps: 10
+  jpeg_quality: 70
+
+logging:
+  level: INFO
+  file: logs/coach.log
