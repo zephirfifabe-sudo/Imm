@@ -8,6 +8,11 @@ if ! command -v docker >/dev/null 2>&1; then
   echo "Installation de Docker..."
   curl -fsSL https://get.docker.com | sh
 fi
+# Docker déjà présent sans le plugin compose (cas fréquent sur les images OVH/Ubuntu) -> on l'ajoute
+if ! docker compose version >/dev/null 2>&1; then
+  echo "Installation du plugin docker compose..."
+  apt-get update -qq && (apt-get install -y docker-compose-v2 || apt-get install -y docker-compose-plugin)
+fi
 [ -f .env ] || { cp .env.example .env; echo "⚠️  .env créé : remplis TELEGRAM_TOKEN / TELEGRAM_CHAT_ID puis relance ./deploy.sh"; exit 1; }
 mkdir -p data/logs
 
