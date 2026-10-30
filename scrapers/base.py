@@ -1,0 +1,245 @@
+"""Fetcher robuste anti-bot : httpx -> Playwright (Chromium headless) -> FlareSolverr.
+
+Stratégie :
+1. httpx avec des en-têtes de vrai navigateur (rapide, peu coûteux).
+2. Si la réponse ressemble à un challenge Cloudflare (403/503 + "Just a moment", "cf-chl"...),
+   on ouvre la page dans Chromium headless (Playwright), on attend que le challenge JS se résolve,
+   puis on RÉCUPÈRE LES COOKIES (cf_clearance) pour les réinjecter dans httpx -> les requêtes
+   suivantes repassent par httpx (même User-Agent obligatoire, d'où l'UA partagé).
+3. Si Playwright échoue aussi (challenge Turnstile interactif), et que FLARESOLVERR_URL est défini,
+   on délègue à FlareSolverr (conteneur docker dédié).
+
+IMPORTANT : les objets Playwright "sync" sont liés au thread qui les a créés.
+-> Créer un Fetcher par job/thread et appeler close() à la fin (ou utiliser `with Fetcher() as f`).
+"""
+from __future__ import annotations
+
+import json
+import random
+import threading
+import time
+from dataclasses import dataclass
+from urllib.parse import urlparse
+
+import httpx
+
+import config
+from utils.logger import get_logger
+
+log = get_logger("fetcher")
+
+CF_MARKERS = (
+    "just a moment...", "cf-browser-verification", "cf-chl", "challenge-platform",
+    "attention required! | cloudflare", "checking your browser", "cf_chl_opt", "enable javascript and cookies",
+)
+
+
+class FetchError(RuntimeError):
+    pass
+
+
+@dataclass
+class FetchResult:
+    url: str
+    status: int
+    text: str
+    via: str
+
+    def json(self):
+        return json.loads(self.text)
+
+
+def looks_blocked(status: int, text: str) -> bool:
+    low = (text or "")[:20000].lower()
+    if any(m in low for m in CF_MARKERS):
+        return True
+    return status in (403, 429, 503) and ("cloudflare" in low or len(low) < 2000)
+
+
+class Fetcher:
+    def __init__(self, mode: str | None = None, min_delay: float | None = None, timeout: float = 25.0):
+        self.mode = mode or config.FETCH_MODE
+        self.min_delay = config.REQUEST_MIN_DELAY if min_delay is None else min_delay
+        self.timeout = timeout
+        self.headers = {
+            "User-Agent": config.USER_AGENT,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7",
+            "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        self.client = httpx.Client(headers=self.headers, follow_redirects=True, timeout=timeout)
+        self._last_hit: dict[str, float] = {}
+        self._lock = threading.Lock()
+        self._pw = None
+        self._browser = None
+        self._context = None
+        self.blocked_hosts: set[str] = set()  # hosts où httpx est bloqué même avec cookies
+
+    # ------------------------------------------------------------------ context manager
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    def close(self) -> None:
+        try:
+            self.client.close()
+        except Exception:  # noqa: BLE001
+            pass
+        for obj in (self._context, self._browser):
+            try:
+                if obj is not None:
+                    obj.close()
+            except Exception:  # noqa: BLE001
+                pass
+        if self._pw is not None:
+            try:
+                self._pw.stop()
+            except Exception:  # noqa: BLE001
+                pass
+        self._pw = self._browser = self._context = None
+
+    # ------------------------------------------------------------------ public API
+    def get(self, url: str, expect: str = "html", retries: int = 2) -> FetchResult:
+        host = urlparse(url).netloc
+        self._throttle(host)
+        errors: list[str] = []
+
+        if self.mode != "playwright" and host not in self.blocked_hosts:
+            for attempt in range(retries + 1):
+                try:
+                    r = self.client.get(url, headers=self._accept(expect))
+                    if r.status_code == 404:
+                        return FetchResult(url, 404, r.text, "httpx")
+                    if not looks_blocked(r.status_code, r.text) and r.status_code < 400:
+                        return FetchResult(url, r.status_code, r.text, "httpx")
+                    errors.append(f"httpx {r.status_code} (bloqué={looks_blocked(r.status_code, r.text)})")
+                    if looks_blocked(r.status_code, r.text):
+                        break
+                except httpx.HTTPError as e:
+                    errors.append(f"httpx {type(e).__name__}: {e}")
+                time.sleep(2 ** attempt + random.random())
+
+        if self.mode in ("auto", "playwright"):
+            try:
+                res = self._playwright_get(url, expect)
+                if not looks_blocked(res.status, res.text):
+                    return res
+                errors.append(f"playwright toujours bloqué ({res.status})")
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"playwright {type(e).__name__}: {e}")
+
+        if config.FLARESOLVERR_URL:
+            try:
+                return self._flaresolverr_get(url, expect)
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"flaresolverr {type(e).__name__}: {e}")
+
+        raise FetchError(f"Impossible de récupérer {url} : " + " | ".join(errors))
+
+    def get_json(self, url: str, retries: int = 2):
+        res = self.get(url, expect="json", retries=retries)
+        if res.status == 404:
+            return None
+        txt = res.text.strip()
+        if not txt.startswith(("{", "[")):
+            # Chromium affiche le JSON dans un <pre>
+            from bs4 import BeautifulSoup
+
+            txt = BeautifulSoup(txt, "html.parser").get_text().strip()
+        return json.loads(txt)
+
+    # ------------------------------------------------------------------ internals
+    @staticmethod
+    def _accept(expect: str) -> dict:
+        if expect == "json":
+            return {"Accept": "application/json, text/plain, */*", "X-Requested-With": "XMLHttpRequest"}
+        return {}
+
+    def _throttle(self, host: str) -> None:
+        with self._lock:
+            wait = self._last_hit.get(host, 0) + self.min_delay + random.uniform(0, self.min_delay / 2) - time.time()
+            if wait > 0:
+                time.sleep(wait)
+            self._last_hit[host] = time.time()
+
+    def _ensure_browser(self):
+        if self._context is not None:
+            return self._context
+        from playwright.sync_api import sync_playwright
+
+        self._pw = sync_playwright().start()
+        launch_kwargs = {
+            "headless": True,
+            "args": ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"],
+        }
+        if config.PLAYWRIGHT_CHROMIUM_PATH:
+            launch_kwargs["executable_path"] = config.PLAYWRIGHT_CHROMIUM_PATH
+        self._browser = self._pw.chromium.launch(**launch_kwargs)
+        self._context = self._browser.new_context(
+            user_agent=config.USER_AGENT, locale="fr-FR", timezone_id=config.TZ,
+            viewport={"width": 1366, "height": 900},
+        )
+        # Masquer les traces d'automatisation les plus évidentes
+        self._context.add_init_script(
+            "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
+            "window.chrome={runtime:{}};"
+            "Object.defineProperty(navigator,'languages',{get:()=>['fr-FR','fr','en-US','en']});"
+            "Object.defineProperty(navigator,'plugins',{get:()=>[1,2,3,4,5]});"
+        )
+        log.info("Chromium headless démarré (fallback anti-bot)")
+        return self._context
+
+    def _playwright_get(self, url: str, expect: str, max_wait: float = 30.0) -> FetchResult:
+        ctx = self._ensure_browser()
+        page = ctx.new_page()
+        try:
+            resp = page.goto(url, wait_until="domcontentloaded", timeout=int(self.timeout * 1000) + 20000)
+            status = resp.status if resp else 0
+            deadline = time.time() + max_wait
+            content = page.content()
+            while looks_blocked(status, content) and time.time() < deadline:
+                page.wait_for_timeout(1000)
+                try:
+                    content = page.content()
+                except Exception:  # noqa: BLE001  (navigation en cours après challenge)
+                    continue
+                if not looks_blocked(200, content):
+                    status = 200
+                    break
+            if expect == "html":
+                try:
+                    page.wait_for_load_state("networkidle", timeout=8000)
+                except Exception:  # noqa: BLE001
+                    pass
+                content = page.content()
+            else:
+                content = page.evaluate("() => document.body ? document.body.innerText : ''") or content
+            self._sync_cookies_to_httpx()
+            log.info("Playwright OK %s (status=%s)", url, status)
+            return FetchResult(url, status or 200, content, "playwright")
+        finally:
+            page.close()
+
+    def _sync_cookies_to_httpx(self) -> None:
+        if self._context is None:
+            return
+        for ck in self._context.cookies():
+            self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""), path=ck.get("path", "/"))
+
+    def _flaresolverr_get(self, url: str, expect: str) -> FetchResult:
+        r = httpx.post(config.FLARESOLVERR_URL, json={"cmd": "request.get", "url": url, "maxTimeout": 60000},
+                       timeout=90)
+        r.raise_for_status()
+        sol = r.json().get("solution") or {}
+        for ck in sol.get("cookies", []):
+            self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""))
+        text = sol.get("response", "")
+        if expect == "json" and not text.strip().startswith(("{", "[")):
+            from bs4 import BeautifulSoup
+
+            text = BeautifulSoup(text, "html.parser").get_text()
+        log.info("FlareSolverr OK %s", url)
+        return FetchResult(url, int(sol.get("status", 200)), text, "flaresolverr")

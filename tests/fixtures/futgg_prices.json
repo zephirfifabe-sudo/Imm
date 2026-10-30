@@ -1,0 +1,4 @@
+{"data":{"eaId":50544321,"currentPrice":{"price":67500,"isExtinct":false,"priceUpdatedAt":"2026-10-29T18:00:00Z"},
+ "overview":{"averageBin":68900,"cheapestSale":66000,"yesterdayAverageBin":72000},
+ "history":[{"date":"2026-10-23T00:00:00Z","price":72000},{"date":"2026-10-25T00:00:00Z","price":69000},{"date":"2026-10-28T00:00:00Z","price":71000}],
+ "liveAuctions":[{"buyNowPrice":67500},{"buyNowPrice":67750},{"buyNowPrice":68000}]}}

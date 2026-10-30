@@ -1,0 +1,59 @@
+"""Test réel du fallback anti-bot : un serveur local imite un challenge Cloudflare
+(403 + "Just a moment..." puis JS qui pose un cookie et recharge). httpx échoue,
+Chromium headless résout, et les cookies sont réinjectés dans httpx."""
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import pytest
+
+from scrapers.base import Fetcher, looks_blocked
+
+CHALLENGE = b"""<html><head><title>Just a moment...</title></head><body>
+<div id="challenge-platform">Checking your browser</div>
+<script>setTimeout(function(){document.cookie='cf_clearance=ok; path=/'; location.reload();}, 800);</script>
+</body></html>"""
+REAL = b"""<html><body><a href="/players/1-test-player/27-1/"><span>85</span><span>ST</span><span>50K</span></a></body></html>"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        ok = "cf_clearance=ok" in (self.headers.get("Cookie") or "")
+        body = REAL if ok else CHALLENGE
+        self.send_response(200 if ok else 403)
+        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+@pytest.fixture
+def server():
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    yield f"http://127.0.0.1:{srv.server_port}"
+    srv.shutdown()
+
+
+def test_looks_blocked():
+    assert looks_blocked(403, CHALLENGE.decode())
+    assert not looks_blocked(200, REAL.decode())
+
+
+def test_cloudflare_fallback_to_playwright(server):
+    pytest.importorskip("playwright")
+    with Fetcher(mode="auto", min_delay=0) as f:
+        try:
+            res = f.get(server + "/players/", retries=0)
+        except Exception as e:  # noqa: BLE001
+            if "Executable doesn't exist" in str(e) or "playwright install" in str(e):
+                pytest.skip("Chromium non installé (définir PLAYWRIGHT_CHROMIUM_PATH)")
+            raise
+        assert res.via == "playwright"
+        assert "test-player" in res.text
+        # les cookies récupérés par le navigateur permettent à httpx de passer ensuite
+        res2 = f.get(server + "/players/?page=2", retries=0)
+        assert res2.via == "httpx" and "test-player" in res2.text
