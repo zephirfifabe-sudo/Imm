@@ -46,7 +46,7 @@ def rule_key(player: dict) -> str:
     return f"{slugify(player.get('name') or player['player_id'])}_{player.get('rating') or ''}".rstrip("_")
 
 
-def learn_player(s: pd.Series) -> dict | None:
+def learn_player(s: pd.Series, dens: float = 1.0) -> dict | None:
     rel = pdt.relative(s, centered=True)
     prof = pdt.profile_from_rel(rel)
     if prof is None:
@@ -69,7 +69,9 @@ def learn_player(s: pd.Series) -> dict | None:
         "avg_recovery_value": stats["recovery"]["avg"],
         "weekday_cycle": pdt.cycle_by_weekday(rel),
         "weeks_observed": weeks,
-        "confidence": _confidence(stats, weeks),
+        # données journalières (backfill) : le profil horaire est approximatif -> confiance réduite
+        "data_quality": "horaire" if dens >= 0.5 else "journalier",
+        "confidence": round(_confidence(stats, weeks) * (1.0 if dens >= 0.5 else 0.6), 2),
         "profile": [round(float(x), 4) for x in prof],
     }
 
@@ -113,7 +115,7 @@ def learn_patterns(days: int = 30, now: datetime | None = None, save: bool = Tru
     rels, crashes, rivals, recs, confs = [], [], [], [], []
     for pid in df["player_id"].unique():
         s = pdt.hourly_series(df, pid)
-        r = learn_player(s)
+        r = learn_player(s, pdt.density(df, pid))
         if not r:
             continue
         p = players.get(pid, {"player_id": pid, "name": pid})

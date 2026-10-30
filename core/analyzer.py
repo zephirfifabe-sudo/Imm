@@ -94,16 +94,28 @@ class MarketAnalyzer:
         else:
             score = 0.65 * instant_score + 0.35 * hs
             base_conf = rule_conf
+            # Une règle instantanée forte garde sa direction : l'habitude module la force, pas le sens
+            if abs(instant_score) >= 0.5 and (np.sign(score) != np.sign(instant_score) or abs(score) < 0.3):
+                score = 0.3 * float(np.sign(instant_score))
         agree = 1.0 if (instant_score is None or np.sign(instant_score) == np.sign(hs) or abs(hs) < 0.1) else 0.4
         conf = 10 * (0.30 + 0.35 * min(1, abs(score) / 0.8) + 0.20 * base_conf + 0.15 * hc * agree)
         conf = int(np.clip(round(conf), 1, 8 if instant_score is None else 10))
         action = score_to_action(score)
         rule_d = learner.rule_for(self.rules, player)
         rec = rule_d.get("avg_recovery_value") or 0.10
+        net = None
         if price and action.startswith("ACHAT"):
-            target = price * (1 + max(0.08, min(rec, 0.35)))
-            act = (f"ACHETER {fmt_price(price * 0.9)}-{fmt_price(price * 1.01)}. "
-                   f"Revente {fmt_price(target)}+ ({rule_d.get('best_sell', 'Jeu-Ven')}).")
+            # Taxe EA 5% : la revente doit couvrir la taxe + une marge nette minimale
+            expected = price * (1 + float(np.clip(rec, 0, 0.35)))
+            net = expected * (1 - config.EA_TAX) - price
+            if net / price < config.MIN_NET_MARGIN:
+                action = "HOLD"
+                instant_txt = (instant_txt + " " if instant_txt else "") + \
+                    f"(Rebond attendu {rec * 100:+.0f}% : marge nette après taxe 5% insuffisante.)"
+        if price and action.startswith("ACHAT"):
+            act = (f"ACHETER {fmt_price(price * 0.95)}-{fmt_price(price * 1.01)}. "
+                   f"Revente {fmt_price(expected)}+ ({rule_d.get('best_sell', 'Jeu-Ven')}) "
+                   f"= {fmt_price(net)} net/carte après taxe.")
         elif price and action.startswith("VENTE"):
             act = f"VENDRE maintenant ≥ {fmt_price(price * 0.98)}. Rachat possible {rule_d.get('best_buy', 'Dim-Lun')}."
         else:
@@ -114,7 +126,8 @@ class MarketAnalyzer:
             player_name=player.get("name", ""), rating=player.get("rating"), card_type=player.get("card_type"),
             position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
             instant=instant_txt, habit=hab["text"], action_text=act, risk=risk,
-            extra={**(extra or {}), "habit_deviation": hab["deviation"], "habit_score": round(hs, 3)},
+            extra={**(extra or {}), "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
+                   "net_profit": round(net) if net is not None else None},
         )
 
     # ------------------------------------------------------------------ R1
@@ -204,6 +217,8 @@ class MarketAnalyzer:
     # ------------------------------------------------------------------ R4
     def recent_competitor(self, player: dict, hours: int = 48) -> bool:
         for ev in db.get_events("new_card", since=self.now - timedelta(hours=hours)):
+            if pd.Timestamp(ev["timestamp"]) > pd.Timestamp(self.now):  # backtest : pas de futur
+                continue
             if similarity(ev.get("payload") or {}, player) > config.SIMILARITY_ALERT:
                 return True
         return False

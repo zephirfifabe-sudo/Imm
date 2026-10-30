@@ -75,6 +75,9 @@ class Fetcher:
         self._browser = None
         self._context = None
         self.blocked_hosts: set[str] = set()  # hosts où httpx est bloqué même avec cookies
+        # Coupe-circuit : après 3 échecs complets d'affilée, le site est ignoré jusqu'à la fin du job
+        self.host_failures: dict[str, int] = {}
+        self.max_host_failures = 3
 
     # ------------------------------------------------------------------ context manager
     def __enter__(self):
@@ -104,6 +107,17 @@ class Fetcher:
     # ------------------------------------------------------------------ public API
     def get(self, url: str, expect: str = "html", retries: int = 2) -> FetchResult:
         host = urlparse(url).netloc
+        if self.host_failures.get(host, 0) >= self.max_host_failures:
+            raise FetchError(f"{host} ignoré (coupe-circuit : {self.max_host_failures} échecs d'affilée)")
+        try:
+            res = self._get(url, host, expect, retries)
+        except FetchError:
+            self.host_failures[host] = self.host_failures.get(host, 0) + 1
+            raise
+        self.host_failures[host] = 0
+        return res
+
+    def _get(self, url: str, host: str, expect: str, retries: int) -> FetchResult:
         self._throttle(host)
         errors: list[str] = []
 

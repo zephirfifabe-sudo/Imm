@@ -84,7 +84,17 @@ def hourly_series(df: pd.DataFrame, player_id: str) -> pd.Series:
     if s.empty:
         return s
     s = s[~s.index.duplicated(keep="last")]
-    return s.resample("1h").mean().interpolate(limit=6)
+    # limit=30 : comble aussi les données journalières du backfill (densité vérifiée par le learner)
+    return s.resample("1h").mean().interpolate(limit=30, limit_area="inside")
+
+
+def density(df: pd.DataFrame, player_id: str) -> float:
+    """Points réels par heure sur la période couverte (1.0 = horaire parfait, ~0.04 = journalier)."""
+    ts = df.loc[df["player_id"] == str(player_id), "ts"]
+    if len(ts) < 2:
+        return 0.0
+    hours = (ts.max() - ts.min()).total_seconds() / 3600
+    return min(1.0, len(ts) / max(hours, 1))
 
 
 def relative(s: pd.Series, centered: bool = True) -> pd.Series:
@@ -97,7 +107,7 @@ def profile_from_rel(rel: pd.Series) -> np.ndarray | None:
     rel = rel.dropna()
     if len(rel) < 72:
         return None
-    by_how = rel.groupby([rel.index.weekday * 24 + rel.index.hour]).median()
+    by_how = rel.groupby([rel.index.day_of_week * 24 + rel.index.hour]).median()
     prof = np.full(168, np.nan)
     prof[by_how.index.values.astype(int)] = by_how.values
     s = pd.Series(np.concatenate([prof, prof, prof])).interpolate(limit_direction="both")
@@ -162,7 +172,7 @@ def cycle_by_weekday(rel: pd.Series) -> dict[str, float]:
     rel = rel.dropna()
     if rel.empty:
         return {}
-    g = rel.groupby(rel.index.weekday).mean()
+    g = rel.groupby(rel.index.day_of_week).mean()
     return {DAYS_FR_LONG[int(k)]: round(float(v), 4) for k, v in g.items()}
 
 
@@ -198,7 +208,7 @@ def habit_assessment(price: float, s_live: pd.Series, rule: dict | None, now_loc
     if crash is not None:
         parts.append(f"Perd {crash * 100:+.1f}% le Dimanche soir en moyenne")
         # drawdown actuel vs le dernier Jeu-Ven
-        wl = s_live[(s_live.index.weekday.isin([3, 4])) & (s_live.index > now_local - pd.Timedelta(days=7))]
+        wl = s_live[(s_live.index.day_of_week.isin([3, 4])) & (s_live.index > now_local - pd.Timedelta(days=7))]
         if len(wl) >= 6:
             dd = price / wl.mean() - 1
             if dd < -0.02:

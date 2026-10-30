@@ -1,0 +1,26 @@
+services:
+  sniper:
+    build: .
+    container_name: fc27-sniper
+    restart: always
+    env_file: .env
+    environment:
+      - TZ=Europe/Paris
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data          # BDD market_history.db, watchlist, market_rules.json, logs
+    shm_size: "1gb"               # Chromium a besoin de mémoire partagée
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Optionnel : 3e recours anti-Cloudflare. Activer avec :
+  #   docker compose --profile flaresolverr up -d   + FLARESOLVERR_URL=http://flaresolverr:8191/v1 dans .env
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
+    container_name: flaresolverr
+    restart: always
+    profiles: ["flaresolverr"]
+    environment:
+      - TZ=Europe/Paris

@@ -57,3 +57,14 @@ def test_cloudflare_fallback_to_playwright(server):
         # les cookies récupérés par le navigateur permettent à httpx de passer ensuite
         res2 = f.get(server + "/players/?page=2", retries=0)
         assert res2.via == "httpx" and "test-player" in res2.text
+
+
+def test_circuit_breaker():
+    from scrapers.base import FetchError
+
+    with Fetcher(mode="httpx", min_delay=0) as f:
+        for _ in range(3):
+            with pytest.raises(FetchError):
+                f.get("http://127.0.0.1:9/x", retries=0)
+        with pytest.raises(FetchError, match="coupe-circuit"):
+            f.get("http://127.0.0.1:9/y", retries=0)

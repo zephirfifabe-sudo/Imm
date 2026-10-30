@@ -41,6 +41,8 @@ def fmt_price(p: float | int | None) -> str:
     if p is None:
         return "?"
     p = float(p)
+    if p < 0:
+        return "-" + fmt_price(-p)
     if p >= 1_000_000:
         return f"{p / 1_000_000:.2f}M"
     if p >= 1_000:

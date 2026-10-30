@@ -1,15 +1,16 @@
 """FC27 SNIPER ANALYST V4 FINAL — point d'entrée.
 
-Étapes 1-2 : commandes unitaires (chaque brique est testable seule).
-Étape 3 ajoutera le scheduler complet (`python main.py run`) + Telegram.
-
+  python main.py                      # = run : bot H24 (scheduler complet + alertes)
   python main.py init                 # crée la BDD
   python main.py watchlist            # scrape les 150 joueurs populaires 20k-400k
   python main.py snapshot             # enregistre les prix de la watchlist (job horaire)
   python main.py logger               # boucle : snapshot toutes les heures 24/7
   python main.py latest               # détecte les nouvelles cartes + analyse d'impact (R1/R5)
   python main.py evos | sbc | leaks   # sources secondaires (R3 / R2 / leaks)
+  python main.py backfill             # importe l'historique de prix FUT.GG (mémoire dès le 1er jour)
   python main.py learn                # learn_patterns() -> data/market_rules.json
+  python main.py backtest --days 14   # les signaux auraient-ils rapporté ? (taxe 5% incluse)
+  python main.py test-alert           # envoie une alerte de test sur Telegram/Discord
   python main.py analyze              # scan complet : signaux ACHAT/VENTE/HOLD
   python main.py demo-seed|demo-reset # données synthétiques pour tester sans attendre 30 jours
 """
@@ -130,6 +131,42 @@ def cmd_analyze(args):
     _print_signals(sigs[: args.limit])
 
 
+def cmd_run(_):
+    from core.jobs import run_forever
+
+    run_forever()
+
+
+def cmd_backfill(_):
+    from scrapers.backfill import backfill_history
+    from scrapers.watchlist import load_watchlist
+
+    print(backfill_history(load_watchlist()))
+
+
+def cmd_backtest(args):
+    from core.backtest import run_backtest
+    from scrapers.watchlist import load_watchlist
+    from utils.helpers import fmt_price
+
+    res = run_backtest(load_watchlist(), days=args.days, min_conf=args.min_conf)
+    print(f"Période {res['period']} : {res['trades']} trades, profit net {fmt_price(res['total_profit'])} "
+          f"(1 carte/trade, taxe 5% incluse), win rate {res['win_rate']}, ROI moyen {res['avg_roi']}")
+    for rule, r in res["by_rule"].items():
+        print(f"  {rule:16s} {r['trades']:3d} trades  profit {fmt_price(r['profit']):>8s}  win {r['win_rate']}")
+
+
+def cmd_test_alert(_):
+    from alerts import notifier
+    from core.analyzer import MarketAnalyzer
+    from core.signals import format_alert
+    from scrapers.watchlist import load_watchlist
+
+    sigs = sorted(MarketAnalyzer(load_watchlist()).full_scan(), key=lambda s: -s.confidence)
+    text = "🧪 TEST FC27 Sniper Analyst\n\n" + (format_alert(sigs[0]) if sigs else "Bot opérationnel.")
+    print("Envoyé" if notifier.send_text(text) else "Non envoyé (TELEGRAM_TOKEN/CHAT_ID ou DISCORD_WEBHOOK_URL ?)")
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -146,8 +183,9 @@ def cmd_demo_reset(_):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
-    sub = ap.add_subparsers(dest="cmd", required=True)
-    for name, fn in [("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
+    sub = ap.add_subparsers(dest="cmd")
+    for name, fn in [("run", cmd_run), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
+                     ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:
         sub.add_parser(name).set_defaults(fn=fn)
@@ -158,7 +196,13 @@ def main(argv=None):
     p.add_argument("--all", action="store_true", help="inclure les HOLD")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(fn=cmd_analyze)
+    p = sub.add_parser("backtest")
+    p.add_argument("--days", type=int, default=14)
+    p.add_argument("--min-conf", type=int, default=7)
+    p.set_defaults(fn=cmd_backtest)
     args = ap.parse_args(argv)
+    if not args.cmd:  # `python main.py` (Docker) = bot H24
+        args.fn = cmd_run
     db.init_db()
     args.fn(args)
 

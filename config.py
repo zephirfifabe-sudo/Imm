@@ -63,6 +63,17 @@ DROP_48H_BUY = -0.15
 PUMP_24H_SELL = 0.30
 INSTANT_CRASH_ALERT = -0.15
 SATURATION_COUNT = 3
+EA_TAX = 0.05  # taxe EA sur chaque vente
+MIN_NET_MARGIN = float(os.getenv("MIN_NET_MARGIN", "0.04"))  # marge nette mini après taxe pour un ACHAT
+
+# --- Anti-spam des alertes ---
+ALERT_MIN_CONFIDENCE = int(os.getenv("ALERT_MIN_CONFIDENCE", "7"))
+ALERT_MAX_PER_REPORT = int(os.getenv("ALERT_MAX_PER_REPORT", "8"))
+ALERT_COOLDOWN_HOURS = int(os.getenv("ALERT_COOLDOWN_HOURS", "6"))
+
+# --- Dashboard ---
+DASHBOARD_USER = os.getenv("DASHBOARD_USER", "")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "")
 
 
 def ensure_dirs() -> None:

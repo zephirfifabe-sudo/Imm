@@ -77,3 +77,12 @@ def test_rule2_sbc_and_rule3_evo():
     out = an.rule3_evo(evo)
     assert out and out[0].player_id == "c1" and out[0].rule == "R3_EVO"
     assert json.dumps(out[0].to_dict())
+
+
+def test_strong_instant_rule_keeps_direction(monkeypatch):
+    seed_demo(days=10)
+    an = MarketAnalyzer(load_watchlist())
+    # habitude qui dit "acheter fort" ne doit pas annuler une VENTE R1
+    monkeypatch.setattr(an, "habit", lambda *a, **k: {"score": 1.0, "confidence": 0.9, "deviation": 0.0, "text": ""})
+    s = an.build_signal(db.get_player("demo-1"), "R1_CONCURRENCE", -0.85, "concurrent")
+    assert s.action == "VENTE" and s.risk == "Élevé"
