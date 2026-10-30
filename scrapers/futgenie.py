@@ -14,7 +14,6 @@ from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 
-import config
 from database import db
 from scrapers.base import FetchError, Fetcher, page_title
 from utils import fut_ids
