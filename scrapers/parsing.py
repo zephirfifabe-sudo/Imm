@@ -136,7 +136,8 @@ def player_from_dict(d: dict, base_url: str = "") -> dict:
     if not name:
         first, last = d.get("firstName") or "", d.get("lastName") or ""
         name = (f"{first} {last}".strip() if first or last else None) or d.get("name")
-    pos = normalize_position(pick(d, "position", "positionShort", "preferredPosition", "pos"))
+    pos = normalize_position(pick(d, "position", "positionId", "positionEaId", "mainPosition", "positionShort",
+                                  "preferredPosition", "pos"))
     alt = pick(d, "alternativePositionIds", "alternativePositions", "alternatePositions", "altPositions",
                "positions", default=[]) or []
     alt = [p for p in (normalize_position(x) for x in alt) if p and p != pos] if isinstance(alt, list) else []

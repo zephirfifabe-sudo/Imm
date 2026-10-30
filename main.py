@@ -174,6 +174,12 @@ def cmd_diagnose(_):
     run_diagnose()
 
 
+def cmd_inspect(_):
+    from scrapers.diagnose import run_inspect
+
+    run_inspect()
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -191,7 +197,7 @@ def cmd_demo_reset(_):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
-    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
+    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
                      ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:

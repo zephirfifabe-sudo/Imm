@@ -93,3 +93,54 @@ def run_diagnose() -> None:
     if years:
         print(f"\nAnnées vues dans les liens : {years} (config GAME_YEAR={config.GAME_YEAR})")
     print(f"\nPages sauvegardées dans {out_dir}")
+
+
+def _price_paths(o, p=""):
+    """Chemins JSON dont le nom évoque un prix (price, bin, auction...)."""
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield from _price_paths(v, f"{p}.{k}")
+    elif isinstance(o, list):
+        for i, v in enumerate(o[:2]):
+            yield from _price_paths(v, f"{p}[{i}]")
+    elif re.search(r"price|bin|auction|sale", p, re.I):
+        yield p, o
+
+
+def _short(d: dict) -> dict:
+    return {k: (str(v)[:15] if not isinstance(v, (dict, list)) else type(v).__name__) for k, v in d.items()}
+
+
+def run_inspect(player_url: str = "https://www.fut.gg/players/1397-zinedine-zidane/27-1397/") -> None:
+    """Montre les champs d'un joueur dans la liste FUT.GG + les champs de prix d'une page joueur."""
+    from scrapers.parsing import looks_like_player, walk_dicts
+
+    page = config.DATA_DIR / "debug" / "joueurs.html"
+    if page.exists():
+        for blob in iter_json_blobs(page.read_text(encoding="utf-8")):
+            x = next((x for x in walk_dicts(blob) if looks_like_player(x)), None)
+            if x:
+                print("LISTE:", _short(x))
+                break
+    else:
+        print("joueurs.html absent : lance d'abord `python main.py diagnose`")
+    with Fetcher(min_delay=1.0) as f:
+        f.max_host_failures = 99
+        try:
+            r = f.get(player_url, retries=1)
+        except Exception as e:  # noqa: BLE001
+            print(f"\nFICHE ❌ {str(e)[:200]}")
+            return
+        (config.DATA_DIR / "debug" / "fiche.html").write_text(r.text, encoding="utf-8")
+        print(f"\nFICHE via={r.via} http={r.status} {len(r.text) // 1024}Ko titre={_title(r.text)}")
+        n = 0
+        for blob in iter_json_blobs(r.text):
+            for path, val in _price_paths(blob):
+                print(f"  {path[-60:]} = {str(val)[:20]}")
+                n += 1
+                if n >= 30:
+                    return
+        if not n:
+            txt = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
+            hits = re.findall(r".{0,30}\d[\d,.]*\s?[KkMm]\b.{0,20}", txt)[:6]
+            print("  aucun prix dans le JSON ; extraits de texte :", hits)
