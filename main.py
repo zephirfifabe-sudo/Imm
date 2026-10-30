@@ -11,6 +11,7 @@
   python main.py learn                # learn_patterns() -> data/market_rules.json
   python main.py backtest --days 14   # les signaux auraient-ils rapporté ? (taxe 5% incluse)
   python main.py test-alert           # envoie une alerte de test sur Telegram/Discord
+  python main.py diagnose             # que renvoient vraiment FUT.GG / FUTBIN ? (pages dans data/debug/)
   python main.py analyze              # scan complet : signaux ACHAT/VENTE/HOLD
   python main.py demo-seed|demo-reset # données synthétiques pour tester sans attendre 30 jours
 """
@@ -167,6 +168,12 @@ def cmd_test_alert(_):
     print("Envoyé" if notifier.send_text(text) else "Non envoyé (TELEGRAM_TOKEN/CHAT_ID ou DISCORD_WEBHOOK_URL ?)")
 
 
+def cmd_diagnose(_):
+    from scrapers.diagnose import run_diagnose
+
+    run_diagnose()
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -184,7 +191,7 @@ def cmd_demo_reset(_):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
-    for name, fn in [("run", cmd_run), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
+    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
                      ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:
