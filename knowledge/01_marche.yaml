@@ -1,0 +1,133 @@
+# Fonctionnement du marché des transferts (FC 27 Ultimate Team)
+# Statuts : confirme | probable | hypothese | a_verifier | obsolete — voir knowledge/README.md
+categorie: marche
+entrees:
+  - id: KB-M-001
+    cle: taxe_ea
+    niveau: 1
+    titre: Taxe EA de 5 % sur chaque vente
+    contenu: >
+      Chaque vente réussie paie une taxe de 5 %, prélevée avant que les crédits n'arrivent au club.
+      Bénéfice réel = prix de vente × 0,95 − prix d'achat. Pour simplement rentrer dans ses frais, il faut
+      revendre au moins 5,26 % plus cher qu'à l'achat ; pour 4 % net, environ 9,5 % plus cher.
+    donnees: {taux: 0.05, seuil_rentabilite: 0.0526}
+    version_jeu: FC27
+    sources:
+      - {url: "https://help.ea.com/en/articles/ea-sports-fc/transfer-market-web-and-companion-apps/", type: officiel_ea}
+      - {url: "https://www.fifplay.com/fc-27-transfer-market/", type: guide_communautaire}
+    fiabilite: 5
+    statut: confirme
+    verifie_le: 2026-10-30
+
+  - id: KB-M-002
+    cle: duree_annonces
+    niveau: 1
+    titre: Durées d'annonce, prix de départ et achat immédiat
+    contenu: >
+      Une annonce dure 1, 3, 6 ou 12 heures. Elle a un prix de départ (enchère minimale) et un prix
+      d'achat immédiat (BIN) facultatif. Une carte vendue au BIN part instantanément.
+    donnees: {durees_h: [1, 3, 6, 12]}
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.fifplay.com/fc-27-transfer-market/", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-M-003
+    cle: paliers_prix
+    niveau: 1
+    titre: Paliers de prix (incréments d'enchère / de BIN)
+    contenu: >
+      Les prix ne sont pas libres : ils avancent par paliers selon la tranche. Moins de 1 000 : de 50 en 50 ;
+      1 000-10 000 : 100 ; 10 000-50 000 : 250 ; 50 000-100 000 : 500 ; au-delà : 1 000.
+      Règle constante depuis plusieurs éditions ; aucune source FC 27 trouvée qui la détaille.
+    donnees: {paliers: [[1000, 50], [10000, 100], [50000, 250], [100000, 500], [null, 1000]]}
+    version_jeu: FC27
+    sources:
+      - {url: "", type: consensus_historique, note: "usage constant des éditions précédentes, non confirmé pour FC 27"}
+    fiabilite: 4
+    statut: a_verifier
+    verifie_le: 2026-10-30
+
+  - id: KB-M-004
+    cle: fourchettes_prix
+    niveau: 1
+    titre: Fourchettes de prix (min / max) imposées par EA
+    contenu: >
+      Chaque carte joueur a une fourchette de prix min/max pour limiter la manipulation et la vente de crédits.
+      Au début du jeu, les fourchettes sont proches pour des cartes de même note et catégorie. Quand une carte
+      se vend durablement à son maximum, EA relève la fourchette. Une fourchette élargie ne provoque pas
+      forcément de hausse. Une carte bloquée à son max est dite « extinct » (introuvable au BIN).
+    version_jeu: FC27
+    sources:
+      - {url: "https://fifauteam.com/fc-27-price-ranges/", type: guide_communautaire}
+      - {url: "https://www.11v11.com/the-fc-27-buyers-guide-exactly-what-to-buy-when-to-spend-and-how-to-secure-your-assets/", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-M-005
+    cle: acces_marche
+    niveau: 1
+    titre: Accès au marché (jeu, Web App, Companion)
+    contenu: >
+      Les joueurs ayant débloqué le marché en FC 24-26 et en règle l'obtiennent automatiquement ; les nouveaux
+      passent par des objectifs. L'accès Web/Companion dépend de jours actifs (3 matchs complets + connexion
+      à l'appli). Web App ouverte le 16/09/2026 (18h UK), Companion le 17/09, accès anticipé le 18/09,
+      sortie mondiale le 25/09/2026. Après le 7 novembre 2026 (13 selon une source), il faut s'être connecté
+      au moins une fois à Ultimate Team sur console/PC pour continuer à utiliser les applis.
+    version_jeu: FC27
+    sources:
+      - {url: "https://help.ea.com/en/articles/ea-sports-fc/transfer-market-web-and-companion-apps/", type: officiel_ea}
+      - {url: "https://www.dexerto.com/wikis/ea-fc-27/web-app--companion-app/", type: guide_communautaire}
+      - {url: "https://www.fut.gg/news/fc-27-release-date-early-access-times-uk/", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-M-006
+    cle: interdits
+    niveau: 1
+    titre: Interdits (risque de restriction ou de ban)
+    contenu: >
+      Bots, auto-buyers, achat ou vente de crédits à des tiers et manipulation du marché sont contraires aux
+      règles d'EA : restriction du marché ou ban définitif. Le bot n'achète donc jamais rien lui-même.
+    version_jeu: FC27
+    sources:
+      - {url: "https://help.ea.com/en/articles/ea-sports-fc/transfer-market-web-and-companion-apps/", type: officiel_ea}
+      - {url: "https://www.fifplay.com/fc-27-transfer-market/", type: guide_communautaire}
+    fiabilite: 5
+    statut: confirme
+    verifie_le: 2026-10-30
+
+  - id: KB-M-007
+    cle: offre_demande
+    niveau: 1
+    titre: Les prix sont fixés par l'offre et la demande
+    contenu: >
+      Le prix d'une carte dépend du nombre d'exemplaires en vente et du nombre de joueurs qui la veulent.
+      Tout ce qui ajoute des cartes (packs de promo, récompenses Rivals / Champions / Squad Battles, packs
+      gratuits) pousse les prix vers le bas ; tout ce qui crée de la demande (SBC, Évolutions, méta, matchs
+      du week-end) les pousse vers le haut.
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.fifplay.com/fc-27-transfer-market/", type: guide_communautaire}
+    fiabilite: 5
+    statut: confirme
+    verifie_le: 2026-10-30
+
+  - id: KB-M-008
+    cle: prix_observe_vs_execute
+    niveau: 1
+    titre: Prix observé ≠ prix réellement obtenu
+    contenu: >
+      Les sites de prix (futgenie, FUTBIN…) affichent le plus bas BIN vu à un instant, pas les ventes réalisées.
+      Une carte peut se vendre plus bas (sous-cotation pour vendre vite) ou ne pas trouver preneur. Le bot
+      ne dispose pas des ventes réelles ni des volumes : toute marge qu'il calcule est théorique.
+    version_jeu: FC27
+    sources:
+      - {url: "", type: consensus_historique, note: "limite connue des sources de prix publiques"}
+    fiabilite: 5
+    statut: confirme
+    verifie_le: 2026-10-30

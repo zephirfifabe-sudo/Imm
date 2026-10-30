@@ -1,0 +1,131 @@
+# Calendrier : rythme de la semaine et événements de l'année (heures de Paris sauf mention)
+# Les événements "a_verifier" / "probable" ne sont PAS confirmés par EA : dates issues de calendriers
+# communautaires et de leakers. À corriger ici dès qu'EA confirme (en général le jeudi d'avant).
+categorie: calendrier
+entrees:
+  - id: KB-C-001
+    cle: contenu_quotidien_18h_uk
+    niveau: 1
+    titre: Nouveau contenu chaque jour à 18h UK (19h Paris)
+    contenu: >
+      Nouvelles cartes, SBC, objectifs et Évolutions sortent à 18h heure du Royaume-Uni, soit 19h à Paris
+      (le décalage reste d'une heure toute l'année). Les promos démarrent le vendredi à cette heure-là.
+    donnees: {heure_uk: 18}
+    version_jeu: FC27
+    sources:
+      - {url: "https://fc27investor.com/en/kalender", type: tracker}
+      - {url: "https://www.futwiz.com/totw", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-C-002
+    cle: totw_mercredi
+    niveau: 1
+    titre: Équipe de la semaine (TOTW) le mercredi à 18h UK
+    contenu: >
+      La TOTW sort chaque mercredi à 18h UK et reste 7 jours dans les packs. Les guides conseillent de vendre
+      les cartes TOTW de la semaine précédente avant la sortie de la nouvelle.
+    donnees: {jour: mercredi, heure_uk: 18, duree_packs_j: 7}
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.futwiz.com/totw", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-C-003
+    cle: recompenses_rivals
+    niveau: 1
+    titre: Récompenses Division Rivals le jeudi matin
+    contenu: >
+      Les récompenses hebdomadaires de Rivals tombent le jeudi à 06h59 UTC selon la page d'aide EA citée par
+      plusieurs guides (d'autres sites donnent 8h UK, sans doute repris de FC 26). Afflux de cartes et de
+      crédits : légère baisse le jeudi matin, souvent vue comme une fenêtre d'achat.
+    donnees: {jour: jeudi, heure_utc: "06:59"}
+    version_jeu: FC27
+    sources:
+      - {url: "https://timesaver.gg/blog/fc-27-reset-times-rivals-rewards-clock-change", type: guide_communautaire, note: "cite la page d'aide EA"}
+      - {url: "https://www.dexerto.com/wikis/ea-fc-27/division-rivals-rewards/", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-C-004
+    cle: recompenses_squad_battles
+    niveau: 1
+    titre: Récompenses Squad Battles le dimanche matin
+    contenu: >
+      Fin de la compétition Squad Battles vers 06h59 UTC le dimanche (heure suivie par la communauté, EA ne
+      publie pas d'horaire fixe). Second afflux de cartes, plus petit, sur la semaine.
+    donnees: {jour: dimanche, heure_utc: "06:59"}
+    version_jeu: FC27
+    sources:
+      - {url: "https://timesaver.gg/blog/fc-27-market-cycle-best-time-to-buy-sell-weekly-timeline", type: guide_communautaire}
+    fiabilite: 3
+    statut: a_verifier
+    verifie_le: 2026-10-30
+
+  - id: KB-C-005
+    cle: fut_champions_fc27
+    niveau: 1
+    titre: FUT Champions en FC 27
+    contenu: >
+      Qualification par points CQP (Rivals). L'exigence de Division 6 est supprimée (notes de lancement EA du
+      14/09/2026, selon un guide). Les sources se contredisent sur le maintien des Play-Offs ; les Finals se
+      jouent le week-end (15 matchs). Le week-end de Finals reste le moment où la demande en cartes méta est
+      la plus forte, et la distribution des récompenses le moment où l'offre augmente.
+    version_jeu: FC27
+    sources:
+      - {url: "https://timesaver.gg/blog/fc-27-champions-qualification-division-6-removed-cqp-squad-battles", type: guide_communautaire}
+      - {url: "https://fifauteam.com/fc-27-champions/", type: guide_communautaire}
+    fiabilite: 3
+    statut: a_verifier
+    verifie_le: 2026-10-30
+
+  - id: KB-C-006
+    cle: moins_de_promos_fc27
+    niveau: 1
+    titre: Moins de semaines de promo qu'avant
+    contenu: >
+      EA aurait supprimé environ cinq semaines de campagnes par rapport aux éditions précédentes, comblées par
+      des séries et du contenu thématique. Les promos sont aussi plus courtes en cartes (Destin glorieux :
+      15 cartes, note mini 85). Conséquence attendue : moins d'inondations du marché que dans FC 24-26.
+    version_jeu: FC27
+    sources:
+      - {url: "https://realsport101.com/article/fc-27-promo-calendar-confirmed-expected-dates-for-every-ultimate-team-campaign", type: guide_communautaire}
+      - {url: "https://www.playnews.gg/en/updates/ea-sports-fc-27-the-glorious-destiny-promo-tightens-up-ultimate-team", type: guide_communautaire}
+    fiabilite: 3
+    statut: probable
+    verifie_le: 2026-10-30
+
+# ---------------------------------------------------------------- événements datés
+evenements:
+  - {cle: sortie_fc27, nom: "Sortie mondiale FC 27", debut: 2026-09-25, statut: confirme, fiabilite: 5,
+     type: lancement, source: "https://www.fut.gg/news/fc-27-release-date-early-access-times-uk/"}
+  - {cle: destin_glorieux, nom: "Destin glorieux (Destined for Glory)", debut: 2026-09-25, fin: 2026-10-09,
+     statut: confirme, fiabilite: 4, type: promo, source: "https://retrogems.fr/en/ea-sports-fc-27-ultimate-team-promos-schedule/"}
+  - {cle: future_stars_t1, nom: "Future Stars équipe 1", debut: 2026-10-09, statut: probable, fiabilite: 3, type: promo,
+     source: "https://www.playnews.gg/en/updates/ea-sports-fc-27-future-stars-team-1-promo-replaces-path-to-glory-what-changes-for-ultimate-team/"}
+  - {cle: saison_2, nom: "Saison 2", debut: 2026-10-22, fin: 2026-12-03, statut: probable, fiabilite: 3, type: saison,
+     source: "https://www.u7buy.com/blog/fc-27-season-2/"}
+  - {cle: ultimate_scream, nom: "Ultimate Scream (Halloween)", debut: 2026-10-23, fin: 2026-11-06, statut: probable,
+     fiabilite: 3, type: promo, source: "https://futfc.gg/fc-promo-calendar/"}
+  - {cle: rttk, nom: "Road to the Knockouts (UEFA)", debut: 2026-11-06, fin: 2026-11-13, statut: a_verifier,
+     fiabilite: 3, type: promo, note: "cartes dynamiques selon les résultats en coupes d'Europe",
+     source: "https://fifauteam.com/fc-27-road-to-the-knockouts/"}
+  - {cle: fc_pro_live, nom: "FC Pro Live", debut: 2026-11-13, fin: 2026-11-20, statut: a_verifier, fiabilite: 2,
+     type: promo, source: "https://www.mmoexp.com/News/fc-27-season-2-promo-schedule-ultimate-scream-rttk-thunderstruck-coin-tips.html"}
+  - {cle: black_friday, nom: "Black Friday — Thunderstruck", debut: 2026-11-27, statut: probable, fiabilite: 3,
+     type: promo_majeure, note: "packs horaires et SBC flash : premier gros crash de l'année",
+     source: "https://khelnow.com/gaming/ea-fc-27-promo-calendar-schedule-202609"}
+  - {cle: winter_wildcards, nom: "Winter Wildcards", debut: 2026-12-11, statut: a_verifier, fiabilite: 2, type: promo,
+     source: "https://futfc.gg/fc-promo-calendar/"}
+  - {cle: festive_showdowns, nom: "Festive Showdowns", debut: 2026-12-25, statut: a_verifier, fiabilite: 2, type: promo,
+     source: "https://futfc.gg/fc-promo-calendar/"}
+  - {cle: toty, nom: "Équipe de l'année (TOTY)", debut: 2027-01-15, statut: a_verifier, fiabilite: 2,
+     type: promo_majeure, note: "date contestée : 15 ou 21 janvier 2027 ; crash le plus prévisible de l'année",
+     source: "https://khelnow.com/gaming/ea-fc-27-promo-calendar-schedule-202609"}
+  - {cle: tots, nom: "Équipes de la saison (TOTS)", debut: 2027-04-16, statut: a_verifier, fiabilite: 2,
+     type: promo_majeure, note: "date contestée : 16 ou 23 avril 2027",
+     source: "https://futfc.gg/fc-promo-calendar/"}

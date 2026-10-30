@@ -218,6 +218,14 @@ class MarketAnalyzer:
         r = self._track.get((rule, action))
         return r if r and r["n"] >= config.PROBA_MIN_SAMPLES else None
 
+    def calendar(self) -> list[str]:
+        """Événements proches tirés de la base de connaissances : contexte affiché, n'influence pas la décision."""
+        if not hasattr(self, "_calendar"):
+            from knowledge.service import get_service
+
+            self._calendar = get_service().upcoming_text(self.now_local, days=7)
+        return self._calendar
+
     def _build_v2(self, player: dict, rule: str, instant_score: float | None, instant_txt: str,
                   rule_conf: float = 0.7, extra: dict | None = None) -> Signal:
         pid = str(player["player_id"])
@@ -289,7 +297,7 @@ class MarketAnalyzer:
             position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
             instant=instant_txt, habit=hab["text"] + ("" if habit_ok else " (habitude non validée : n'influence pas la décision)"),
             action_text=act, risk="Élevé" if q["score"] < 70 else "Moyen",
-            extra={**(extra or {}), "engine": "v2", "reason": reason, "opportunity": opportunity,
+            extra={**(extra or {}), "engine": "v2", "reason": reason, "calendar": self.calendar(), "opportunity": opportunity,
                    "data_quality": q["score"], "quality": q, "probability": track, "habit_validated": habit_ok,
                    "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
                    "observed_price": int(price) if price else None, "observed_at": observed_at,

@@ -12,6 +12,7 @@
   23:00                   résumé des 24 dernières heures + consignes (SUMMARY_HOUR), aussi au dashboard
   10:10 et 22:10          rapport des prix + variations 24h/12h (PRICE_REPORT_HOURS)
   lundi 05:00             learn_patterns() (auto-apprentissage sur 30 jours)
+  lundi 05:20             base de connaissances : hypothèses confrontées aux prix relevés (knowledge/verify.py)
 """
 from __future__ import annotations
 
@@ -87,6 +88,13 @@ def journal_scan(wl: list[dict], an: MarketAnalyzer, scan: list) -> None:
             log_decisions(MarketAnalyzer(wl, version=shadow, now=an.now).full_scan(), shadow, an.now)
     except Exception as e:  # noqa: BLE001 — le journal ne doit jamais bloquer les alertes
         log.error("Journal des décisions en erreur : %s", e)
+
+
+@safe_job
+def job_knowledge():
+    from knowledge.verify import verify_all
+
+    verify_all()
 
 
 @safe_job
@@ -229,6 +237,7 @@ def build_scheduler() -> BlockingScheduler:
     # rapport des prix : minute 10, après le relevé horaire (lancé à :02, ~3 min)
     s.add_job(job_price_report, "cron", hour=config.PRICE_REPORT_HOURS, minute=10, id="price_report")
     s.add_job(job_learn, "cron", day_of_week="mon", hour=5, minute=0, id="learn")
+    s.add_job(job_knowledge, "cron", day_of_week="mon", hour=5, minute=20, id="knowledge")
     s.add_job(job_heartbeat, "interval", minutes=5, id="heartbeat")
     return s
 

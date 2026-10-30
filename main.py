@@ -247,6 +247,26 @@ def cmd_performance(args):
     print_performance(days=args.days)
 
 
+def cmd_knowledge(_):
+    from knowledge.service import STATUT_LABEL, get_service
+
+    ks = get_service()
+    errors = ks.validate()
+    for cat in dict.fromkeys(e["categorie"] for e in ks.entries.values()):
+        print(f"\n=== {cat.upper()} ===")
+        for e in ks.by_category(cat):
+            print(f"{e['id']} [{STATUT_LABEL[e['statut']]}, fiabilité {e['fiabilite']}/5] {e['titre']}")
+    print("\nÀ venir :", "; ".join(ks.upcoming_text()) or "rien dans les 10 jours")
+    print(f"\n{len(ks.entries)} connaissances, {len(ks.events)} événements · "
+          + ("format OK" if not errors else f"{len(errors)} erreur(s) :\n- " + "\n- ".join(errors)))
+
+
+def cmd_knowledge_verify(_):
+    from knowledge.verify import print_verification
+
+    print_verification()
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -264,7 +284,7 @@ def cmd_demo_reset(_):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
-    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
+    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("knowledge", cmd_knowledge), ("knowledge-verify", cmd_knowledge_verify), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
                      ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:

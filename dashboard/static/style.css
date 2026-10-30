@@ -193,6 +193,23 @@ section { margin-top: 28px; }
 .insight.action.sell { border-color: rgba(248, 113, 113, .35); }
 .insight.action .x { color: var(--text); font-weight: 600; }
 
+/* ---------- base de connaissances */
+.kb { display: grid; gap: 10px; }
+.kb-upcoming { padding: 14px 18px; margin-bottom: 10px; font-size: 13.5px; display: grid; gap: 4px; }
+.kb-upcoming .t, .kb-cat summary { font-weight: 600; }
+.kb-cat summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; padding: 14px 18px; }
+.kb-cat summary::-webkit-details-marker { display: none; }
+.kb-item { padding: 12px 18px; border-top: 1px solid var(--border); font-size: 13.5px; }
+.kb-item p { margin: 6px 0 0; color: #c3cad8; line-height: 1.55; }
+.kb-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kb-src { margin-top: 6px; font-size: 12px; }
+.kb-src a { color: var(--muted); }
+.kb-confirme { background: var(--up-bg); color: var(--up); }
+.kb-probable { background: rgba(96, 165, 250, .12); color: #60a5fa; }
+.kb-hypothese { background: rgba(167, 139, 250, .12); color: #a78bfa; }
+.kb-a_verifier { background: rgba(251, 191, 36, .12); color: var(--warn); }
+.kb-obsolete { background: var(--surface-2); color: var(--faint); text-decoration: line-through; }
+
 /* ---------- téléphone */
 @media (max-width: 860px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }

@@ -1,0 +1,184 @@
+# Stratégies et comportements du marché : HYPOTHÈSES de la communauté (niveau 2)
+# Chaque hypothèse qui a un bloc `test` est vérifiée automatiquement par le bot sur SES données
+# (python main.py knowledge-verify, chaque lundi) : verdict "confirmée", "contredite", "mitigée" ou
+# "données insuffisantes", écrit dans data/knowledge_observed.json. Rien ici ne pilote les décisions.
+#
+# Types de test :
+#   comparaison_jours : prix moyen (indice du marché suivi) des jours `haut` vs jours `bas`, semaine par semaine
+#   fenetre_hebdo     : variation de l'indice entre `debut` et `fin` (jour + heure, fuseau `tz`), semaine par semaine
+#   evenement         : variation de l'indice entre (début de l'événement + de_j) et (début + a_j), une fois passé
+# `attendu` : hausse | baisse ; `seuil` : variation minimale pour compter (défaut 1 %).
+categorie: strategies
+entrees:
+  - id: KB-S-001
+    cle: cycle_hebdo_week_end
+    niveau: 2
+    titre: Prix hauts jeudi-vendredi, bas dimanche-lundi
+    contenu: >
+      Les joueurs achètent leur équipe pour les matchs du week-end (Champions, Rivals) : demande forte du jeudi
+      soir au vendredi. Le dimanche soir et le lundi, fin des compétitions et revente : prix plus bas, puis
+      remontée progressive jusqu'au jeudi. Base de la méthode « acheter dimanche-lundi, revendre jeudi-vendredi ».
+    version_jeu: toutes
+    sources:
+      - {url: "https://fc27investor.com/en/zyklus", type: tracker}
+      - {url: "https://whatsgaming.net/blog/fc-27-trading-guide-how-to-trade-and-make-coins-in-ultimate-team", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: comparaison_jours, haut: [jeudi, vendredi], bas: [dimanche, lundi], attendu: hausse, seuil: 0.01}
+
+  - id: KB-S-002
+    cle: creux_rivals_jeudi
+    niveau: 2
+    titre: Petit creux le jeudi matin (récompenses Rivals)
+    contenu: >
+      L'arrivée des récompenses Rivals (jeudi ~07h UTC) met beaucoup de cartes en vente : légère baisse en
+      matinée, souvent présentée comme une fenêtre d'achat avant la hausse du jeudi soir.
+    version_jeu: FC27
+    sources:
+      - {url: "https://timesaver.gg/blog/fc-27-market-cycle-best-time-to-buy-sell-weekly-timeline", type: guide_communautaire}
+      - {url: "https://whatsgaming.net/blog/fc-27-trading-guide-how-to-trade-and-make-coins-in-ultimate-team", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: fenetre_hebdo, debut: [jeudi, "06:00"], fin: [jeudi, "12:00"], tz: UTC, attendu: baisse, seuil: 0.005}
+
+  - id: KB-S-003
+    cle: inondation_promo_vendredi
+    niveau: 2
+    titre: Baisse après le lancement d'une promo (vendredi 18h UK)
+    contenu: >
+      À 18h UK le vendredi, les packs de la nouvelle promo s'ouvrent en masse : beaucoup de cartes arrivent sur
+      le marché et les joueurs vendent pour acheter les nouvelles cartes. Le week-end est en offre forte,
+      reprise le lundi-mardi.
+    version_jeu: FC27
+    sources:
+      - {url: "https://fc27investor.com/en/zyklus", type: tracker}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: fenetre_hebdo, debut: [vendredi, "17:00"], fin: [samedi, "17:00"], tz: Europe/London, attendu: baisse, seuil: 0.01}
+
+  - id: KB-S-004
+    cle: vendre_avant_crash
+    niveau: 2
+    titre: Les prix baissent AVANT les gros événements (pré-crash)
+    contenu: >
+      Avant une grosse promo (Black Friday, TOTY, TOTS), beaucoup de joueurs vendent à l'avance pour avoir des
+      crédits : les prix baissent souvent dès la semaine précédente. Conseil classique : vendre 1 à 2 semaines
+      avant, pas pendant le crash.
+    version_jeu: toutes
+    sources:
+      - {url: "https://db.fifauteam.com/fc-27-trading-methods/market-crashes/", type: guide_communautaire}
+      - {url: "https://futcoinsmarket.net/blog/fc-26-market-crash-guide", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: evenement, evenement: black_friday, de_j: -7, a_j: 0, attendu: baisse, seuil: 0.02}
+
+  - id: KB-S-005
+    cle: crash_black_friday
+    niveau: 2
+    titre: Black Friday = premier gros crash de l'année
+    contenu: >
+      Packs horaires, SBC flash et grosses promos de packs : le marché s'effondre pendant l'événement.
+      Les guides parlent du premier grand crash de l'année.
+    version_jeu: toutes
+    sources:
+      - {url: "https://db.fifauteam.com/fc-27-trading-methods/market-crashes/", type: guide_communautaire}
+      - {url: "https://fifauteam.com/fc-27-promos-campaigns-events/", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: evenement, evenement: black_friday, de_j: 0, a_j: 3, attendu: baisse, seuil: 0.03}
+
+  - id: KB-S-006
+    cle: attendre_stabilisation
+    niveau: 2
+    titre: Ne pas acheter le premier jour d'un crash (attendre 2-3 jours)
+    contenu: >
+      Pendant un crash, les prix continuent souvent de baisser les premiers jours. Les guides conseillent
+      d'attendre la stabilisation, environ 2 à 3 jours après le début.
+    version_jeu: toutes
+    sources:
+      - {url: "https://db.fifauteam.com/fc-27-trading-methods/market-crashes/", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: evenement, evenement: black_friday, de_j: 1, a_j: 3, attendu: baisse, seuil: 0.01}
+
+  - id: KB-S-007
+    cle: rebond_apres_black_friday
+    niveau: 2
+    titre: Rebond de 15-30 % en 7-10 jours après Black Friday
+    contenu: >
+      Une source affirme que les prix récupèrent 15 à 30 % dans les 7 à 10 jours après Black Friday. Une seule
+      source : à prendre avec prudence ; d'autres guides disent que la remontée n'est pas garantie et peut
+      être lente.
+    version_jeu: toutes
+    sources:
+      - {url: "https://futcoinsmarket.net/blog/fc-26-market-crash-guide", type: guide_communautaire}
+    fiabilite: 2
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: evenement, evenement: black_friday, de_j: 3, a_j: 10, attendu: hausse, seuil: 0.05}
+
+  - id: KB-S-008
+    cle: crash_toty
+    niveau: 2
+    titre: TOTY = le crash le plus prévisible de la saison
+    contenu: >
+      Tout le monde vend pour ouvrir des packs TOTY : crash marqué avant et pendant l'événement, suivi d'une
+      remontée. Conseil classique : vendre 1-2 semaines avant, racheter pendant le creux.
+    version_jeu: toutes
+    sources:
+      - {url: "https://db.fifauteam.com/fc-27-trading-methods/market-crashes/", type: guide_communautaire}
+      - {url: "https://futcoinsmarket.net/blog/fc-26-market-crash-guide", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+    test: {type: evenement, evenement: toty, de_j: -14, a_j: 2, attendu: baisse, seuil: 0.03}
+
+  - id: KB-S-009
+    cle: fodder_haut_resiste
+    niveau: 2
+    titre: Le fodder haut de gamme baisse moins et remonte plus vite
+    contenu: >
+      Pendant un crash, les cartes à forte note utilisées dans les SBC baissent moins et récupèrent plus vite,
+      car la demande SBC continue. À vérifier quand le tracker de fodders existera.
+    version_jeu: toutes
+    sources:
+      - {url: "https://db.fifauteam.com/fc-27-trading-methods/market-crashes/", type: guide_communautaire}
+    fiabilite: 2
+    statut: hypothese
+    verifie_le: 2026-10-30
+
+  - id: KB-S-010
+    cle: vendre_totw_avant_nouvelle
+    niveau: 2
+    titre: Vendre les cartes TOTW avant la TOTW suivante
+    contenu: >
+      Une carte TOTW perd de la valeur quand la nouvelle TOTW arrive (mercredi 18h UK) et qu'elle sort des packs.
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.futwiz.com/totw", type: guide_communautaire}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
+
+  - id: KB-S-011
+    cle: principes_risque
+    niveau: 2
+    titre: Gestion du risque du trader
+    contenu: >
+      Toujours raisonner après la taxe de 5 %. Préférer les cartes liquides (qui se vendent souvent) à une
+      carte rare au même profit. Ne pas mettre tout son club sur une seule carte ni une seule ligue.
+      Ne pas investir à l'aveugle avant une promo (risque de crash). Vendre quand on est en profit plutôt
+      qu'attendre un pic hypothétique.
+    version_jeu: toutes
+    sources:
+      - {url: "https://futcoinsmarket.net/blog/fc-26-market-crash-guide", type: guide_communautaire}
+      - {url: "", type: consensus_historique}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30

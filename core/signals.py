@@ -113,6 +113,8 @@ def format_alert_v2(s: Signal, emoji: str, x: dict) -> str:
         lines.append(f"> {s.habit}")
     if x.get("reason"):
         lines.append(f"> Raison : {x['reason']}")
+    if x.get("calendar"):
+        lines.append("> Calendrier : " + " · ".join(x["calendar"][:2]))
     if s.action_text:
         lines.append(f"Action : {s.action_text}")
     lines.append(probability_text(x))

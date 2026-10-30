@@ -86,6 +86,13 @@
     </div>
   </section>
 
+  <!-- Base de connaissances -->
+  <section>
+    <div class="sec-head"><h2>Connaissances Ultimate Team</h2><small id="kb-meta"></small></div>
+    <div id="kb-upcoming" class="card kb-upcoming hidden"></div>
+    <div id="kb" class="kb"></div>
+  </section>
+
   <!-- Résultats des décisions (journal) -->
   <section>
     <div class="sec-head"><h2>Résultats des décisions</h2><small>théoriques · prix observés, pas des ventes réelles</small></div>
@@ -251,6 +258,30 @@ async function loadPlayers() {
   renderKpis(); renderPicks(); renderRows();
 }
 
+const KB_CAT = {marche: "Marché des transferts", calendrier: "Calendrier", cartes: "Cartes, SBC, Évolutions", strategies: "Stratégies (hypothèses)"};
+const KB_VERDICT = {confirmee: ["✅ confirmée par nos données", "up"], contredite: ["❌ contredite par nos données", "down"],
+  mitigee: ["➖ mitigée", "muted"], insuffisant: ["⏳ données insuffisantes", "faint"]};
+async function loadKnowledge() {
+  const r = await get("/api/knowledge");
+  const up = $("kb-upcoming");
+  up.classList.toggle("hidden", !r.upcoming.length);
+  up.innerHTML = `<div class="t">📅 À venir</div>` + r.upcoming.map(u => `<div>${esc(u)}</div>`).join("");
+  const m = r.observed_meta;
+  $("kb-meta").textContent = m ? `théorie vérifiée sur ${m.jours_couverts} j de données le ${new Date(m.genere_le).toLocaleDateString("fr-FR")}` : "théorie pas encore confrontée aux données";
+  $("kb").innerHTML = Object.entries(r.categories).map(([cat, items]) => `
+    <details class="card kb-cat"><summary><span>${esc(KB_CAT[cat] || cat)}</span><span class="faint">${items.length}</span></summary>
+      ${items.map(e => `<div class="kb-item">
+        <div class="kb-head"><b>${esc(e.titre)}</b><span class="chip kb-${e.statut}">${esc(e.statut_label)}</span>
+          <span class="faint" title="fiabilité">${"●".repeat(e.fiabilite)}${"○".repeat(5 - e.fiabilite)}</span></div>
+        <p>${esc(e.contenu)}</p>
+        ${e.observe ? `<p class="${KB_VERDICT[e.observe.verdict][1]}">${KB_VERDICT[e.observe.verdict][0]}${e.observe.mediane != null ? ` · médiane ${pct(e.observe.mediane)} sur ${e.observe.n} ${e.observe.unite}` : ""}</p>` : ""}
+        <div class="faint kb-src">${esc(e.id)} · vérifié le ${esc(e.verifie_le)} · ${e.sources.map(s => s.url
+          ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(new URL(s.url).hostname.replace("www.", ""))}</a>`
+          : esc(s.note || s.type)).join(" · ")}</div>
+      </div>`).join("")}
+    </details>`).join("");
+}
+
 async function loadPerformance() {
   const r = await get("/api/performance");
   const H = {6: "6 h", 24: "24 h", 48: "48 h", 168: "7 j"};
@@ -354,7 +385,7 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 
 async function refresh() {
   $("refresh").classList.add("spin");
-  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance()]); }
+  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance(), loadKnowledge()]); }
   catch (e) { $("status-txt").textContent = "Erreur de chargement : " + e.message; }
   finally { $("refresh").classList.remove("spin"); }
 }

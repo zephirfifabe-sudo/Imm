@@ -132,6 +132,23 @@ def api_players(engine: str | None = None):
         return rows
 
 
+@app.get("/api/knowledge", dependencies=[Depends(auth)])
+def api_knowledge():
+    from knowledge.service import STATUT_LABEL, get_service
+
+    ks = get_service()
+    observed = ks.observed()
+    hyp = observed.get("hypotheses", {})
+    cats: dict = {}
+    for e in ks.entries.values():
+        cats.setdefault(e["categorie"], []).append({
+            "id": e["id"], "cle": e["cle"], "niveau": e["niveau"], "titre": e["titre"], "contenu": e["contenu"],
+            "statut": e["statut"], "statut_label": STATUT_LABEL[e["statut"]], "fiabilite": e["fiabilite"],
+            "sources": e["sources"], "verifie_le": str(e["verifie_le"]), "observe": hyp.get(e["cle"])})
+    return {"categories": cats, "upcoming": ks.upcoming_text(days=14),
+            "observed_meta": observed.get("_meta"), "profil_jours": observed.get("profil_jours_observe")}
+
+
 @app.get("/api/performance", dependencies=[Depends(auth)])
 def api_performance(days: int = 30):
     from core.decision_journal import performance

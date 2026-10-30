@@ -249,8 +249,8 @@ def _consignes(now_local, mood: float | None) -> list[str]:
                 out.append("🧩 Mardi/mercredi = **jours SBC** : les cartes demandées en fodder peuvent monter.")
             return out
         if d == 3:
-            return ["⚠️ **Jeudi 18h-20h : crash des récompenses Rivals**, puis prix hauts jeudi soir et vendredi "
-                    "(Week-end League) : prépare tes ventes."]
+            return ["⚠️ **Jeudi matin : récompenses Rivals** (~8h Paris, base de connaissances KB-C-003) : léger "
+                    "creux possible, puis prix hauts jeudi soir et vendredi (matchs du week-end) : prépare tes ventes."]
         return ["💰 **Vendredi = prix hauts** (Week-end League) : vends ce qui a remonté, évite d'acheter."]
 
     for t in (now_local, now_local + timedelta(hours=12)):
@@ -261,8 +261,44 @@ def _consignes(now_local, mood: float | None) -> list[str]:
         tips.append("📉 Marché en **forte baisse** sur 24h : patience, attends que ça se stabilise avant d'acheter.")
     elif mood is not None and mood >= 0.05:
         tips.append("📈 Marché en **forte hausse** sur 24h : bon moment pour encaisser des bénéfices.")
+    tips += knowledge_tips(now_local)
     tips.append("🔁 Rappel : la taxe EA prend 5 % à chaque vente, vise **au moins +10 %** avant de revendre.")
     return tips
+
+
+def knowledge_tips(now_local) -> list[str]:
+    """Consignes tirées du calendrier de la base de connaissances (dates non confirmées signalées comme telles)."""
+    from knowledge.service import STATUT_LABEL, get_service
+
+    ks = get_service()
+    tips = []
+    for e in ks.upcoming(now_local, days=10):
+        if e.get("type") == "promo_majeure" and e["dans_j"] > 0:
+            tips.append(f"🚨 **{e['nom']} dans {e['dans_j']} j** ({STATUT_LABEL[e['statut']]}) : les prix baissent souvent "
+                        f"AVANT les gros événements (hypothèse KB-S-004) : ne stocke pas, prépare tes ventes.")
+        elif e.get("type") in ("promo", "promo_majeure") and 0 < e["dans_j"] <= 2:
+            tips.append(f"📦 Nouvelle promo **{e['nom']}** dans {e['dans_j']} j (vendredi 19h, {STATUT_LABEL[e['statut']]}) : "
+                        f"afflux de cartes attendu le week-end.")
+    return tips
+
+
+def knowledge_lines(now) -> list[str]:
+    """Bloc « À venir » + bilan théorie vs données, pour le résumé quotidien."""
+    from knowledge.service import get_service
+    from knowledge.verify import VERDICT_LABEL
+
+    ks = get_service()
+    lines = []
+    upcoming = ks.upcoming_text(now, days=10)
+    if upcoming:
+        lines.append("\n📅 **À venir** (calendrier, dates non officielles signalées)")
+        lines += [f"• {u}" for u in upcoming]
+    obs = ks.observed().get("hypotheses", {})
+    decided = [h for h in obs.values() if h["verdict"] in ("confirmee", "contredite")]
+    if decided:
+        lines.append("\n🧠 **Théorie vs données du bot**")
+        lines += [f"• {h['titre']} : {VERDICT_LABEL[h['verdict']]} ({h['n']} {h['unite']})" for h in decided[:5]]
+    return lines
 
 
 def daily_summary(analyzer, watchlist: list[dict]) -> str:
@@ -330,6 +366,7 @@ def daily_summary(analyzer, watchlist: list[dict]) -> str:
         lines += [f"🟢 {s.title} @ {fmt_price(s.price)} ({s.confidence}/10)" for s in buys]
         lines += [f"🔴 {s.title} @ {fmt_price(s.price)} ({s.confidence}/10)" for s in sells]
 
+    lines += knowledge_lines(to_local(now))
     lines.append("\n🧭 **Consignes pour les prochaines heures**")
     lines += [f"• {t}" for t in _consignes(to_local(now), mood)]
     lines.append(f"\n_{n_snap} prix relevés en 24h sur {len(watchlist)} joueurs suivis._")

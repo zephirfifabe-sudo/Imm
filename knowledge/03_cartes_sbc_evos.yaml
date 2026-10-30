@@ -1,0 +1,125 @@
+# Cartes, SBC, Évolutions et méta (ce qui crée la demande)
+categorie: cartes
+entrees:
+  - id: KB-K-001
+    cle: sbc_streamlined
+    niveau: 1
+    titre: SBC « Streamlined » à points (nouveauté FC 27)
+    contenu: >
+      La plupart des SBC joueurs et améliorations n'exigent plus de note d'équipe, de collectifs ni de postes :
+      chaque carte rapporte un « Item Score » selon sa note et sa version, et on soumet des cartes jusqu'à
+      atteindre le score demandé (dépôts partiels conservés, doublons acceptés, 30 cartes max par défi).
+      Les SBC « Challenge » plus complexes gardent les règles traditionnelles (collectifs, postes, note).
+      Conséquence : les petites notes gardent de la valeur (elles rapportent des points), les grosses notes
+      servent de raccourci ; la demande se reporte sur la note qui offre le meilleur rapport points/prix.
+    version_jeu: FC27
+    sources:
+      - {url: "https://dotesports.com/ea-sports-fc/guides/ea-sports-fc-27-sbc-changes", type: guide_communautaire}
+      - {url: "https://allthings.how/fc-27-streamlined-sbcs-how-the-item-score-system-works/", type: guide_communautaire}
+      - {url: "https://timesaver.gg/blog/fc-27-streamlined-sbcs-explained", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-K-002
+    cle: item_score_par_note
+    niveau: 1
+    titre: Item Score par note (cartes normales)
+    contenu: >
+      Valeurs relevées par la majorité des calculateurs communautaires (pas de table officielle EA ; EA dit
+      ajuster les valeurs selon les complétions) : 83 = 410, 84 = 830, 85 = 2 100, 86 = 4 100, 87 = 5 500,
+      88 = 8 300. Les versions spéciales (TOTW, Holo…) ont un multiplicateur. Le meilleur fodder est la note
+      dont le prix par point est le plus bas : c'est ce que le futur tracker de fodders doit calculer.
+    donnees: {item_score: {83: 410, 84: 830, 85: 2100, 86: 4100, 87: 5500, 88: 8300}}
+    version_jeu: FC27
+    sources:
+      - {url: "https://fandifut.com/item-score-calculator", type: tracker}
+      - {url: "https://www.ezg.com/blog/fc-27-streamlined-sbc-guide-item-score-duplicates-fodder-strategy", type: guide_communautaire}
+      - {url: "https://www.fut.gg/sbc/streamlined-solver/", type: tracker}
+    fiabilite: 3
+    statut: a_verifier
+    verifie_le: 2026-10-30
+
+  - id: KB-K-003
+    cle: evolutions_fc27
+    niveau: 1
+    titre: Évolutions FC 27 (parcours à embranchements)
+    contenu: >
+      Les Évolutions reviennent avec des parcours à choix (améliorations de stats et PlayStyles différentes
+      selon la voie), un aperçu de la chaîne d'Évolutions et le PlayStyles Lab (réglages limités). Les
+      « Star Performers » sont les premières cartes qui peuvent gagner un PlayStyle+ par Évolution.
+      Une carte bon marché éligible à une bonne Évo est très demandée à sa sortie, mais une carte meilleure
+      en jeu n'est pas forcément un bon investissement.
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.redbull.com/us-en/ea-fc-27-ultimate-team-new-features", type: guide_communautaire}
+      - {url: "https://www.fifplay.com/fc-27-star-performers/", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-K-004
+    cle: playstyles_fc27
+    niveau: 1
+    titre: PlayStyles en FC 27 (max 3 PlayStyles+, attributs plus importants)
+    contenu: >
+      FC 27 réduit l'écart entre attributs et PlayStyles : plusieurs PlayStyles dominants (Finesse Shot, Rapid,
+      Pinged Pass, Low Driven…) ont été retouchés pour être moins automatiques. Une carte a au maximum
+      3 PlayStyles+. Les cartes spéciales reçoivent Role++ sur leurs rôles principaux et secondaires.
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.ea.com/games/ea-sports-fc/fc-27/news/what-are-playstyles", type: officiel_ea}
+      - {url: "https://www.fut.gg/news/every-playstyle-nerf-and-buff-in-ea-fc-27-full-list-of-changes/", type: guide_communautaire}
+      - {url: "https://www.redbull.com/us-en/ea-fc-27-ultimate-team-new-features", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-K-005
+    cle: accelerate
+    niveau: 1
+    titre: AcceleRATE (Controlled, Explosive, Lengthy)
+    contenu: >
+      Trois profils d'accélération. Les sources divergent sur la force du profil Lengthy en FC 27 (populaire
+      et jugé très fort par certains, nerfé avant le lancement selon d'autres). À ne pas utiliser comme
+      critère de prix tant que ce n'est pas tranché.
+    version_jeu: FC27
+    sources:
+      - {url: "https://www.mmoexp.com/News/ea-fc-27-starter-meta-shaken-up-ea-sports-nerfs-lengthy-accelerate-and-team-press-ahead-of-launch.html", type: guide_communautaire}
+    fiabilite: 2
+    statut: a_verifier
+    verifie_le: 2026-10-30
+
+  - id: KB-K-006
+    cle: nouveaux_types_cartes
+    niveau: 1
+    titre: Nouveautés de cartes FC 27 (Galerie, Holographiques, Hall of FUT)
+    contenu: >
+      La Galerie FUT garde une trace de chaque carte obtenue même après vente ou SBC (PC, PS5, Xbox Series,
+      Switch 2), avec des Gallery Tokens. Les cartes holographiques sont des versions plus rares de certaines
+      cartes spéciales. « Hall of FUT » est un nouveau type de carte, placé sous les Icônes et les Héros.
+    version_jeu: FC27
+    sources:
+      - {url: "https://timesaver.gg/blog/fc-27-ultimate-team-new-features", type: guide_communautaire}
+      - {url: "https://www.fut.gg/news/what-are-holographic-cards-in-ea-fc-27-new-ultimate-team-rarity-explained/", type: guide_communautaire}
+      - {url: "https://www.altchar.com/game-news/ea-sports-fc-27-hall-of-fut-players-full-list-and-gallery-token-prices-aHe7X1x9PViG", type: guide_communautaire}
+    fiabilite: 4
+    statut: probable
+    verifie_le: 2026-10-30
+
+  - id: KB-K-007
+    cle: facteurs_prix_carte
+    niveau: 2
+    titre: Ce qui fait la valeur d'une carte
+    contenu: >
+      Méta (vitesse, PlayStyles+, gestes techniques et pied faible, morphologie), liens (ligue et nation
+      populaires : Premier League, LaLiga, France, Brésil…), demande SBC (notes recherchées), éligibilité aux
+      Évolutions, rareté (en packs ou non, retirée des packs = plus rare), concurrence (une meilleure carte
+      au même poste et dans la même ligue fait baisser l'ancienne). Les cartes non échangeables (objectifs,
+      SBC) ne pèsent pas sur l'offre du marché.
+    version_jeu: toutes
+    sources:
+      - {url: "", type: consensus_historique, note: "constantes de la communauté trading depuis FIFA 17"}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-10-30
