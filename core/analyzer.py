@@ -217,7 +217,8 @@ class MarketAnalyzer:
     # ------------------------------------------------------------------ R4
     def recent_competitor(self, player: dict, hours: int = 48) -> bool:
         for ev in db.get_events("new_card", since=self.now - timedelta(hours=hours)):
-            if pd.Timestamp(ev["timestamp"]) > pd.Timestamp(self.now):  # backtest : pas de futur
+            # backtest : ignorer le futur (tolérance 5 min pour les cartes détectées juste après la création)
+            if pd.Timestamp(ev["timestamp"]) > pd.Timestamp(self.now) + pd.Timedelta(minutes=5):
                 continue
             if similarity(ev.get("payload") or {}, player) > config.SIMILARITY_ALERT:
                 return True
