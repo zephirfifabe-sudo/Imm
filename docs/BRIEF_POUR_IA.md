@@ -98,7 +98,7 @@ deploy.sh / install.sh installation en 3 questions et mise à jour sur le VPS
   - chute d'au moins 15 % en 48 h sans carte concurrente → **ACHAT** (panic sell) ;
   - hausse d'au moins 25-30 % en 24 h → **VENTE** (hype).
 - **R5 Saturation** : 3 cartes ou plus du même groupe de postes en 7 jours → **VENTE**.
-- **Habitude** : un profil hebdomadaire appris sur 168 heures. Avant 4 semaines de données, le bot utilise un profil « expert » : crash le dimanche soir et le lundi matin, remontée jusqu'au jeudi, prix hauts le jeudi et le vendredi.
+- **Habitude** : un profil hebdomadaire appris sur 168 heures. *Correction après audit : un profil « expert » existe dans le code (`prior_profile()`), mais il n'est utilisé qu'en mode démo. En production, le profil appris est utilisé dès 3-4 jours de données, même avec une confiance nulle. Voir `docs/AUDIT_CERVEAU.md`.*
 - **Score final** = 65 % règle instantanée + 35 % habitude.
   - Une règle forte (R1, R4) garde sa direction quoi que dise l'habitude.
   - **La taxe EA de 5 % est déduite.** Un signal sans au moins 4 % de marge nette est rétrogradé.
