@@ -225,6 +225,15 @@ def cmd_fiches(_):
     print(f"{n} fiche(s) complétée(s)")
 
 
+def cmd_resume(_):
+    from alerts import notifier
+    from core.analyzer import MarketAnalyzer
+    from scrapers.watchlist import load_watchlist
+
+    wl = load_watchlist()
+    print(notifier.publish_summary(MarketAnalyzer(wl), wl))
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -242,7 +251,7 @@ def cmd_demo_reset(_):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
-    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
+    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
                      ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:

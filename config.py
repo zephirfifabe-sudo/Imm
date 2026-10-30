@@ -88,6 +88,7 @@ ALERT_COOLDOWN_HOURS = int(os.getenv("ALERT_COOLDOWN_HOURS", "6"))
 
 # --- Rapport des prix sur Discord/Telegram (heures de Paris) ---
 PRICE_REPORT_HOURS = os.getenv("PRICE_REPORT_HOURS", "10,22")
+SUMMARY_HOUR = int(os.getenv("SUMMARY_HOUR", "23"))  # résumé des 24 dernières heures
 
 # --- Dashboard ---
 DASHBOARD_USER = os.getenv("DASHBOARD_USER", "")

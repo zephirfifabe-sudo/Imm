@@ -224,3 +224,111 @@ def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
         block.append(ln)
     messages.append("```\n" + "\n".join(block) + "\n```")
     return messages
+
+
+# --------------------------------------------------------------------------- résumé des 24 dernières heures
+def _consignes(now_local, mood: float | None) -> list[str]:
+    """Consignes selon le moment de la semaine (habitudes FUT) et l'humeur du marché."""
+    tips: list[str] = []
+
+    def phase(t) -> list[str]:
+        d, h = t.weekday(), t.hour
+        if (d == 6 and h >= 20) or (d == 0 and h < 4):
+            return ["🛒 On est dans le **crash FUT Champions** (dim 20h → lun 4h) : meilleur moment de la semaine "
+                    "pour acheter les joueurs qui ont le plus baissé."]
+        if d in (5, 6):
+            return ["💳 **Garde des crédits** : le crash FUT Champions arrive dimanche 20h → lundi 4h, "
+                    "c'est là qu'on achète le moins cher."]
+        if d == 0 or d in (1, 2):
+            out = ["📈 **Phase de remontée** (lundi → jeudi) : garde tes achats du week-end, "
+                   "commence à revendre ce qui a bien remonté à partir de mercredi."]
+            if d in (1, 2):
+                out.append("🧩 Mardi/mercredi = **jours SBC** : les cartes demandées en fodder peuvent monter.")
+            return out
+        if d == 3:
+            return ["⚠️ **Jeudi 18h-20h : crash des récompenses Rivals**, puis prix hauts jeudi soir et vendredi "
+                    "(Week-end League) : prépare tes ventes."]
+        return ["💰 **Vendredi = prix hauts** (Week-end League) : vends ce qui a remonté, évite d'acheter."]
+
+    for t in (now_local, now_local + timedelta(hours=12)):
+        for tip in phase(t):
+            if tip not in tips:
+                tips.append(tip)
+    if mood is not None and mood <= -0.05:
+        tips.append("📉 Marché en **forte baisse** sur 24h : patience, attends que ça se stabilise avant d'acheter.")
+    elif mood is not None and mood >= 0.05:
+        tips.append("📈 Marché en **forte hausse** sur 24h : bon moment pour encaisser des bénéfices.")
+    tips.append("🔁 Rappel : la taxe EA prend 5 % à chaque vente, vise **au moins +10 %** avant de revendre.")
+    return tips
+
+
+def daily_summary(analyzer, watchlist: list[dict]) -> str:
+    """« Ce qui s'est passé ces 24 dernières heures » + consignes. Envoyé sur Discord et affiché au dashboard."""
+    now = utcnow()
+    since = now - timedelta(hours=24)
+    rows, n_snap = [], 0
+    with db.get_conn() as c:
+        for p in watchlist:
+            pid = str(p["player_id"])
+            cur, old = db.price_at(pid, now, conn=c), db.price_at(pid, since, conn=c)
+            if cur and old:
+                rows.append((p.get("name") or pid, cur, cur / old - 1))
+        n_snap = c.execute("SELECT COUNT(*) FROM price_snapshots WHERE timestamp>=?", (iso(since),)).fetchone()[0]
+        alerts = c.execute("SELECT action, message FROM alerts WHERE timestamp>=? AND sent=1 ORDER BY id DESC",
+                           (iso(since),)).fetchall()
+    lines = [f"📰 **RÉSUMÉ DES 24 DERNIÈRES HEURES** — {_now_label()}"]
+
+    mood = float(np.mean([r[2] for r in rows])) if rows else None
+    if mood is not None:
+        up = sum(1 for r in rows if r[2] >= 0.03)
+        down = sum(1 for r in rows if r[2] <= -0.03)
+        trend = "📈 haussier" if mood > 0.02 else "📉 baissier" if mood < -0.02 else "➡️ stable"
+        lines.append(f"\n**Marché** : {mood * 100:+.1f}% en moyenne, {trend} · {up} en hausse, {down} en baisse "
+                     f"(sur {len(rows)} joueurs)")
+        tops = sorted([r for r in rows if r[2] >= 0.01], key=lambda r: -r[2])[:3]
+        flops = sorted([r for r in rows if r[2] <= -0.01], key=lambda r: r[2])[:3]
+        if tops:
+            lines.append("🟢 Plus fortes hausses : " + ", ".join(f"{n[:16]} {fmt_price(pr)} ({ch * 100:+.0f}%)"
+                                                              for n, pr, ch in tops))
+        if flops:
+            lines.append("🔴 Plus fortes baisses : " + ", ".join(f"{n[:16]} {fmt_price(pr)} ({ch * 100:+.0f}%)"
+                                                              for n, pr, ch in flops))
+        crashes = [r for r in rows if r[2] <= config.INSTANT_CRASH_ALERT]
+        if crashes:
+            lines.append(f"⚡ {len(crashes)} crash(s) de plus de 15 % : "
+                         + ", ".join(f"{n[:16]} ({ch * 100:+.0f}%)" for n, _, ch in crashes[:5]))
+    else:
+        lines.append("\n**Marché** : pas encore 24h de relevés, les variations arrivent demain.")
+
+    if alerts:
+        lines.append(f"\n📨 **{len(alerts)} alerte(s) envoyée(s)** :")
+        for a in alerts[:5]:
+            title = next((ln.replace("Joueur : ", "") for ln in a["message"].splitlines() if ln.startswith("Joueur")), "")
+            lines.append(f"• {a['action']} {title}".rstrip())
+    else:
+        lines.append("\n📨 Aucune alerte envoyée (rien d'assez fiable, c'est voulu).")
+
+    new_cards = db.get_events("new_card", since=since)
+    if new_cards:
+        lines.append(f"🆕 {len(new_cards)} nouvelle(s) carte(s) : " + ", ".join((e['title'] or '?')[:20] for e in new_cards[:6]))
+
+    sigs = analyzer.full_scan()
+    buys = sorted([s for s in sigs if s.action.startswith("ACHAT")], key=lambda s: -s.score)[:3]
+    sells = sorted([s for s in sigs if s.action.startswith("VENTE")], key=lambda s: s.score)[:3]
+    if buys or sells:
+        lines.append("\n🎯 **À surveiller maintenant**")
+        lines += [f"🟢 {s.title} @ {fmt_price(s.price)} ({s.confidence}/10)" for s in buys]
+        lines += [f"🔴 {s.title} @ {fmt_price(s.price)} ({s.confidence}/10)" for s in sells]
+
+    lines.append("\n🧭 **Consignes pour les prochaines heures**")
+    lines += [f"• {t}" for t in _consignes(to_local(now), mood)]
+    lines.append(f"\n_{n_snap} prix relevés en 24h sur {len(watchlist)} joueurs suivis._")
+    return "\n".join(lines)
+
+
+def publish_summary(analyzer, watchlist: list[dict]) -> str:
+    """Envoie le résumé sur Discord et le garde en base pour le dashboard."""
+    text = daily_summary(analyzer, watchlist)
+    db.add_event("summary", title="Résumé 24h", payload={"text": text})
+    send_text(text)
+    return text

@@ -119,6 +119,15 @@ def api_chart(player_id: str):
     return real_vs_predicted(player_id)
 
 
+@app.get("/api/summary", dependencies=[Depends(auth)])
+def api_summary():
+    ev = db.get_events("summary")
+    if not ev:
+        return {"text": None, "timestamp": None}
+    last = ev[-1]
+    return {"text": last["payload"].get("text"), "timestamp": last["timestamp"]}
+
+
 @app.get("/api/alerts", dependencies=[Depends(auth)])
 def api_alerts(limit: int = 30):
     return db.recent_alerts(min(limit, 200))

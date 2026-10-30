@@ -40,6 +40,13 @@
     <div class="rounded-xl bg-slate-900 p-3"><p class="text-[11px] text-slate-400">Crash FUT Champions moy.</p><p id="k-crash" class="font-semibold num">–</p></div>
   </section>
 
+  <!-- Résumé des 24 dernières heures (même texte que sur Discord) -->
+  <details id="summary" class="hidden rounded-xl bg-slate-900 p-3" open>
+    <summary class="text-sm font-semibold text-slate-300 cursor-pointer">📰 Résumé des 24 dernières heures
+      <span id="summary-time" class="text-[11px] text-slate-500 font-normal ml-1"></span></summary>
+    <div id="summary-text" class="whitespace-pre-wrap text-sm text-slate-300 mt-2 leading-relaxed"></div>
+  </details>
+
   <!-- Filtres -->
   <section class="flex flex-wrap items-center gap-2">
     <div class="flex rounded-lg bg-slate-900 p-1 text-sm" id="tabs">
@@ -191,8 +198,19 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   renderRows();
 });
 
+async function loadSummary() {
+  const r = await get("/api/summary");
+  const box = document.getElementById("summary");
+  if (!r.text) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  document.getElementById("summary-time").textContent = ago(r.timestamp);
+  document.getElementById("summary-text").innerHTML = esc(r.text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100">$1</strong>')
+    .replace(/^_(.*)_$/gm, '<span class="text-slate-500 text-xs">$1</span>');
+}
+
 async function refresh() {
-  try { await Promise.all([loadStatus(), loadPlayers(), loadAlerts()]); }
+  try { await Promise.all([loadStatus(), loadPlayers(), loadAlerts(), loadSummary()]); }
   catch (e) { document.getElementById("sub").textContent = "Erreur de chargement : " + e.message; }
 }
 refresh();

@@ -95,3 +95,26 @@ def test_price_report():
     assert body.startswith("```") and "Koné" in body and "%" in body
     assert "Plus fortes hausses" in msgs[0]  # Koné +35 % en 24h (scénario démo)
     assert "price_report" in {j.id for j in build_scheduler().get_jobs()}
+
+
+def test_daily_summary_discord_and_dashboard():
+    seed_demo(days=3)
+    wl = load_watchlist()
+    text = notifier.publish_summary(MarketAnalyzer(wl), wl)
+    assert "RÉSUMÉ DES 24 DERNIÈRES HEURES" in text and "Consignes" in text and "taxe EA" in text
+    assert "Plus fortes hausses" in text and "Koné" in text  # Koné +35 % (scénario démo)
+    from dashboard import app
+
+    r = TestClient(app).get("/api/summary").json()
+    assert r["text"] == text and r["timestamp"]
+
+
+def test_consignes_by_weekday():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    tz = ZoneInfo("Europe/Paris")
+    sunday_night = notifier._consignes(datetime(2026, 11, 1, 21, 0, tzinfo=tz), None)
+    assert any("crash FUT Champions" in t and "acheter" in t for t in sunday_night)
+    friday = notifier._consignes(datetime(2026, 10, 30, 15, 0, tzinfo=tz), 0.06)
+    assert any("Vendredi" in t for t in friday) and any("forte hausse" in t for t in friday)

@@ -7,7 +7,7 @@
   18:45                   rapport PRÉ-19H (leaks + ventes à sécuriser)
   18:55-20:30 / 3 min     surveillance nouvelles cartes -> analyse d'impact immédiate (R1/R5)
   19:15                   rapport POST-19H
-  23:00                   récap du jour
+  23:00                   résumé des 24 dernières heures + consignes (SUMMARY_HOUR), aussi au dashboard
   10:10 et 22:10          rapport des prix + variations 24h/12h (PRICE_REPORT_HOURS)
   lundi 05:00             learn_patterns() (auto-apprentissage sur 30 jours)
 """
@@ -25,7 +25,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 import config
 from alerts import notifier
 from core.analyzer import MarketAnalyzer
-from core.learner import learn_patterns, load_rules
+from core.learner import learn_patterns
 from database import db
 from utils.helpers import iso, to_local, utcnow
 from utils.logger import get_logger
@@ -145,7 +145,9 @@ def job_post19():
 
 @safe_job
 def job_recap():
-    notifier.send_text(notifier.report_recap(MarketAnalyzer(_watchlist()), load_rules()))
+    """Résumé des 24 dernières heures + consignes (Discord + dashboard)."""
+    wl = _watchlist()
+    notifier.publish_summary(MarketAnalyzer(wl), wl)
 
 
 @safe_job
@@ -198,7 +200,7 @@ def build_scheduler() -> BlockingScheduler:
     s.add_job(job_pre19, "cron", hour=18, minute=45, id="pre19")
     s.add_job(job_latest, "cron", hour="18-20", minute="*/3", id="latest")  # filtré 18:55-20:30
     s.add_job(job_post19, "cron", hour=19, minute=15, id="post19")
-    s.add_job(job_recap, "cron", hour=23, minute=0, id="recap")
+    s.add_job(job_recap, "cron", hour=config.SUMMARY_HOUR, minute=0, id="recap")
     # rapport des prix : minute 10, après le relevé horaire (lancé à :02, ~3 min)
     s.add_job(job_price_report, "cron", hour=config.PRICE_REPORT_HOURS, minute=10, id="price_report")
     s.add_job(job_learn, "cron", day_of_week="mon", hour=5, minute=0, id="learn")
