@@ -193,3 +193,48 @@ def run_price_test(player_url: str = "https://www.fut.gg/players/1397-zinedine-z
             print(f"  ✅ prix={res['price']} source={res['source']} historique={len(res['history'])} points")
         else:
             print("  ❌ aucun prix lisible")
+
+
+def run_latest_test() -> None:
+    """Cherche une page FUT.GG qui liste les NOUVELLES cartes (pour la surveillance de 19h) + teste les SBC."""
+    from scrapers.parsing import walk_dicts
+    from scrapers.sbc import list_sbcs
+
+    base = config.FUTGG_BASE
+    candidates = [
+        ("nouveautes", config.FUTGG_LATEST_URL),
+        ("tri -created_at", f"{base}/players/?sorts=-created_at"),
+        ("tri -release_date", f"{base}/players/?sorts=-release_date"),
+        ("tri -date_added", f"{base}/players/?sorts=-date_added"),
+        ("tri -id", f"{base}/players/?sorts=-id"),
+        ("in-packs", f"{base}/players/in-packs/"),
+        ("history", f"{base}/players/history/"),
+    ]
+    with Fetcher(min_delay=1.0) as f:
+        f.max_host_failures = 99
+        for name, url in candidates:
+            try:
+                res = f.get(url, retries=0)
+                players = extract_players(res.text, base)
+                top = ", ".join(f"{p['name'][:12]} {p.get('rating')} {p.get('card_type') or ''}".strip()
+                                for p in players[:4])
+                print(f"[{name}] {res.via} {len(players)} joueurs : {top}")
+                if not players:
+                    # structure du JSON pour adapter la lecture
+                    for blob in iter_json_blobs(res.text):
+                        x = next((x for x in walk_dicts(blob) if "eaId" in x and len(x) > 4), None)
+                        if x:
+                            print(f"   json: {_short(x)}"[:300])
+                            break
+            except Exception as e:  # noqa: BLE001
+                print(f"[{name}] ❌ {str(e)[:110]}")
+        try:
+            res = f.get(config.FUTGG_SBC_URL, retries=0)
+            sbcs = list_sbcs(res.text, base)
+            print(f"\n[SBC] {res.via} {len(sbcs)} SBC : {', '.join(s['name'][:20] for s in sbcs[:5])}")
+            if not sbcs:
+                hrefs = sorted({a['href'] for a in BeautifulSoup(res.text, 'html.parser').find_all('a', href=True)
+                                if 'sbc' in a['href'].lower()})
+                print("   liens sbc :", hrefs[:6])
+        except Exception as e:  # noqa: BLE001
+            print(f"\n[SBC] ❌ {str(e)[:120]}")
