@@ -16,18 +16,18 @@ from scrapers.watchlist import save_watchlist
 from utils.helpers import iso, to_local, utcnow
 
 DEMO_PLAYERS = [
-    ("demo-1", "Barcola", 84, "LW", "Ligue 1", "France", "Paris SG", 70000),
-    ("demo-2", "Doué", 83, "RW", "Ligue 1", "France", "Paris SG", 45000),
-    ("demo-3", "Isak", 86, "ST", "Premier League", "Sweden", "Newcastle", 180000),
-    ("demo-4", "Rodrygo", 85, "RW", "LALIGA EA SPORTS", "Brazil", "Real Madrid", 95000),
-    ("demo-5", "Theo Hernández", 84, "LB", "Serie A", "France", "AC Milan", 38000),
-    ("demo-6", "Koné", 82, "CDM", "Serie A", "France", "AS Roma", 25000),
-    ("demo-7", "Wirtz", 88, "CAM", "Bundesliga", "Germany", "Leverkusen", 320000),
-    ("demo-8", "Gyökeres", 85, "ST", "Premier League", "Sweden", "Arsenal", 120000),
-    ("demo-9", "Saliba", 87, "CB", "Premier League", "France", "Arsenal", 150000),
-    ("demo-10", "Nico Williams", 85, "LW", "LALIGA EA SPORTS", "Spain", "Athletic Club", 88000),
-    ("demo-11", "Dembélé", 88, "RW", "Ligue 1", "France", "Paris SG", 260000),
-    ("demo-12", "Hakimi", 86, "RB", "Ligue 1", "Morocco", "Paris SG", 110000),
+    ("demo-1", "Barcola", 84, "LW", "Ligue 1", "France", "Paris SG", 70000, "Or rare"),
+    ("demo-2", "Doué", 83, "RW", "Ligue 1", "France", "Paris SG", 45000, "Or rare"),
+    ("demo-3", "Isak", 86, "ST", "Premier League", "Sweden", "Newcastle", 180000, "TOTW"),
+    ("demo-4", "Rodrygo", 85, "RW", "LALIGA EA SPORTS", "Brazil", "Real Madrid", 95000, "Or rare"),
+    ("demo-5", "Theo Hernández", 84, "LB", "Serie A", "France", "AC Milan", 38000, "Or rare"),
+    ("demo-6", "Koné", 82, "CDM", "Serie A", "France", "AS Roma", 25000, "Or non rare"),
+    ("demo-7", "Wirtz", 88, "CAM", "Bundesliga", "Germany", "Leverkusen", 320000, "Trailblazers"),
+    ("demo-8", "Gyökeres", 85, "ST", "Premier League", "Sweden", "Arsenal", 120000, "POTM"),
+    ("demo-9", "Saliba", 87, "CB", "Premier League", "France", "Arsenal", 150000, "Or rare"),
+    ("demo-10", "Nico Williams", 85, "LW", "LALIGA EA SPORTS", "Spain", "Athletic Club", 88000, "Evo"),
+    ("demo-11", "Dembélé", 88, "RW", "Ligue 1", "France", "Paris SG", 260000, "UCL"),
+    ("demo-12", "Hakimi", 86, "RB", "Ligue 1", "Morocco", "Paris SG", 110000, "TOTW"),
 ]
 
 
@@ -38,9 +38,9 @@ def seed_demo(days: int = 35, seed: int = 27) -> int:
     start = now - timedelta(days=days)
     players = []
     with db.get_conn() as c:
-        for i, (pid, name, rating, pos, league, nation, club, base) in enumerate(DEMO_PLAYERS):
+        for i, (pid, name, rating, pos, league, nation, club, base, card_type) in enumerate(DEMO_PLAYERS):
             p = {"player_id": pid, "name": name, "rating": rating, "position": pos, "league": league,
-                 "nation": nation, "club": club, "card_type": "Gold Rare", "source": "demo", "popularity_rank": i + 1}
+                 "nation": nation, "club": club, "card_type": card_type, "source": "demo", "popularity_rank": i + 1}
             db.upsert_player(p, conn=c)
             amp = rng.uniform(0.7, 1.4)  # chaque joueur réagit plus ou moins au cycle
             trend = rng.uniform(-0.25, 0.10) / (days * 24)

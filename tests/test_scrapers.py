@@ -69,3 +69,23 @@ def test_telegram_leaks():
     tags = tag_leak(leaks[0]["text"], ["Bradley Barcola", "Isak"])
     assert "totw" in tags and "sbc" in tags and "player:Bradley Barcola" in tags
     assert tag_leak(leaks[1]["text"], ["Isak"]) == []
+
+
+def test_rarity_classification():
+    from utils.rarity import classify, detect_in_text
+
+    assert classify("Team of the Week")["label"] == "TOTW" and classify("IF")["special"]
+    assert classify("Gold Rare") == {**classify("Gold Rare"), "label": "Or rare", "special": False}
+    assert classify("FUT Heroes")["category"] == "hero" and classify("Icon")["category"] == "icon"
+    assert classify("3") is None and classify(None) is None  # ID numérique ignoré
+    assert classify("Neon Nights")["label"] == "Neon Nights"  # promo inconnue gardée telle quelle
+    assert detect_in_text("Barcola 84 LW 67.5K") is None
+    assert detect_in_text("Bradley Barcola Trailblazers 89") == "Trailblazers"
+
+
+def test_card_type_extracted():
+    html = fixture_text("futgg_list.html").replace(
+        '<span>83</span><span>RW</span>', '<span>87</span><span>RW</span><span>POTM</span>')
+    by_id = {p["player_id"]: p for p in extract_players(html, "https://www.fut.gg")}
+    assert by_id["50544321"]["card_type"] == "Or rare"   # depuis le JSON (rarityName)
+    assert by_id["256630"]["card_type"] == "POTM"        # depuis le texte de la carte

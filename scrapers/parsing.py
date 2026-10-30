@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from utils.helpers import POSITIONS, normalize_position, parse_price
+from utils.rarity import detect_in_text, label as rarity_label
 
 NAME_KEYS = ("commonName", "common_name", "cardName", "displayName", "name", "lastName", "last_name")
 RATING_KEYS = ("overall", "rating", "ovr", "overallRating")
@@ -157,11 +158,21 @@ def player_from_dict(d: dict, base_url: str = "") -> dict:
         "league": _name_of(pick(d, "league", "leagueName", "league_name")),
         "nation": _name_of(pick(d, "nation", "nationName", "nation_name", "country")),
         "club": _name_of(pick(d, "club", "clubName", "club_name", "team")),
-        "card_type": _name_of(pick(d, "rarityName", "rarity", "cardType", "version", "itemType")),
+        "card_type": _card_type(d),
         "playstyles": playstyles,
         "price": price,
         "url": urljoin(base_url, url) if url else None,
     }
+
+
+def _card_type(d: dict) -> str | None:
+    """Nom de rareté lisible (TOTW, Trailblazers, Or rare...). Les IDs numériques sont ignorés."""
+    for key in ("rarityName", "rarity.name", "cardRarity", "programName", "promo.name", "promo",
+                "versionName", "version", "cardType", "rarity", "itemType"):
+        lab = rarity_label(_name_of(pick(d, key)))
+        if lab:
+            return lab
+    return None
 
 
 def players_from_json(html: str, base_url: str = "") -> list[dict]:
@@ -203,9 +214,10 @@ def players_from_anchors(html: str, base_url: str) -> list[dict]:
         name = slug.replace("-", " ").title()
         if pid in out:
             continue
+        card_type = detect_in_text(" ".join(tokens))
         out[pid] = {
             "player_id": pid, "base_id": base_id, "name": name, "rating": rating, "position": pos,
-            "alt_positions": [], "league": None, "nation": None, "club": None, "card_type": None,
+            "alt_positions": [], "league": None, "nation": None, "club": None, "card_type": card_type,
             "playstyles": [], "price": price, "url": urljoin(base_url, a["href"]),
         }
     return list(out.values())

@@ -29,6 +29,7 @@ from core.analyzer import MarketAnalyzer
 from core.learner import load_rules
 from database import db
 from scrapers.watchlist import load_watchlist
+from utils.rarity import classify
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -100,13 +101,15 @@ def api_players():
         for s in an.full_scan():
             rows.append({
                 "player_id": s.player_id, "name": s.player_name, "rating": s.rating, "position": s.position,
+                "rarity": classify(s.card_type),
                 "price": s.price, "change_24h": s.change_24h, "habit_dev": s.extra.get("habit_deviation"),
                 "action": s.action, "confidence": s.confidence, "rule": s.rule, "instant": s.instant,
                 "habit": s.habit, "action_text": s.action_text,
             })
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),
-                  "price": p.get("price"), "action": "?", "confidence": None} for p in wl if p["player_id"] not in known]
+                  "rarity": classify(p.get("card_type")), "price": p.get("price"), "action": "?", "confidence": None}
+                 for p in wl if p["player_id"] not in known]
         _cache["players"] = (time.time(), rows)
         return rows
 

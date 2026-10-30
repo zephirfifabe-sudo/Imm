@@ -46,8 +46,9 @@
       <button data-f="all" class="tab-on px-3 py-1 rounded-md">Tous</button>
       <button data-f="buy" class="px-3 py-1 rounded-md">Achats</button>
       <button data-f="sell" class="px-3 py-1 rounded-md">Ventes</button>
+      <button data-f="special" class="px-3 py-1 rounded-md">✨ Spéciales</button>
     </div>
-    <input id="q" type="search" placeholder="Rechercher…" class="flex-1 min-w-[140px] bg-slate-900 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-slate-600">
+    <input id="q" type="search" placeholder="Joueur ou promo (TOTW…)" class="flex-1 min-w-[140px] bg-slate-900 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-slate-600">
   </section>
 
   <!-- Tableau joueurs -->
@@ -87,6 +88,16 @@ const BADGE = {"ACHAT FORT":"bg-emerald-500 text-black","ACHAT":"bg-emerald-500/
   "VENTE URGENTE":"bg-rose-500 text-white","VENTE":"bg-rose-500/20 text-rose-300","HOLD":"bg-slate-700 text-slate-300"};
 let players = [], filter = "all", chart = null;
 
+// Badge de rareté : couleur de la promo, contour plus marqué pour les cartes spéciales
+function rarityBadge(r, big) {
+  if (!r) return `<span class="text-[10px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-500">Rareté ?</span>`;
+  const size = big ? "text-xs px-2 py-0.5" : "text-[10px] px-1.5 py-0.5";
+  const style = r.special
+    ? `background:${r.color}26;color:${r.color};border:1px solid ${r.color}aa`
+    : `color:${r.color};border:1px solid ${r.color}55`;
+  return `<span class="${size} rounded font-semibold whitespace-nowrap" style="${style}" title="${esc(r.raw)}">${r.special ? "✨ " : ""}${esc(r.label)}</span>`;
+}
+
 async function get(url) { const r = await fetch(url, {credentials: "same-origin"}); if (!r.ok) throw new Error(r.status); return r.json(); }
 
 function ago(iso) {
@@ -111,13 +122,14 @@ async function loadStatus() {
 function renderRows() {
   const q = document.getElementById("q").value.toLowerCase();
   const list = players.filter(p =>
-    (filter === "all" || (filter === "buy" && p.action.startsWith("ACHAT")) || (filter === "sell" && p.action.startsWith("VENTE")))
-    && (!q || (p.name || "").toLowerCase().includes(q)));
+    (filter === "all" || (filter === "buy" && p.action.startsWith("ACHAT")) || (filter === "sell" && p.action.startsWith("VENTE"))
+      || (filter === "special" && p.rarity && p.rarity.special))
+    && (!q || `${p.name} ${p.rarity ? p.rarity.label + " " + p.rarity.raw : ""}`.toLowerCase().includes(q)));
   document.getElementById("rows").innerHTML = list.map(p => `
     <button data-id="${esc(p.player_id)}" class="row w-full text-left grid grid-cols-12 gap-2 px-3 py-2.5 items-center hover:bg-slate-800/60">
       <div class="col-span-7 md:col-span-4 min-w-0">
         <p class="font-medium truncate">${esc(p.name)} <span class="text-slate-400">${esc(p.rating ?? "")}</span></p>
-        <p class="text-[11px] text-slate-500">${esc(p.position ?? "")} · ${esc(p.rule ?? "")}</p>
+        <p class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">${rarityBadge(p.rarity)}<span>${esc(p.position ?? "")}</span><span class="truncate">· ${esc(p.rule ?? "")}</span></p>
       </div>
       <div class="col-span-5 md:col-span-2 text-right num font-semibold">${k(p.price)}
         <span class="md:hidden block text-[11px] ${color(p.change_24h)}">${pct(p.change_24h)} / 24h</span></div>
@@ -145,7 +157,7 @@ async function loadAlerts() {
 
 async function openChart(id) {
   const p = players.find(x => x.player_id === id) || {};
-  document.getElementById("m-title").textContent = `${p.name || id} ${p.rating || ""}`;
+  document.getElementById("m-title").innerHTML = `${esc(p.name || id)} ${esc(p.rating || "")} ${rarityBadge(p.rarity, true)}`;
   document.getElementById("m-sub").textContent = `${k(p.price)} · ${pct(p.change_24h)} / 24h · ${p.action || ""}`;
   document.getElementById("m-detail").innerHTML = [p.instant && `<p>⚡ ${esc(p.instant)}</p>`, p.habit && `<p>🧠 ${esc(p.habit)}</p>`,
     p.action_text && `<p class="font-semibold">👉 ${esc(p.action_text)}</p>`].filter(Boolean).join("");

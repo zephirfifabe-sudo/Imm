@@ -73,7 +73,9 @@ def test_dashboard_api(monkeypatch):
     assert "FC27 Sniper" in c.get("/").text
     assert c.get("/static/chart.umd.js").status_code == 200
     rows = c.get("/api/players").json()
-    assert len(rows) == 12 and {"price", "action", "confidence", "habit_dev"} <= set(rows[0])
+    assert len(rows) == 12 and {"price", "action", "confidence", "habit_dev", "rarity"} <= set(rows[0])
+    wirtz = next(r for r in rows if r["name"] == "Wirtz")
+    assert wirtz["rarity"]["label"] == "Trailblazers" and wirtz["rarity"]["special"]
     assert c.get("/api/status").json()["demo"] is True
     assert c.get("/api/player/demo-1/chart").json()["real"]
 
