@@ -169,3 +169,20 @@ def test_bucket_boundary_player(monkeypatch):
 
     monkeypatch.setattr(FutGGScraper, "list_players", fake_list)
     assert price_buckets.bucket_prices(fetcher=None)["k"]["price"] == edge
+
+
+def test_select_by_bands_balanced():
+    from scrapers.price_buckets import bucket_bounds, parse_bands, select_by_bands
+
+    prices = {}
+    for lo, hi in bucket_bounds(19750, 450000, 1.06):  # 10 joueurs par tranche, sur toute la fourchette
+        for r in range(10):
+            pid = f"{lo}-{r}"
+            prices[pid] = {"price": (lo + hi) // 2, "min": lo, "max": hi,
+                           "player": {"player_id": pid, "name": pid, "bucket_rank": r + 1}}
+    sel = select_by_bands(prices, parse_bands("19750-100000:110,100001-450000:40"))
+    cheap = [p for p in sel if p["price"] <= 100000]
+    assert len(sel) == 150 and len(cheap) == 110
+    # tour de table : toutes les tranches 20k-100k sont représentées, avec d'abord les mieux notés
+    assert len({p["price"] for p in cheap}) >= 25
+    assert all(p["bucket_rank"] <= 5 for p in cheap)

@@ -27,6 +27,8 @@ PLATFORM = os.getenv("PLATFORM", "console")  # console | pc
 PRICE_MIN = int(os.getenv("PRICE_MIN", "19750"))
 PRICE_MAX = int(os.getenv("PRICE_MAX", "450000"))
 WATCHLIST_SIZE = int(os.getenv("WATCHLIST_SIZE", "150"))
+# Répartition de la watchlist par fourchette de prix : "min-max:nombre,..." (cœur du marché = 20k-100k)
+WATCHLIST_BANDS = os.getenv("WATCHLIST_BANDS", "19750-100000:110,100001-450000:40")
 EVO_CHEAP_MAX = int(os.getenv("EVO_CHEAP_MAX", "20000"))
 
 # --- Sources (surchargeables si FUT.GG change ses URLs) ---

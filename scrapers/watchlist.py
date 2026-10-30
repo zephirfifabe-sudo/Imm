@@ -20,6 +20,13 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
     try:
         futgg = FutGGScraper(fetcher)
         provider = PriceProvider(fetcher)
+        from scrapers.price_buckets import bucket_prices, parse_bands, select_by_bands
+
+        # 1) Watchlist équilibrée par fourchettes de prix (cœur du marché 20k-100k), à partir des tranches
+        balanced = select_by_bands(bucket_prices(fetcher), parse_bands(config.WATCHLIST_BANDS))
+        if balanced:
+            return _finalize(balanced, futgg)
+        # 2) Repli : liste FUT.GG classée par note
         candidates = futgg.popular_players(pages=6)[:max_candidates]
         if not candidates:
             log.error("Aucun joueur populaire récupéré -> watchlist conservée")
@@ -56,6 +63,25 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
     finally:
         if own:
             fetcher.close()
+
+
+def _finalize(players: list[dict], futgg: FutGGScraper) -> list[dict]:
+    """Complète les fiches (poste, ligue, rareté via l'API des fiches), enregistre et sauvegarde."""
+    selected = []
+    for rank, p in enumerate(players, 1):
+        if not p.get("league") or not p.get("position"):
+            d = futgg.player_definition(p["player_id"])
+            if d:
+                p = {**p, **{k: v for k, v in d.items() if v not in (None, "", [], "?")}}
+        p["popularity_rank"] = rank
+        p["source"] = "futgg"
+        db.upsert_player(p)
+        selected.append(p)
+    selected.sort(key=lambda p: p.get("price") or 0)
+    save_watchlist(selected)
+    cheap = sum(1 for p in selected if (p.get("price") or 0) <= 100000)
+    log.info("Watchlist équilibrée : %d joueurs (%d entre 20k et 100k)", len(selected), cheap)
+    return selected
 
 
 def save_watchlist(players: list[dict]) -> None:
