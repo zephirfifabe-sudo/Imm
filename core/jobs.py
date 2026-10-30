@@ -1,6 +1,8 @@
 """Scheduler complet (heure de Paris).
 
   toutes les heures :02   snapshot prix (MÉMOIRE) + alerte instantanée crash >15% / R4
+                          + journal de TOUTES les décisions (moteur actif + moteur en observation)
+  toutes les heures :35   évaluation théorique des décisions à 6 h / 24 h / 48 h / 7 j
   08:00                   watchlist du jour (150 joueurs populaires 20k-400k)
   toutes les 20 min       leaks (alerte immédiate si un joueur de la watchlist est cité)
   :20 chaque heure        SBC + Evos (toutes les 15 min entre 18h et 21h)
@@ -24,7 +26,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 import config
 from alerts import notifier
-from core.analyzer import MarketAnalyzer
+from core.analyzer import MarketAnalyzer, dedupe
 from core.learner import learn_patterns
 from database import db
 from utils.helpers import iso, to_local, utcnow
@@ -68,8 +70,30 @@ def job_snapshot():
         _notify_pause()
         return
     an = MarketAnalyzer(wl)
-    urgent = an.instant_crashes(24) + [s for s in an.full_scan() if s.rule.startswith("R4")]
+    scan = an.full_scan()
+    journal_scan(wl, an, scan)
+    urgent = dedupe(an.instant_crashes(24) + [s for s in scan if s.rule.startswith("R4")])  # 1 alerte max / joueur
     notifier.dispatch(urgent, header="⚡ ALERTE MARCHÉ", with_chart=True)
+
+
+def journal_scan(wl: list[dict], an: MarketAnalyzer, scan: list) -> None:
+    """Journalise TOUTES les décisions du moteur actif et du moteur en observation (jamais envoyées)."""
+    from core.decision_journal import log_decisions
+
+    try:
+        log_decisions(scan, an.version, an.now)
+        shadow = config.BRAIN_SHADOW
+        if shadow and shadow != an.version:
+            log_decisions(MarketAnalyzer(wl, version=shadow, now=an.now).full_scan(), shadow, an.now)
+    except Exception as e:  # noqa: BLE001 — le journal ne doit jamais bloquer les alertes
+        log.error("Journal des décisions en erreur : %s", e)
+
+
+@safe_job
+def job_outcomes():
+    from core.decision_journal import evaluate_outcomes
+
+    evaluate_outcomes()
 
 
 @safe_job
@@ -193,6 +217,7 @@ def build_scheduler() -> BlockingScheduler:
     s = BlockingScheduler(timezone=config.TZ, executors={"default": ThreadPoolExecutor(4)},
                           job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 300})
     s.add_job(job_snapshot, "cron", minute=2, id="snapshot")
+    s.add_job(job_outcomes, "cron", minute=35, id="outcomes")
     s.add_job(job_watchlist, "cron", hour=8, minute=0, id="watchlist")
     s.add_job(job_leaks, "cron", minute="*/20", id="leaks")
     s.add_job(job_sbc_evo, "cron", minute=20, hour="0-17,21-23", id="sbc_evo")

@@ -55,7 +55,11 @@
 
   <!-- Marché -->
   <section>
-    <div class="sec-head"><h2>Marché</h2><small id="count"></small></div>
+    <div class="sec-head"><h2>Marché</h2>
+      <div class="engine-switch"><span class="faint">Moteur</span>
+        <div class="seg seg-sm" id="engines"><button data-e="v1">v1</button><button data-e="v2">v2</button></div>
+        <small id="engine-note" class="faint"></small></div>
+      <small id="count"></small></div>
     <div class="toolbar">
       <div class="seg" id="tabs">
         <button data-f="all" class="on">Tous</button>
@@ -77,9 +81,15 @@
       </select>
     </div>
     <div class="card table">
-      <div class="thead"><div>Joueur</div><div>Prix</div><div>24 h</div><div>7 jours</div><div class="c">Signal</div><div>Confiance</div></div>
+      <div class="thead"><div>Joueur</div><div>Prix</div><div>24 h</div><div>7 jours</div><div class="c">Décision</div><div id="th-score">Confiance</div></div>
       <div id="rows"></div>
     </div>
+  </section>
+
+  <!-- Résultats des décisions (journal) -->
+  <section>
+    <div class="sec-head"><h2>Résultats des décisions</h2><small>théoriques · prix observés, pas des ventes réelles</small></div>
+    <div id="perf" class="card perf"></div>
   </section>
 
   <!-- Alertes -->
@@ -123,9 +133,11 @@ const pct = v => v == null ? "–" : (v > 0 ? "+" : "") + (v*100).toFixed(1) + "
 const tone = v => v == null ? "faint" : v > 0.0005 ? "up" : v < -0.0005 ? "down" : "flat";
 const bold = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 const isBuy = a => (a || "").startsWith("ACHAT"), isSell = a => (a || "").startsWith("VENTE");
-const SIGNAL = {"ACHAT FORT": "s-buy-strong", "ACHAT": "s-buy", "VENTE URGENTE": "s-sell-strong", "VENTE": "s-sell"};
+const SIGNAL = {"ACHAT FORT": "s-buy-strong", "ACHAT": "s-buy", "VENTE URGENTE": "s-sell-strong", "VENTE": "s-sell",
+  "SURVEILLANCE": "s-watch"};
 const signal = a => `<span class="signal ${SIGNAL[a] || "s-hold"}">${esc(a === "HOLD" ? "ATTENDRE" : a || "–")}</span>`;
-let players = [], filter = "all", chart = null;
+let players = [], filter = "all", chart = null, engine = null, status = {};
+try { engine = localStorage.getItem("engine"); } catch (e) {}
 
 function ago(iso) {
   if (!iso) return "jamais";
@@ -150,6 +162,12 @@ function chip(r) {
 }
 const meter = c => c == null ? `<span class="faint">–</span>`
   : `<span class="meter"><span class="bar"><b style="width:${c*10}%"></b></span><span class="num">${c}/10</span></span>`;
+const isV2 = p => p.engine === "v2";
+// v2 : opportunité (/100) et qualité des données (/100) séparées ; v1 : confiance /10
+const scoreCell = p => !isV2(p) ? meter(p.confidence) : p.opportunity == null ? `<span class="faint">–</span>`
+  : `<span class="meter"><span class="bar"><b style="width:${p.opportunity}%"></b></span><span class="num">${p.opportunity}</span></span>
+     <div class="faint num" style="font-size:11px;margin-top:2px">données ${p.data_quality ?? "–"}/100</div>`;
+const scoreOf = p => isV2(p) ? (p.opportunity ?? 0) / 10 : (p.confidence ?? 0);
 
 async function get(url) { const r = await fetch(url, {credentials: "same-origin"}); if (!r.ok) throw new Error(r.status); return r.json(); }
 
@@ -159,7 +177,12 @@ async function loadStatus() {
   $("status-txt").textContent = `${s.online ? "En ligne" : "Hors ligne"} · scan ${ago(s.last_snapshot_at)}`;
   $("k-wl").textContent = s.watchlist ? s.watchlist.count : "–";
   $("k-scan").textContent = s.last_snapshot ? `dernier scan : ${s.last_snapshot.ok} OK · ${s.last_snapshot.failed} KO` : "aucun scan";
-  $("best-window").textContent = s.global.best_buy ? `Meilleur moment d'achat appris : ${s.global.best_buy}` : "";
+  status = s;
+  $("best-window").textContent = s.habit_validated && s.global.best_buy ? `Meilleur moment d'achat appris : ${s.global.best_buy}`
+    : "Habitudes du marché pas encore validées (historique trop court)";
+  engine = engine === "v1" || engine === "v2" ? engine : s.brain.active;
+  document.querySelectorAll("#engines button").forEach(b => b.classList.toggle("on", b.dataset.e === engine));
+  $("engine-note").textContent = engine === s.brain.active ? "actif (alertes Discord)" : "en observation, aucune alerte envoyée";
   $("demo").classList.toggle("hidden", !s.demo);
 }
 
@@ -176,7 +199,7 @@ function renderKpis() {
 
 function renderPicks() {
   const top = players.filter(p => isBuy(p.action) || isSell(p.action))
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)).slice(0, 4);
+    .sort((a, b) => scoreOf(b) - scoreOf(a)).slice(0, 4);
   $("picks").innerHTML = top.map(p => `
     <button class="card pick ${isBuy(p.action) ? "buy" : "sell"}" data-id="${esc(p.player_id)}">
       <div class="row1"><span class="name">${esc(p.name)} <span class="muted" style="font-weight:500">${esc(p.rating ?? "")}</span></span>${signal(p.action)}</div>
@@ -187,7 +210,8 @@ function renderPicks() {
 }
 
 const SORTS = {
-  "conf": (a, b) => (isBuy(b.action) || isSell(b.action)) - (isBuy(a.action) || isSell(a.action)) || (b.confidence ?? 0) - (a.confidence ?? 0),
+  "conf": (a, b) => (isBuy(b.action) || isSell(b.action)) - (isBuy(a.action) || isSell(a.action))
+    || (b.action === "SURVEILLANCE") - (a.action === "SURVEILLANCE") || scoreOf(b) - scoreOf(a),
   "price-desc": (a, b) => (b.price ?? 0) - (a.price ?? 0),
   "price-asc": (a, b) => (a.price ?? 0) - (b.price ?? 0),
   "chg-desc": (a, b) => (b.change_24h ?? -9) - (a.change_24h ?? -9),
@@ -216,12 +240,29 @@ function renderRows() {
       <div class="col-24h num ${tone(p.change_24h)}">${pct(p.change_24h)}</div>
       <div class="col-7d num ${tone(p.trend_7d)}">${pct(p.trend_7d)}</div>
       <div class="c col-signal">${signal(p.action)}</div>
-      <div class="col-conf">${meter(p.confidence)}</div>
+      <div class="col-conf">${scoreCell(p)}</div>
     </button>`).join("") || `<div class="empty">Aucun joueur ne correspond.</div>`;
   document.querySelectorAll(".trow").forEach(b => b.onclick = () => openPlayer(b.dataset.id));
 }
 
-async function loadPlayers() { players = await get("/api/players"); renderKpis(); renderPicks(); renderRows(); }
+async function loadPlayers() {
+  players = await get("/api/players" + (engine ? `?engine=${engine}` : ""));
+  $("th-score").textContent = engine === "v2" ? "Opportunité" : "Confiance";
+  renderKpis(); renderPicks(); renderRows();
+}
+
+async function loadPerformance() {
+  const r = await get("/api/performance");
+  const H = {6: "6 h", 24: "24 h", 48: "48 h", 168: "7 j"};
+  const V = {favorable: "favorables", defavorable: "défavorables", occasion_manquee: "occasions manquées", abstention_ok: "abstentions justifiées"};
+  $("perf").innerHTML = r.rows.length ? `<div class="perf-row perf-head"><div>Moteur · décision</div><div>Horizon</div><div>Évaluées</div><div>Favorables*</div><div>Détail</div></div>`
+    + r.rows.map(x => `<div class="perf-row"><div><b>${esc(x.engine)}</b> · ${signal(x.action)}</div><div>${H[x.horizon_h] || x.horizon_h + " h"}</div>
+      <div class="num">${x.n}${x.no_data ? ` <span class="faint">(+${x.no_data} sans donnée)</span>` : ""}</div>
+      <div class="num">${x.favorable_rate == null ? "–" : Math.round(x.favorable_rate * 100) + " %"}${x.enough_data ? "" : ` <span class="faint">indicatif</span>`}</div>
+      <div class="faint">${Object.entries(x.verdicts).map(([k2, v]) => `${v} ${V[k2] || k2}`).join(" · ")}</div></div>`).join("")
+    + `<div class="empty" style="text-align:left">* « Favorable » = achat qui aurait rapporté après taxe, vente avant une baisse, ou abstention sans occasion manquée. Moins de ${r.min_samples} décisions évaluées : chiffre indicatif, aucune probabilité affichée.</div>`
+    : `<div class="empty">Le journal démarre : les premières décisions seront évaluées 6 h après leur enregistrement.</div>`;
+}
 
 async function loadAlerts() {
   const a = await get("/api/alerts?limit=15");
@@ -252,16 +293,25 @@ async function openPlayer(id) {
     <span class="scan"><i style="background:${scanDot(p.scanned_at)}"></i>scanné ${ago(p.scanned_at)}</span>`;
   $("p-price").textContent = k(p.price);
   $("p-chg").innerHTML = `<span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span> <span class="faint" style="font-weight:400">sur 24 h</span>`;
-  $("p-signal").innerHTML = signal(p.action) + (p.confidence != null ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">confiance ${p.confidence}/10</div>` : "");
+  $("p-signal").innerHTML = signal(p.action) + (isV2(p)
+    ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">opportunité ${p.opportunity ?? "–"}/100 · données ${p.data_quality ?? "–"}/100</div>`
+    : p.confidence != null ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">confiance ${p.confidence}/10</div>` : "");
   const stat = (l, v, cls = "") => `<div><div class="l">${l}</div><div class="v num ${cls}">${v}</div></div>`;
   $("p-stats").innerHTML = [
     stat("Moyenne 7 j", k(p.avg_7d)), stat("Min 7 j", k(p.min_7d)), stat("Max 7 j", k(p.max_7d)),
     stat("vs moyenne", pct(p.vs_avg), tone(p.vs_avg)), stat("Tendance 7 j", pct(p.trend_7d), tone(p.trend_7d)),
-    stat("vs habitude", pct(p.habit_dev), tone(p.habit_dev))].join("");
+    stat("vs habitude", pct(p.habit_dev), tone(p.habit_dev)),
+    ...(isV2(p) ? [stat("Prix observé à", p.observed_at ? new Date(p.observed_at).toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris"}) : "–"),
+      stat("Achat max", p.buy_max ? p.buy_max.toLocaleString("fr-FR") : "–"),
+      stat("Revente théorique", p.sell_min ? p.sell_min.toLocaleString("fr-FR") : "–"),
+      stat("Net théorique / carte", p.net_profit != null ? p.net_profit.toLocaleString("fr-FR") : "–", tone(p.net_profit)),
+      stat("Prix exécutable", "inconnu"),
+      stat("Probabilité", p.probability ? `${Math.round(p.probability.rate * 100)} % (n=${p.probability.n})` : "non disponible")] : [])].join("");
   const ins = (t, body, cls = "") => body ? `<div class="insight ${cls}"><div class="t">${t}</div>${body}</div>` : "";
   const side = isBuy(p.action) ? "buy" : isSell(p.action) ? "sell" : "";
   $("p-insights").innerHTML = [
     ins("Conseil", p.action_text && `<span class="x">${esc(p.action_text)}</span>`, "action " + side),
+    ins("Pourquoi cette décision", isV2(p) && p.reason && esc(p.reason)),
     ins("Pourquoi ça bouge", p.explain && bold(p.explain)),
     ins("Signal du moment", p.instant && esc(p.instant)),
     ins("Habitude du marché", p.habit && esc(p.habit))].join("");
@@ -304,11 +354,18 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 
 async function refresh() {
   $("refresh").classList.add("spin");
-  try { await Promise.all([loadStatus(), loadPlayers(), loadAlerts(), loadSummary()]); }
+  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance()]); }
   catch (e) { $("status-txt").textContent = "Erreur de chargement : " + e.message; }
   finally { $("refresh").classList.remove("spin"); }
 }
 $("refresh").onclick = refresh;
+document.querySelectorAll("#engines button").forEach(b => b.onclick = () => {
+  engine = b.dataset.e;
+  try { localStorage.setItem("engine", engine); } catch (e) {}
+  document.querySelectorAll("#engines button").forEach(x => x.classList.toggle("on", x === b));
+  $("engine-note").textContent = engine === status.brain?.active ? "actif (alertes Discord)" : "en observation, aucune alerte envoyée";
+  loadPlayers();
+});
 refresh();
 setInterval(refresh, 60000);
 </script>

@@ -43,8 +43,8 @@ def flat_then(drop_from_h: int, start: int, end: int, total_h: int = 240) -> dic
     return out
 
 
-def analyzer(players=None, rules=None, habit=True, now=NOW) -> MarketAnalyzer:
-    an = MarketAnalyzer(players or [PLAYER], rules=rules if rules is not None else {}, now=now)
+def analyzer(players=None, rules=None, habit=True, now=NOW, version="v1") -> MarketAnalyzer:
+    an = MarketAnalyzer(players or [PLAYER], rules=rules if rules is not None else {}, now=now, version=version)
     if not habit:
         an.habit = lambda *a, **k: NO_HABIT
     return an
@@ -74,7 +74,7 @@ def test_carac_r4_pump_24h_sell():
     seed(flat_then(24, 40000, 52000))  # +30 % en 24 h
     s = analyzer(habit=False).rule4_technical(PLAYER)
     assert (s.rule, s.action, s.confidence) == ("R4_HYPE_24H", "VENTE", 6)
-    assert s.action_text == "VENDRE maintenant ≥ 51k. Rachat possible Dim-Lun."
+    assert s.action_text == "VENDRE maintenant ≥ 52k. Rachat possible Dim-Lun."  # B4 corrigé (était 51k)
 
 
 def test_carac_confidence_formula():
@@ -152,8 +152,33 @@ def test_backup_procedure_under_wal_is_complete(tmp_path):
         assert c.execute("SELECT COUNT(*) FROM price_snapshots").fetchone()[0] == 101
 
 
+def test_migration_v2_archives_duplicates_and_backs_up(tmp_path):
+    """Base existante avec doublons : sauvegarde complète, doublons archivés (rien de perdu), unicité posée."""
+    vps = tmp_path / "vps"
+    vps.mkdir()
+    old = vps / "market_history.db"
+    with sqlite3.connect(old) as c:
+        c.execute("CREATE TABLE price_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id TEXT NOT NULL, "
+                  "timestamp TEXT NOT NULL, price INTEGER NOT NULL, min_24h INTEGER, max_24h INTEGER, "
+                  "volume INTEGER, source TEXT)")
+        rows = [("p", f"2026-10-0{d}T10:00:00+00:00", 1000 + d, "futgenie") for d in range(1, 8)]
+        rows += [("p", "2026-10-07T10:00:00+00:00", 2000, "futgenie")]  # doublon (même heure)
+        c.executemany("INSERT INTO price_snapshots (player_id, timestamp, price, source) VALUES (?,?,?,?)", rows)
+    db.init_db(old)
+    with sqlite3.connect(old) as c:
+        assert c.execute("SELECT COUNT(*) FROM price_snapshots").fetchone()[0] == 7
+        assert c.execute("SELECT price FROM price_snapshots WHERE timestamp LIKE '2026-10-07%'").fetchone()[0] == 2000
+        assert c.execute("SELECT price FROM price_snapshots_duplicates").fetchall() == [(1007,)]
+        assert c.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 2
+    backups = list((vps / "backups").glob("market_history-*.db"))
+    assert len(backups) == 1
+    with sqlite3.connect(backups[0]) as c:
+        assert c.execute("SELECT COUNT(*) FROM price_snapshots").fetchone()[0] == 8  # copie d'avant migration
+    db.init_db(old)  # relancer ne refait rien
+    assert len(list((vps / "backups").glob("*.db"))) == 1
+
+
 # =========================================================================== problèmes de l'audit
-@pytest.mark.xfail(strict=True, reason="B1 : CRASH_INSTANT + R4 envoyés deux fois pour le même joueur")
 def test_audit_b1_one_alert_per_player(monkeypatch):
     from core import jobs
     from scrapers import price_provider
@@ -173,7 +198,6 @@ def test_audit_b1_one_alert_per_player(monkeypatch):
     assert len([a for a in db.recent_alerts(50) if a["player_id"] == "c-1"]) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="B2 : pas d'unicité (joueur, heure) -> moyennes faussées")
 def test_audit_b2_duplicate_snapshot_counted_once():
     db.upsert_player(PLAYER)
     ts = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
@@ -182,7 +206,6 @@ def test_audit_b2_duplicate_snapshot_counted_once():
     assert db.price_stats("c-1")["n"] == 1
 
 
-@pytest.mark.xfail(strict=True, reason="B3 : price_stats utilise l'heure réelle, pas analyzer.now (fuite du futur)")
 def test_audit_b3_context_does_not_read_the_future():
     past = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(days=3)
     db.upsert_player(PLAYER)
@@ -194,43 +217,45 @@ def test_audit_b3_context_does_not_read_the_future():
     assert ctx["avg_7d"] == 1000 and ctx["max_7d"] == 1000
 
 
-@pytest.mark.xfail(strict=True, reason="B4 : le conseil de VENTE propose un prix sous le prix observé")
 def test_audit_b4_sell_advice_not_below_observed_price():
     seed(flat_then(24, 40000, 52000))
     s = analyzer(habit=False).rule4_technical(PLAYER)
     assert "≥ 52k" in s.action_text
 
 
-@pytest.mark.xfail(strict=True, reason="S1 : l'habitude décide l'action alors que sa confiance est nulle")
-def test_audit_s1_unproven_habit_does_not_trigger_trades():
+@pytest.mark.parametrize("version", [pytest.param("v1", marks=pytest.mark.xfail(strict=True, reason="v1 conservé tel quel (retour arrière)")), "v2"])
+def test_audit_s1_unproven_habit_does_not_trigger_trades(version):
     thursday = datetime(2026, 10, 29, 20, 0, tzinfo=timezone.utc)  # jeudi 21h Paris
     db.upsert_player(PLAYER)
     for h in range(120):  # 5 jours, prix parfaitement stable
         db.insert_snapshot("c-1", 50000, thursday - timedelta(hours=h), source="test")
     rules = {"GLOBAL": {"profile": list(prior_profile()), "confidence": 0.0, "weeks_observed": 0}}
-    s = analyzer(rules=rules, now=thursday).build_signal(PLAYER, "HABITUDE", None, "")
-    assert s.action == "HOLD"
+    s = analyzer(rules=rules, now=thursday, version=version).build_signal(PLAYER, "HABITUDE", None, "")
+    assert s.action in ("HOLD", "SURVEILLANCE")
 
 
-@pytest.mark.xfail(strict=True, reason="S3 : sans rebond appris, la valeur par défaut (10 %) passe toujours le filtre taxe")
-def test_audit_s3_no_buy_without_justified_target():
-    seed(flat_then(48, 50000, 50000))
-    s = analyzer(habit=False).build_signal(PLAYER, "T", 0.9, "x")
+@pytest.mark.parametrize("version", [pytest.param("v1", marks=pytest.mark.xfail(strict=True, reason="v1 conservé tel quel (retour arrière)")), "v2"])
+def test_audit_s3_no_buy_without_justified_target(version):
+    db.upsert_player(PLAYER)
+    for h in range(60):  # 2,5 jours seulement : pas de moyenne 7 j fiable -> pas de cible justifiable
+        db.insert_snapshot("c-1", 50000, NOW - timedelta(hours=h), source="test")
+    s = analyzer(habit=False, version=version).build_signal(PLAYER, "T", 0.9, "x")
     assert not s.action.startswith("ACHAT")
 
 
-@pytest.mark.xfail(strict=True, reason="S5 : aucun contrôle de fraîcheur, signal sur un prix vieux de 3 jours")
-def test_audit_s5_no_signal_on_stale_price():
+@pytest.mark.parametrize("version", [pytest.param("v1", marks=pytest.mark.xfail(strict=True, reason="v1 conservé tel quel (retour arrière)")), "v2"])
+def test_audit_s5_no_signal_on_stale_price(version):
     seed({h + 72: p for h, p in flat_then(48, 50000, 40000).items()})  # dernier relevé il y a 72 h
-    assert analyzer(habit=False).rule4_technical(PLAYER) is None
+    s = analyzer(habit=False, version=version).rule4_technical(PLAYER)
+    assert s is None or s.action == "AUCUNE ACTION"
 
 
-@pytest.mark.xfail(strict=True, reason="S5 : la variation 48 h est calculée sur un point interpolé (inventé)")
-def test_audit_s5_change_not_computed_on_interpolated_point():
+@pytest.mark.parametrize("version", [pytest.param("v1", marks=pytest.mark.xfail(strict=True, reason="v1 conservé tel quel (retour arrière)")), "v2"])
+def test_audit_s5_change_not_computed_on_interpolated_point(version):
     prices = {h: 100000 for h in range(100, 59, -1)}  # relevés jusqu'à -60 h
     prices.update({h: 60000 for h in range(36, -1, -1)})  # trou de -59 h à -37 h, puis 60k
     seed(prices)
-    assert analyzer(habit=False).change("c-1", 48) is None  # le point « -48 h » n'a jamais été relevé
+    assert analyzer(habit=False, version=version).change("c-1", 48) is None  # point « -48 h » jamais relevé
 
 
 
@@ -238,9 +263,9 @@ def test_baseline_report_is_read_only():
     from core.baseline import brain_report, data_report
 
     seed(flat_then(10, 1000, 1000, total_h=10))
-    db.insert_snapshot("c-1", 1000, NOW, source="test")  # doublon volontaire
+    db.insert_snapshot("c-1", 1000, NOW, source="test")  # 2e relevé de la même heure : remplace (étape 1-A)
     before = db.get_snapshots(["c-1"])
     d = data_report()
-    assert (d["snapshots"], d["duplicate_keys"], d["duplicate_rows"]) == (12, 1, 1)
+    assert (d["snapshots"], d["duplicate_keys"], d["duplicate_rows"]) == (11, 0, 0)
     assert brain_report()["watchlist"] == 0
     assert db.get_snapshots(["c-1"]) == before

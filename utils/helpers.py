@@ -37,6 +37,31 @@ def parse_price(value) -> int | None:
     return int(round(val)) or None
 
 
+# Paliers de prix du marché des transferts (incrément d'enchère / de BIN selon la tranche).
+# Statut : usage communautaire constant depuis plusieurs éditions, à confirmer pour FC 27.
+EA_TIERS = ((1_000, 50), (10_000, 100), (50_000, 250), (100_000, 500), (float("inf"), 1_000))
+
+
+def ea_step(price: float) -> int:
+    return next(step for limit, step in EA_TIERS if price < limit)
+
+
+def round_tier(price: float, mode: str = "down") -> int:
+    """Prix valide sur le marché : 'down' (prix max d'achat prudent), 'up', 'nearest'."""
+    step = ea_step(price)
+    q = price / step
+    n = int(q) if mode == "down" else -int(-q // 1) if mode == "up" else round(q)
+    out = int(n * step)
+    if mode == "down" and ea_step(out) != step:  # passage de tranche (ex. 10 050 -> 10 000)
+        out = round_tier(out, "down")
+    return out
+
+
+def fmt_coins(p: float | int | None) -> str:
+    """Prix exact lisible : 36250 -> '36 250'."""
+    return "?" if p is None else f"{int(p):,}".replace(",", "\u202f")
+
+
 def fmt_price(p: float | int | None) -> str:
     if p is None:
         return "?"

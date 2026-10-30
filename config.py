@@ -81,6 +81,19 @@ SATURATION_COUNT = 3
 EA_TAX = 0.05  # taxe EA sur chaque vente
 MIN_NET_MARGIN = float(os.getenv("MIN_NET_MARGIN", "0.04"))  # marge nette mini après taxe pour un ACHAT
 
+# --- Moteur de décision ---
+# v1 = moteur historique (référence, retour arrière) ; v2 = moteur fiabilisé (qualité des données, abstention).
+BRAIN_VERSION = os.getenv("BRAIN_VERSION", "v1")  # moteur qui envoie les alertes et remplit le dashboard
+BRAIN_SHADOW = os.getenv("BRAIN_SHADOW", "v2")  # moteur évalué en observation (journalisé, jamais envoyé) ; "" = aucun
+MAX_PRICE_AGE_H = float(os.getenv("MAX_PRICE_AGE_H", "2.5"))  # au-delà : prix trop ancien -> AUCUNE ACTION
+MIN_POINTS_48H = int(os.getenv("MIN_POINTS_48H", "24"))  # relevés réels mini sur 48 h
+REAL_POINT_TOLERANCE_H = 1.5  # écart max entre l'heure visée et un relevé réel (pas d'interpolation)
+HABIT_MIN_CONFIDENCE = float(os.getenv("HABIT_MIN_CONFIDENCE", "0.5"))  # habitude validée si confiance >= ...
+HABIT_MIN_WEEKS = int(os.getenv("HABIT_MIN_WEEKS", "3"))  # ... ET au moins N semaines observées
+TARGET_MIN_POINTS = 72  # relevés mini sur 7 j pour calculer une cible de revente (moyenne 7 j)
+OUTCOME_HORIZONS = [int(h) for h in os.getenv("OUTCOME_HORIZONS", "6,24,48,168").split(",")]
+PROBA_MIN_SAMPLES = int(os.getenv("PROBA_MIN_SAMPLES", "100"))  # résultats évalués mini avant d'afficher une fréquence
+
 # --- Anti-spam des alertes ---
 ALERT_MIN_CONFIDENCE = int(os.getenv("ALERT_MIN_CONFIDENCE", "7"))
 ALERT_MAX_PER_REPORT = int(os.getenv("ALERT_MAX_PER_REPORT", "8"))

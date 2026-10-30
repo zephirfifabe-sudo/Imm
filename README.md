@@ -59,6 +59,31 @@ Règles : R1 nouvelle carte similaire >85 % (poste ±1, ligue/nation, note ±2) 
 demande une ligue / des notes → ACHAT fodders · R3 Evo qui rend meta des joueurs <20k → ACHAT MASSIF ·
 R4 -15 %/48h sans concurrent → ACHAT, +30 %/24h → VENTE · R5 ≥3 cartes du même poste en 7 jours → poste baissier.
 
+### Deux moteurs : v1 (historique) et v2 (fiabilisé)
+
+`BRAIN_VERSION` choisit le moteur qui envoie les alertes ; `BRAIN_SHADOW` celui qui tourne **en observation**
+(décisions journalisées, jamais envoyées). Par défaut : v1 actif, v2 en observation. Le dashboard permet de
+basculer l'affichage v1 / v2.
+
+Le moteur v2 décide parmi **ACHAT / VENTE / SURVEILLANCE / AUCUNE ACTION**, toujours avec une raison :
+- prix trop ancien (> `MAX_PRICE_AGE_H`) ou trop peu de relevés sur 48 h → AUCUNE ACTION ;
+- variations calculées uniquement sur des relevés réels (pas de point interpolé) ;
+- habitude non validée (confiance < `HABIT_MIN_CONFIDENCE` ou < `HABIT_MIN_WEEKS` semaines) → n'influence pas la
+  décision, au mieux SURVEILLANCE ;
+- ACHAT seulement avec une cible de revente tirée des prix observés (moyenne 7 j) et ≥ 4 % net après taxe ;
+- prix **observé** (daté), **théorique** (cible) et **exécutable** (inconnu : la source ne donne pas les ventes)
+  séparés ; paliers EA respectés ;
+- « Opportunité /100 » et « Qualité des données /100 » séparées ; **probabilité « non disponible »** tant que
+  moins de `PROBA_MIN_SAMPLES` décisions comparables ont été évaluées.
+
+**Journal** : chaque décision des deux moteurs (abstentions comprises) est enregistrée puis évaluée à
+6 h / 24 h / 48 h / 7 j (`python main.py performance`, section « Résultats des décisions » du dashboard).
+Ces résultats sont **théoriques** (prix observés), jamais des gains réels.
+
+**Retour arrière** : `BRAIN_VERSION=v1` dans `.env` puis `docker compose up -d`. Avant chaque migration de la
+base, une sauvegarde est faite dans `data/backups/` (14 jours) ; aucun relevé n'est jamais supprimé
+(les doublons sont archivés dans `price_snapshots_duplicates`).
+
 ## 🧰 Commandes
 
 | Commande | Rôle |
@@ -68,6 +93,8 @@ R4 -15 %/48h sans concurrent → ACHAT, +30 %/24h → VENTE · R5 ≥3 cartes du
 | `python main.py backfill` | Importe l'historique de prix FUT.GG (mémoire dès le 1er jour) |
 | `python main.py learn` | Auto-apprentissage → `data/market_rules.json` |
 | `python main.py analyze [--all]` | Scan de la watchlist, alertes formatées dans le terminal |
+| `python main.py performance` | Résultats théoriques des décisions journalisées (v1 / v2) |
+| `python main.py baseline` | Photographie des données et du cerveau (lecture seule) |
 | `python main.py backtest --days 14` | Les signaux auraient-ils rapporté ? (taxe incluse, sans tricher sur le futur) |
 | `python main.py latest` / `sbc` / `evos` / `leaks` | Chaque source à la main |
 | `python main.py test-alert` | Alerte de test Telegram/Discord |

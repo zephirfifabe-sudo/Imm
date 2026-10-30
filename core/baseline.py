@@ -53,14 +53,17 @@ def brain_report() -> dict:
     wl = load_watchlist()
     rules = load_rules()
     g = rules.get("GLOBAL", {})
-    sigs = MarketAnalyzer(wl).full_scan() if wl else []
+    sigs = MarketAnalyzer(wl, version="v1").full_scan() if wl else []
+    sigs2 = MarketAnalyzer(wl, version="v2").full_scan() if wl else []
     habit_conf = Counter(round(rule_for(rules, p).get("confidence", 0), 1) for p in wl)
     return {"watchlist": len(wl), "rules_generated_at": rules.get("_meta", {}).get("generated_at"),
             "global_profile": bool(g.get("profile")), "global_confidence": g.get("confidence"),
             "weeks_observed": g.get("weeks_observed"), "habit_confidence_by_player": dict(habit_conf),
             "signals": dict(Counter(f"{s.rule} {s.action}" for s in sigs)),
             "signals_conf_ge_7": sum(s.confidence >= 7 and s.action != "HOLD" for s in sigs),
-            "habit_only_trades": sum(s.rule == "HABITUDE" and s.action != "HOLD" for s in sigs)}
+            "habit_only_trades": sum(s.rule == "HABITUDE" and s.action != "HOLD" for s in sigs),
+            "signals_v2": dict(Counter(s.action for s in sigs2)),
+            "reasons_v2": dict(Counter((s.extra.get("reason") or "-").split(" (")[0].split(" :")[0] for s in sigs2))}
 
 
 def print_baseline() -> None:
@@ -73,10 +76,12 @@ def print_baseline() -> None:
     print(f"Fraîcheur du dernier prix par joueur : {d['freshness']}")
     print(f"Trous entre relevés : {d['gaps']}")
     print(f"Alertes 7 j : {d['alerts_7d']}")
-    print("\n=== CERVEAU (état actuel, rien n'est modifié) ===")
+    print("\n=== CERVEAU (rien n'est modifié) ===")
     print(f"Watchlist : {b['watchlist']} joueurs · règles apprises le {b['rules_generated_at']}")
     print(f"Profil GLOBAL : {b['global_profile']} · confiance {b['global_confidence']} · semaines {b['weeks_observed']}")
     print(f"Confiance de l'habitude par joueur : {b['habit_confidence_by_player']}")
     print(f"Signaux actuels : {b['signals']}")
     print(f"  dont envoyables (>= 7/10, hors HOLD) : {b['signals_conf_ge_7']}")
     print(f"  dont ACHAT/VENTE dus à l'habitude seule : {b['habit_only_trades']}")
+    print(f"Moteur v2 (même instant) : {b['signals_v2']}")
+    print(f"  raisons : {b['reasons_v2']}")

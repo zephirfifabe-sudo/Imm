@@ -6,6 +6,9 @@ Tables principales :
 - market_events    : (timestamp, event_type, ...) nouvelles cartes, SBC, evos, leaks, crash...
 - seen_cards       : cartes déjà vues sur "Latest Players" (détection des nouveautés)
 - evolutions, leaks, alerts, source_map, bot_status
+- decision_log / decision_outcomes : TOUTES les décisions du cerveau (y compris abstentions) et leur
+  évaluation théorique à 6 h / 24 h / 48 h / 7 j (prix observés, jamais des ventes réelles)
+- price_snapshots_duplicates : archive des relevés en double (jamais supprimés, voir migrate())
 """
 from __future__ import annotations
 
@@ -13,6 +16,7 @@ import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 import config
@@ -109,7 +113,44 @@ CREATE TABLE IF NOT EXISTS bot_status (
     value TEXT,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS schema_version (
+    version    INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL,
+    note       TEXT
+);
+CREATE TABLE IF NOT EXISTS decision_log (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp      TEXT NOT NULL,
+    engine         TEXT NOT NULL,
+    player_id      TEXT,
+    action         TEXT NOT NULL,
+    rule           TEXT,
+    score          REAL,
+    opportunity    INTEGER,
+    data_quality   INTEGER,
+    observed_price INTEGER,
+    observed_at    TEXT,
+    target_price   INTEGER,
+    reason         TEXT,
+    payload        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_decision_ts ON decision_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_decision_player ON decision_log(player_id, timestamp);
+CREATE TABLE IF NOT EXISTS decision_outcomes (
+    decision_id    INTEGER NOT NULL,
+    horizon_h      INTEGER NOT NULL,
+    evaluated_at   TEXT NOT NULL,
+    price          INTEGER,
+    price_at       TEXT,
+    change         REAL,
+    theoretical_net INTEGER,
+    verdict        TEXT,
+    PRIMARY KEY (decision_id, horizon_h)
+);
 """
+
+# Migrations versionnées : chacune dans une transaction, précédée d'une sauvegarde si la base contient des données.
+SCHEMA_VERSION = 2
 
 
 def connect(path=None) -> sqlite3.Connection:
@@ -138,6 +179,61 @@ def init_db(path=None) -> None:
         cols = {r[1] for r in c.execute("PRAGMA table_info(price_snapshots)")}
         if "trend_7d" not in cols:
             c.execute("ALTER TABLE price_snapshots ADD COLUMN trend_7d REAL")
+    migrate(path)
+
+
+def backup_db(path=None, keep_days: int = 14) -> str | None:
+    """Copie cohérente (API backup de SQLite, sûre en WAL) dans data/backups/ + vérification d'intégrité.
+
+    Renvoie le chemin de la sauvegarde, ou None si la base est vide. Lève une erreur si la copie est corrompue.
+    """
+    src_path = Path(path or config.DB_PATH)
+    if not src_path.exists():
+        return None
+    with sqlite3.connect(src_path) as src:
+        has_data = src.execute("SELECT name FROM sqlite_master WHERE name='price_snapshots'").fetchone() and \
+            src.execute("SELECT 1 FROM price_snapshots LIMIT 1").fetchone()
+        if not has_data:
+            return None
+        out_dir = src_path.parent / "backups"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        dest = out_dir / f"{src_path.stem}-{utcnow():%Y%m%d-%H%M%S}.db"
+        with sqlite3.connect(dest) as dst:
+            src.backup(dst)
+            if dst.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise RuntimeError(f"Sauvegarde corrompue : {dest}")
+    limit = utcnow().timestamp() - keep_days * 86400
+    for old in out_dir.glob(f"{src_path.stem}-*.db"):
+        if old != dest and old.stat().st_mtime < limit:
+            old.unlink()
+    return str(dest)
+
+
+def schema_version(conn: sqlite3.Connection) -> int:
+    r = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
+    return r[0] or 1
+
+
+def migrate(path=None) -> None:
+    """v2 : unicité (joueur, heure) sur price_snapshots. Les doublons sont ARCHIVÉS, jamais perdus."""
+    with get_conn(path) as c:
+        if schema_version(c) >= SCHEMA_VERSION:
+            return
+    backup = backup_db(path)  # avant toute modification ; une erreur ici annule la migration
+    with get_conn(path) as c:
+        c.execute("BEGIN IMMEDIATE")  # verrou d'écriture : le bot et le dashboard démarrent en même temps
+        if schema_version(c) >= SCHEMA_VERSION:
+            return  # l'autre processus a déjà migré
+        c.execute("CREATE TABLE IF NOT EXISTS price_snapshots_duplicates AS SELECT *, '' AS archived_at "
+                  "FROM price_snapshots WHERE 0")
+        keep = "SELECT MAX(id) FROM price_snapshots GROUP BY player_id, timestamp"  # garde le relevé le plus récent
+        n = c.execute(f"SELECT COUNT(*) FROM price_snapshots WHERE id NOT IN ({keep})").fetchone()[0]
+        c.execute(f"INSERT INTO price_snapshots_duplicates SELECT *, ? FROM price_snapshots WHERE id NOT IN ({keep})",
+                  (iso(utcnow()),))
+        c.execute(f"DELETE FROM price_snapshots WHERE id NOT IN ({keep})")
+        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_snap_player_ts ON price_snapshots(player_id, timestamp)")
+        c.execute("INSERT INTO schema_version VALUES (?,?,?)",
+                  (2, iso(utcnow()), f"unicité (joueur, heure) ; {n} doublon(s) archivé(s) ; sauvegarde {backup}"))
 
 
 # ---------------------------------------------------------------- players
@@ -200,8 +296,10 @@ def insert_snapshot(player_id: str, price: int, ts: datetime | None = None, min_
                     volume=None, source: str = "futgg", conn: sqlite3.Connection | None = None,
                     trend_7d: float | None = None) -> None:
     args = (str(player_id), iso(ts or utcnow()), int(price), min_24h, max_24h, volume, source, trend_7d)
+    # un seul relevé par (joueur, heure) : un 2e relevé dans la même heure remplace le premier
     sql = ("INSERT INTO price_snapshots (player_id, timestamp, price, min_24h, max_24h, volume, source, trend_7d) "
-           "VALUES (?,?,?,?,?,?,?,?)")
+           "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(player_id, timestamp) DO UPDATE SET price=excluded.price, "
+           "source=excluded.source, trend_7d=COALESCE(excluded.trend_7d, price_snapshots.trend_7d)")
     if conn is not None:
         conn.execute(sql, args)
     else:
@@ -209,17 +307,22 @@ def insert_snapshot(player_id: str, price: int, ts: datetime | None = None, min_
             c.execute(sql, args)
 
 
-def price_stats(player_id: str, days: int = 7, conn: sqlite3.Connection | None = None) -> dict:
-    """Prix moyen / min / max sur `days` jours + dernière tendance 7j connue de la source."""
-    since = iso(utcnow() - timedelta(days=days))
+def price_stats(player_id: str, days: int = 7, conn: sqlite3.Connection | None = None,
+                now: datetime | None = None) -> dict:
+    """Prix moyen / min / max sur `days` jours avant `now` + dernière tendance 7j connue de la source.
+
+    `now` : en backtest, l'heure simulée (jamais de prix postérieurs).
+    """
+    now = now or utcnow()
+    since, until = iso(now - timedelta(days=days)), iso(now)
     q = ("SELECT AVG(price), MIN(price), MAX(price), COUNT(*) FROM price_snapshots "
-         "WHERE player_id=? AND timestamp>=?")
-    qt = ("SELECT trend_7d FROM price_snapshots WHERE player_id=? AND trend_7d IS NOT NULL "
+         "WHERE player_id=? AND timestamp>=? AND timestamp<=?")
+    qt = ("SELECT trend_7d FROM price_snapshots WHERE player_id=? AND trend_7d IS NOT NULL AND timestamp<=? "
           "ORDER BY timestamp DESC LIMIT 1")
 
     def run(c):
-        avg, lo, hi, n = c.execute(q, (str(player_id), since)).fetchone()
-        t = c.execute(qt, (str(player_id),)).fetchone()
+        avg, lo, hi, n = c.execute(q, (str(player_id), since, until)).fetchone()
+        t = c.execute(qt, (str(player_id), until)).fetchone()
         return {"avg": round(avg) if avg else None, "min": lo, "max": hi, "n": n, "trend_7d": t[0] if t else None}
 
     if conn is not None:

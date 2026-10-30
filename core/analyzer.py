@@ -5,6 +5,16 @@ R2 SBC / objectif         : SBC qui demande L1 / 85+ ... -> ACHAT des fodders / 
 R3 Evo sniping            : joueurs < 20k éligibles à une evo qui les rend meta -> ACHAT MASSIF
 R4 Analyse technique      : -15% en 48h sans concurrent -> ACHAT ; +30% en 24h -> VENTE
 R5 Saturation             : >= 3 nouvelles cartes même poste dans la semaine -> poste baissier
+
+Deux moteurs (config.BRAIN_VERSION) :
+  v1 : moteur historique, conservé à l'identique pour comparaison et retour arrière.
+  v2 : même détection, mais décision fiabilisée -> ACHAT / VENTE / SURVEILLANCE / AUCUNE ACTION :
+       - pas de décision sur des données trop anciennes ou trop rares (qualité des données) ;
+       - variations calculées uniquement sur des relevés RÉELS (aucun point interpolé) ;
+       - l'habitude ne décide que si elle est validée (confiance + semaines observées), sinon SURVEILLANCE ;
+       - ACHAT seulement avec une cible de revente justifiée par les données et une marge nette suffisante ;
+       - prix observé / théorique / exécutable distingués, paliers EA respectés ;
+       - « opportunité » et « qualité des données » séparées ; probabilité « non disponible » sans résultats.
 """
 from __future__ import annotations
 
@@ -21,7 +31,7 @@ from core.context import explain_move
 from core.signals import Signal, score_to_action
 from database import db
 from scrapers.requirements_parser import META_PLAYSTYLES
-from utils.helpers import POSITION_GROUP, fmt_price, position_distance_score, utcnow
+from utils.helpers import POSITION_GROUP, fmt_coins, fmt_price, position_distance_score, round_tier, to_local, utcnow
 from utils.logger import get_logger
 
 log = get_logger("analyzer")
@@ -46,7 +56,8 @@ def similarity(new: dict, ref: dict) -> float:
 
 class MarketAnalyzer:
     def __init__(self, watchlist: list[dict], rules: dict | None = None, now: datetime | None = None,
-                 history_days: int = 10):
+                 history_days: int = 10, version: str | None = None):
+        self.version = version or config.BRAIN_VERSION
         self.now = now or utcnow()
         self.now_local = pd.Timestamp(self.now).tz_convert(config.TZ)
         self.watchlist = watchlist
@@ -54,7 +65,9 @@ class MarketAnalyzer:
         self.rules = rules if rules is not None else learner.load_rules()
         self.df = pdt.load_frame(history_days, list(self.by_id), now=self.now)
         self._series: dict[str, pd.Series] = {}
+        self._raw: dict[str, pd.Series] = {}
         self._market: dict[int, float | None] = {}
+        self._track: dict | None = None
 
     # ------------------------------------------------------------------ données
     def series(self, pid: str) -> pd.Series:
@@ -66,7 +79,49 @@ class MarketAnalyzer:
         s = self.series(pid).dropna()
         return float(s.iloc[-1]) if len(s) else (self.by_id.get(pid) or {}).get("price")
 
+    def raw(self, pid: str) -> pd.Series:
+        """Relevés RÉELS uniquement (aucune interpolation), index heure locale."""
+        if pid not in self._raw:
+            d = self.df.loc[self.df["player_id"] == str(pid)] if not self.df.empty else self.df
+            s = d.set_index("ts")["price"].sort_index() if len(d) else pd.Series(dtype=float)
+            self._raw[pid] = s[~s.index.duplicated(keep="last")]
+        return self._raw[pid]
+
+    def change_real(self, pid: str, hours: int) -> float | None:
+        """Variation entre le dernier relevé et un relevé réel situé à `hours` (± tolérance) ; sinon None."""
+        s = self.raw(pid)
+        if len(s) < 2:
+            return None
+        target = s.index[-1] - pd.Timedelta(hours=hours)
+        tol = pd.Timedelta(hours=config.REAL_POINT_TOLERANCE_H)
+        near = s[(s.index >= target - tol) & (s.index <= target + tol)]
+        if near.empty:
+            return None
+        ref = near.iloc[int(np.argmin(np.abs((near.index - target).total_seconds())))]
+        return float(s.iloc[-1] / ref - 1)
+
+    def quality(self, pid: str) -> dict:
+        """Qualité des données (0-100) : fraîcheur du dernier relevé + couverture réelle sur 48 h."""
+        s = self.raw(pid)
+        now_l = pd.Timestamp(self.now).tz_convert(config.TZ)
+        if s.empty:
+            return {"score": 0, "ok": False, "age_h": None, "n_48h": 0, "n_7d": 0, "reason": "aucun relevé"}
+        age = (now_l - s.index[-1]).total_seconds() / 3600
+        n48 = int((s.index > now_l - pd.Timedelta(hours=48)).sum())
+        n7 = int((s.index > now_l - pd.Timedelta(days=7)).sum())
+        fresh = float(np.clip(1 - (age - 1.5) / 22.5, 0, 1))
+        score = int(round(100 * (0.5 * fresh + 0.5 * min(1.0, n48 / 48))))
+        reason = ""
+        if age > config.MAX_PRICE_AGE_H:
+            reason = f"dernier prix relevé il y a {age:.0f} h (max {config.MAX_PRICE_AGE_H:g} h)"
+        elif n48 < config.MIN_POINTS_48H:
+            reason = f"seulement {n48} relevés sur 48 h (min {config.MIN_POINTS_48H})"
+        return {"score": score, "ok": not reason, "age_h": round(age, 1), "n_48h": n48, "n_7d": n7,
+                "observed_at": s.index[-1].isoformat(), "reason": reason}
+
     def change(self, pid: str, hours: int) -> float | None:
+        if self.version == "v2":
+            return self.change_real(pid, hours)
         s = self.series(pid).dropna()
         if len(s) < 2:
             return None
@@ -84,7 +139,7 @@ class MarketAnalyzer:
 
     def context(self, pid: str) -> dict:
         """Prix moyen/min/max 7j, tendance 7j et explication du mouvement en clair."""
-        st = db.price_stats(pid, days=7)
+        st = db.price_stats(pid, days=7, now=self.now)
         trend = self.change(pid, 168)
         if trend is None:
             trend = st.get("trend_7d")  # pas encore 7 jours de relevés : tendance affichée par la source
@@ -104,6 +159,8 @@ class MarketAnalyzer:
     # ------------------------------------------------------------------ fusion
     def build_signal(self, player: dict, rule: str, instant_score: float | None, instant_txt: str,
                      rule_conf: float = 0.7, extra: dict | None = None) -> Signal:
+        if self.version == "v2":
+            return self._build_v2(player, rule, instant_score, instant_txt, rule_conf, extra)
         pid = str(player["player_id"])
         price = self.price_now(pid)
         hab = self.habit(player, price)
@@ -137,7 +194,7 @@ class MarketAnalyzer:
                    f"Revente {fmt_price(expected)}+ ({rule_d.get('best_sell', 'Jeu-Ven')}) "
                    f"= {fmt_price(net)} net/carte après taxe.")
         elif price and action.startswith("VENTE"):
-            act = f"VENDRE maintenant ≥ {fmt_price(price * 0.98)}. Rachat possible {rule_d.get('best_buy', 'Dim-Lun')}."
+            act = f"VENDRE maintenant ≥ {fmt_price(round_tier(price))}. Rachat possible {rule_d.get('best_buy', 'Dim-Lun')}."
         else:
             act = "Ne rien faire, attendre un meilleur point d'entrée/sortie."
         risk = "Faible" if conf >= 8 and agree == 1.0 else "Élevé" if conf <= 4 or agree < 1 else "Moyen"
@@ -148,6 +205,97 @@ class MarketAnalyzer:
             instant=instant_txt, habit=hab["text"], action_text=act, risk=risk,
             extra={**(extra or {}), "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
                    "net_profit": round(net) if net is not None else None, **self.context(pid)},
+        )
+
+
+    # ------------------------------------------------------------------ moteur v2
+    def track_record(self, rule: str, action: str) -> dict | None:
+        """Fréquence historique favorable à 24 h pour (règle, action), seulement si assez de résultats évalués."""
+        if self._track is None:
+            from core.decision_journal import track_records
+
+            self._track = track_records(engine="v2", horizon_h=24, now=self.now)
+        r = self._track.get((rule, action))
+        return r if r and r["n"] >= config.PROBA_MIN_SAMPLES else None
+
+    def _build_v2(self, player: dict, rule: str, instant_score: float | None, instant_txt: str,
+                  rule_conf: float = 0.7, extra: dict | None = None) -> Signal:
+        pid = str(player["player_id"])
+        price = self.price_now(pid)
+        q = self.quality(pid)
+        hab = self.habit(player, price)
+        hs, hc = hab["score"], hab["confidence"]
+        rule_d = learner.rule_for(self.rules, player)
+        weeks = rule_d.get("weeks_observed") or 0
+        habit_ok = hc >= config.HABIT_MIN_CONFIDENCE and weeks >= config.HABIT_MIN_WEEKS
+        hs_used = hs if habit_ok else 0.0
+
+        if instant_score is None:
+            score = float(np.clip(hs_used, -0.59, 0.59))
+        else:
+            score = 0.65 * instant_score + 0.35 * hs_used
+            if abs(instant_score) >= 0.5 and (np.sign(score) != np.sign(instant_score) or abs(score) < 0.3):
+                score = 0.3 * float(np.sign(instant_score))
+        action = "ACHAT" if score >= 0.3 else "VENTE" if score <= -0.3 else "AUCUNE ACTION"
+        reason = "" if action != "AUCUNE ACTION" else "aucun signal net"
+        lean = score if action != "AUCUNE ACTION" else (hs if instant_score is None else score)
+        if action == "AUCUNE ACTION" and instant_score is None and not habit_ok and abs(hs) >= 0.3:
+            action = "SURVEILLANCE"
+            reason = (f"l'habitude suggère {'un achat' if hs > 0 else 'une vente'} mais n'est pas validée "
+                      f"(confiance {hc * 100:.0f} %, {weeks} semaine(s) observée(s))")
+
+        observed_at = q.get("observed_at")
+        buy_max = target = sell_min = net = None
+        if price and action == "ACHAT":
+            st = db.price_stats(pid, days=7, now=self.now)
+            rec = rule_d.get("avg_recovery_value")
+            if instant_score is not None and st.get("avg") and (st.get("n") or 0) >= config.TARGET_MIN_POINTS:
+                target = float(st["avg"])  # retour vers la moyenne 7 j (prix observés)
+            elif habit_ok and rec and st.get("max"):
+                target = min(price * (1 + float(np.clip(rec, 0, 0.35))), float(st["max"]))
+            if target is None:
+                action, reason = "SURVEILLANCE", "aucune cible de revente justifiée par les données (historique trop court)"
+            else:
+                buy_max, sell_min = round_tier(price, "down"), round_tier(target, "down")
+                net = sell_min * (1 - config.EA_TAX) - buy_max
+                if net / buy_max < config.MIN_NET_MARGIN:
+                    action = "SURVEILLANCE"
+                    reason = (f"marge nette théorique {net / buy_max * 100:+.1f} % après taxe "
+                              f"(min {config.MIN_NET_MARGIN * 100:.0f} %)")
+        if not q["ok"]:
+            action, reason = "AUCUNE ACTION", f"données insuffisantes : {q['reason']}"
+        if not price:
+            action, reason = "AUCUNE ACTION", "aucun prix observé"
+
+        opportunity = int(round(min(1.0, abs(lean) / 0.8) * 100))
+        conf = int(np.clip(round(opportunity * q["score"] / 1000), 1, 10))
+        if action not in ("ACHAT", "VENTE"):
+            conf = min(conf, 4)  # jamais envoyé sur Discord
+        track = self.track_record(rule, action)
+        when = to_local(pd.Timestamp(observed_at).to_pydatetime()).strftime("%Hh%M") if observed_at else "?"
+        if action == "ACHAT":
+            act = (f"ACHETER ≤ {fmt_coins(buy_max)} (prix observé {fmt_coins(price)} à {when}). Revente théorique "
+                   f"≥ {fmt_coins(sell_min)} = {fmt_coins(net)} net/carte après taxe (théorique, non garanti).")
+        elif action == "VENTE":
+            act = (f"VENDRE vers {fmt_coins(round_tier(price, 'nearest'))} (prix observé à {when} ; "
+                   f"prix réellement obtenu non garanti).")
+        elif action == "SURVEILLANCE":
+            act = f"Surveiller, ne pas agir pour l'instant : {reason}."
+        else:
+            act = f"Ne rien faire : {reason}."
+        return Signal(
+            action=action, rule=rule, score=round(float(score), 3), confidence=conf, player_id=pid,
+            player_name=player.get("name", ""), rating=player.get("rating"), card_type=player.get("card_type"),
+            position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
+            instant=instant_txt, habit=hab["text"] + ("" if habit_ok else " (habitude non validée : n'influence pas la décision)"),
+            action_text=act, risk="Élevé" if q["score"] < 70 else "Moyen",
+            extra={**(extra or {}), "engine": "v2", "reason": reason, "opportunity": opportunity,
+                   "data_quality": q["score"], "quality": q, "probability": track, "habit_validated": habit_ok,
+                   "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
+                   "observed_price": int(price) if price else None, "observed_at": observed_at,
+                   "buy_max": buy_max, "target_price": round(target) if target else None, "sell_min": sell_min,
+                   "executable_price": None, "net_profit": round(net) if net is not None else None,
+                   **self.context(pid)},
         )
 
     # ------------------------------------------------------------------ R1
@@ -291,6 +439,9 @@ class MarketAnalyzer:
             pid = str(p["player_id"])
             if not self.price_now(pid):
                 continue
+            if self.version == "v2" and not self.quality(pid)["ok"]:
+                sigs.append(self.build_signal(p, "QUALITE_DONNEES", None, ""))  # abstention tracée
+                continue
             s = self.rule4_technical(p)
             if s is None:
                 s = self.build_signal(p, "HABITUDE", None, "Pas de signal technique particulier.")
@@ -298,6 +449,8 @@ class MarketAnalyzer:
         return sigs
 
     def instant_crashes(self, hours: int = 24) -> list[Signal]:
+        if self.version == "v2":
+            return []  # v2 : la chute est traitée par R4 uniquement (plus de double signal)
         out = []
         for p in self.watchlist:
             c = self.change(str(p["player_id"]), hours)

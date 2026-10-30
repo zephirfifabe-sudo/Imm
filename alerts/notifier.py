@@ -59,7 +59,7 @@ def select(signals: list[Signal], min_conf: int | None = None, limit: int | None
            respect_cooldown: bool = True) -> list[Signal]:
     min_conf = config.ALERT_MIN_CONFIDENCE if min_conf is None else min_conf
     limit = config.ALERT_MAX_PER_REPORT if limit is None else limit
-    keep = [s for s in signals if s.action != "HOLD" and s.confidence >= min_conf]
+    keep = [s for s in signals if s.action.startswith(("ACHAT", "VENTE")) and s.confidence >= min_conf]
     if respect_cooldown:
         keep = [s for s in keep if not _in_cooldown(s)]
     keep.sort(key=lambda s: (-s.confidence, -abs(s.score)))

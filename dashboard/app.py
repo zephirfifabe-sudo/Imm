@@ -5,6 +5,8 @@
   /api/players            tableau watchlist : prix, var 24h, var vs habitude, signal, confiance
   /api/player/{id}/chart  prix réel 7j vs prix prédit par l'habitude (+ prévision 48h)
   /api/alerts             dernières alertes
+  /api/performance        résultats THÉORIQUES des décisions journalisées (v1 / v2)
+  ?engine=v1|v2           sur /api/players : moteur actif (défaut) ou moteur en observation
   /health                 healthcheck Docker (sans auth)
 
 Protection : si DASHBOARD_USER / DASHBOARD_PASSWORD sont définis -> authentification HTTP Basic.
@@ -86,36 +88,56 @@ def api_status():
         "learned": rules.get("_meta"),
         "global": {k: v for k, v in rules.get("GLOBAL", {}).items() if k != "profile"},
         "jobs": {k[4:]: v["value"] for k, v in st.items() if k.startswith("job:")},
+        "brain": {"active": config.BRAIN_VERSION, "shadow": config.BRAIN_SHADOW or None},
+        # le « meilleur moment appris » n'est affiché que si l'habitude est validée
+        "habit_validated": (rules.get("GLOBAL", {}).get("confidence") or 0) >= config.HABIT_MIN_CONFIDENCE
+                           and (rules.get("GLOBAL", {}).get("weeks_observed") or 0) >= config.HABIT_MIN_WEEKS,
         "tz": config.TZ,
     }
 
 
 @app.get("/api/players", dependencies=[Depends(auth)])
-def api_players():
-    with _lock:  # calcul coûteux (150 joueurs) -> cache 60 s
-        if _cache.get("players") and time.time() - _cache["players"][0] < 60:
-            return _cache["players"][1]
+def api_players(engine: str | None = None):
+    engine = engine if engine in ("v1", "v2") else config.BRAIN_VERSION
+    with _lock:  # calcul coûteux (150 joueurs) -> cache 60 s par moteur
+        hit = _cache.get(("players", engine))
+        if hit and time.time() - hit[0] < 60:
+            return hit[1]
         wl = load_watchlist()
-        an = MarketAnalyzer(wl)
+        an = MarketAnalyzer(wl, version=engine)
         rows, scans = [], db.last_scan_times()
         for s in an.full_scan():
+            x = s.extra
             rows.append({
                 "player_id": s.player_id, "name": s.player_name, "rating": s.rating, "position": s.position,
                 "rarity": classify(s.card_type),
-                "price": s.price, "change_24h": s.change_24h, "habit_dev": s.extra.get("habit_deviation"),
+                "price": s.price, "change_24h": s.change_24h, "habit_dev": x.get("habit_deviation"),
                 "action": s.action, "confidence": s.confidence, "rule": s.rule, "instant": s.instant,
                 "habit": s.habit, "action_text": s.action_text,
-                "avg_7d": s.extra.get("avg_7d"), "min_7d": s.extra.get("min_7d"), "max_7d": s.extra.get("max_7d"),
-                "vs_avg": s.extra.get("vs_avg"), "trend_7d": s.extra.get("trend_7d"), "explain": s.extra.get("explain"),
-                "scanned_at": scans.get(s.player_id),
+                "avg_7d": x.get("avg_7d"), "min_7d": x.get("min_7d"), "max_7d": x.get("max_7d"),
+                "vs_avg": x.get("vs_avg"), "trend_7d": x.get("trend_7d"), "explain": x.get("explain"),
+                "scanned_at": scans.get(s.player_id), "engine": engine,
+                # moteur v2 : décision expliquée et prix explicites
+                "reason": x.get("reason"), "opportunity": x.get("opportunity"), "data_quality": x.get("data_quality"),
+                "probability": x.get("probability"), "habit_validated": x.get("habit_validated"),
+                "observed_at": x.get("observed_at"), "buy_max": x.get("buy_max"), "sell_min": x.get("sell_min"),
+                "target_price": x.get("target_price"), "net_profit": x.get("net_profit"),
             })
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),
                   "rarity": classify(p.get("card_type")), "price": p.get("price"), "action": "?", "confidence": None,
-                  "scanned_at": scans.get(p["player_id"])}
+                  "scanned_at": scans.get(p["player_id"]), "engine": engine}
                  for p in wl if p["player_id"] not in known]
-        _cache["players"] = (time.time(), rows)
+        _cache[("players", engine)] = (time.time(), rows)
         return rows
+
+
+@app.get("/api/performance", dependencies=[Depends(auth)])
+def api_performance(days: int = 30):
+    from core.decision_journal import performance
+
+    return {"rows": performance(days=min(days, 180)), "min_samples": config.PROBA_MIN_SAMPLES,
+            "note": "Résultats théoriques calculés sur des prix observés, pas des ventes réelles."}
 
 
 @app.get("/api/player/{player_id}/chart", dependencies=[Depends(auth)])

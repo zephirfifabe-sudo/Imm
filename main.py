@@ -240,6 +240,13 @@ def cmd_baseline(_):
     print_baseline()
 
 
+def cmd_performance(args):
+    from core.decision_journal import evaluate_outcomes, print_performance
+
+    evaluate_outcomes()
+    print_performance(days=args.days)
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -269,6 +276,9 @@ def main(argv=None):
     p.add_argument("--all", action="store_true", help="inclure les HOLD")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(fn=cmd_analyze)
+    p = sub.add_parser("performance", help="résultats théoriques des décisions journalisées")
+    p.add_argument("--days", type=int, default=30)
+    p.set_defaults(fn=cmd_performance)
     p = sub.add_parser("backtest")
     p.add_argument("--days", type=int, default=14)
     p.add_argument("--min-conf", type=int, default=7)
