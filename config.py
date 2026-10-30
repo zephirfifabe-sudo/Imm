@@ -45,6 +45,8 @@ NITTER_ACCOUNTS = [a.strip() for a in os.getenv("NITTER_ACCOUNTS", "FutSheriff")
 FETCH_MODE = os.getenv("FETCH_MODE", "auto")  # auto | httpx | playwright
 FLARESOLVERR_URL = os.getenv("FLARESOLVERR_URL", "")
 PLAYWRIGHT_CHROMIUM_PATH = os.getenv("PLAYWRIGHT_CHROMIUM_PATH", "")
+# Proxy (ex: résidentiel) si l'IP du VPS est bannie par Cloudflare : http://user:pass@host:port
+PROXY_URL = os.getenv("PROXY_URL", "")
 REQUEST_MIN_DELAY = float(os.getenv("REQUEST_MIN_DELAY", "1.5"))
 USER_AGENT = os.getenv(
     "USER_AGENT",

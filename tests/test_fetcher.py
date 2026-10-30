@@ -68,3 +68,11 @@ def test_circuit_breaker():
                 f.get("http://127.0.0.1:9/x", retries=0)
         with pytest.raises(FetchError, match="coupe-circuit"):
             f.get("http://127.0.0.1:9/y", retries=0)
+
+
+def test_proxy_and_title_helpers():
+    from scrapers.base import page_title, playwright_proxy
+
+    assert playwright_proxy("http://u:p@1.2.3.4:8080") == {"server": "http://1.2.3.4:8080", "username": "u", "password": "p"}
+    assert playwright_proxy("http://1.2.3.4:8080") == {"server": "http://1.2.3.4:8080"}
+    assert page_title("<html><title>Just a moment...</title></html>") == "Just a moment..."

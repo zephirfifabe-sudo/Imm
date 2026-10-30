@@ -34,6 +34,22 @@ CF_MARKERS = (
 )
 
 
+def page_title(html: str) -> str:
+    """Titre de la page : 'Just a moment...' = challenge (passable), 'Attention Required' = IP bannie."""
+    import re
+
+    m = re.search(r"<title[^>]*>(.*?)</title>", html or "", re.I | re.S)
+    return (m.group(1).strip() if m else (html or "")[:60].strip())[:60]
+
+
+def playwright_proxy(url: str) -> dict:
+    u = urlparse(url)
+    out = {"server": f"{u.scheme}://{u.hostname}:{u.port}"}
+    if u.username:
+        out.update(username=u.username, password=u.password or "")
+    return out
+
+
 class FetchError(RuntimeError):
     pass
 
@@ -68,7 +84,9 @@ class Fetcher:
             "Cache-Control": "no-cache",
             "Upgrade-Insecure-Requests": "1",
         }
-        self.client = httpx.Client(headers=self.headers, follow_redirects=True, timeout=timeout)
+        self.client = httpx.Client(headers=self.headers, follow_redirects=True, timeout=timeout,
+                                   proxy=config.PROXY_URL or None)
+        self.pw_failed_hosts: set[str] = set()  # Chromium bloqué -> ne plus perdre 30 s par page
         self._last_hit: dict[str, float] = {}
         self._lock = threading.Lock()
         self._pw = None
@@ -136,12 +154,14 @@ class Fetcher:
                     errors.append(f"httpx {type(e).__name__}: {e}")
                 time.sleep(2 ** attempt + random.random())
 
-        if self.mode in ("auto", "playwright"):
+        skip_pw = host in self.pw_failed_hosts and bool(config.FLARESOLVERR_URL)
+        if self.mode in ("auto", "playwright") and not skip_pw:
             try:
                 res = self._playwright_get(url, expect)
                 if not looks_blocked(res.status, res.text):
                     return res
-                errors.append(f"playwright toujours bloqué ({res.status})")
+                self.pw_failed_hosts.add(host)
+                errors.append(f"playwright toujours bloqué ({res.status}, page « {page_title(res.text)} »)")
             except Exception as e:  # noqa: BLE001
                 errors.append(f"playwright {type(e).__name__}: {e}")
 
@@ -191,6 +211,8 @@ class Fetcher:
         }
         if config.PLAYWRIGHT_CHROMIUM_PATH:
             launch_kwargs["executable_path"] = config.PLAYWRIGHT_CHROMIUM_PATH
+        if config.PROXY_URL:
+            launch_kwargs["proxy"] = playwright_proxy(config.PROXY_URL)
         self._browser = self._pw.chromium.launch(**launch_kwargs)
         self._context = self._browser.new_context(
             user_agent=config.USER_AGENT, locale="fr-FR", timezone_id=config.TZ,
@@ -232,7 +254,10 @@ class Fetcher:
             else:
                 content = page.evaluate("() => document.body ? document.body.innerText : ''") or content
             self._sync_cookies_to_httpx()
-            log.info("Playwright OK %s (status=%s)", url, status)
+            if looks_blocked(status, content):
+                log.warning("Playwright bloqué %s (status=%s, page « %s »)", url, status, page_title(content))
+            else:
+                log.info("Playwright OK %s (status=%s)", url, status)
             return FetchResult(url, status or 200, content, "playwright")
         finally:
             page.close()
@@ -244,13 +269,23 @@ class Fetcher:
             self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""), path=ck.get("path", "/"))
 
     def _flaresolverr_get(self, url: str, expect: str) -> FetchResult:
-        r = httpx.post(config.FLARESOLVERR_URL, json={"cmd": "request.get", "url": url, "maxTimeout": 60000},
-                       timeout=90)
+        payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
+        if config.PROXY_URL:
+            payload["proxy"] = {"url": config.PROXY_URL}
+        r = httpx.post(config.FLARESOLVERR_URL, json=payload, timeout=90)
         r.raise_for_status()
-        sol = r.json().get("solution") or {}
+        body = r.json()
+        if body.get("status") != "ok":
+            raise FetchError(f"FlareSolverr : {body.get('message', '?')[:150]}")
+        sol = body.get("solution") or {}
         for ck in sol.get("cookies", []):
             self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""))
+        # cf_clearance est lié au User-Agent du navigateur qui a passé le challenge
+        if sol.get("userAgent"):
+            self.client.headers["User-Agent"] = sol["userAgent"]
         text = sol.get("response", "")
+        if looks_blocked(int(sol.get("status", 200)), text):
+            raise FetchError(f"FlareSolverr bloqué (page « {page_title(text)} »)")
         if expect == "json" and not text.strip().startswith(("{", "[")):
             from bs4 import BeautifulSoup
 
