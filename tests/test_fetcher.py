@@ -125,3 +125,8 @@ def test_flaresolverr_proxy_format():
 
     assert flaresolverr_proxy("http://user_1:pw@109.0.0.9:50100") == {
         "url": "http://109.0.0.9:50100", "username": "user_1", "password": "pw"}
+
+
+def test_browser_error_page_is_failure():
+    page = "<html><title>www.fut.gg</title><body>This site can’t be reached ... ERR_TIMED_OUT Checking the proxy</body></html>"
+    assert looks_blocked(200, page)

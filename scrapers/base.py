@@ -108,9 +108,17 @@ class FetchResult:
         return json.loads(self.text)
 
 
+# Page d'erreur du navigateur (FlareSolverr la renvoie avec un statut 200)
+BROWSER_ERROR_MARKERS = ("err_timed_out", "err_proxy", "err_tunnel", "err_connection", "this site can’t be reached",
+                         "this site can't be reached", "err_name_not_resolved")
+
+
 def looks_blocked(status: int, text: str) -> bool:
-    low = (text or "")[:20000].lower()
+    full = (text or "").lower()
+    low = full[:20000]
     if any(m in low for m in CF_MARKERS):
+        return True
+    if len(full) < 400_000 and any(m in full for m in BROWSER_ERROR_MARKERS) and "/players/" not in full:
         return True
     return status in (403, 429, 503) and ("cloudflare" in low or len(low) < 2000)
 
