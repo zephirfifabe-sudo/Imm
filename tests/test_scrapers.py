@@ -146,7 +146,7 @@ def test_bucket_prices(monkeypatch):
         return [{"player_id": pid, "name": pid} for pid, pr in true_prices.items() if lo <= pr <= hi]
 
     monkeypatch.setattr(FutGGScraper, "list_players", fake_list)
-    res = price_buckets.bucket_prices(fetcher=None, wanted=set(true_prices))
+    res = price_buckets.bucket_prices(fetcher=None, base_url="https://www.fut.gg/players/?price__gte=19750&price__lte=450000", wanted=set(true_prices))
     for pid, pr in true_prices.items():
         assert res[pid]["min"] <= pr <= res[pid]["max"]
         assert abs(res[pid]["price"] - pr) / pr < 0.035  # ±3 %
@@ -168,7 +168,7 @@ def test_bucket_boundary_player(monkeypatch):
         return [{"player_id": "k", "name": "k"}] if lo <= edge <= hi + 1 else []
 
     monkeypatch.setattr(FutGGScraper, "list_players", fake_list)
-    assert price_buckets.bucket_prices(fetcher=None)["k"]["price"] == edge
+    assert price_buckets.bucket_prices(fetcher=None, base_url="https://www.fut.gg/players/?price__gte=19750&price__lte=450000")["k"]["price"] == edge
 
 
 def test_select_by_bands_balanced():
