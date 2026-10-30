@@ -1,6 +1,7 @@
 """Prix avec bascule automatique FUT.GG -> FUTBIN + logger horaire (la MÉMOIRE)."""
 from __future__ import annotations
 
+import config
 from database import db
 from scrapers.base import FetchError, Fetcher
 from scrapers.futbin import FutbinScraper
@@ -37,6 +38,8 @@ class PriceProvider:
 
 def snapshot_watchlist(players: list[dict], fetcher: Fetcher | None = None) -> dict:
     """Enregistre le prix actuel de chaque joueur de la watchlist (job horaire 24/7)."""
+    if config.PRICE_SOURCE == "futgenie":
+        return _snapshot_futgenie(players)
     own = fetcher is None
     fetcher = fetcher or Fetcher()
     provider = PriceProvider(fetcher)
@@ -72,4 +75,30 @@ def snapshot_watchlist(players: list[dict], fetcher: Fetcher | None = None) -> d
     summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20]}
     db.set_status("last_snapshot", summary)
     log.info("Snapshot horaire : %d OK / %d KO", ok, len(ko))
+    return summary
+
+
+def _snapshot_futgenie(players: list[dict]) -> dict:
+    """Relevé horaire depuis futgenie : prix exacts lus dans les listes (fiche en secours)."""
+    from scrapers.futgenie import FutGenie
+    from scrapers.price_buckets import parse_bands
+
+    ts = utcnow().replace(minute=0, second=0, microsecond=0)
+    fg = FutGenie()
+    try:
+        prices = fg.current_prices(players, parse_bands(config.WATCHLIST_BANDS))
+    finally:
+        fg.close()
+    ok, ko = 0, []
+    with db.get_conn() as c:
+        for p in players:
+            price = prices.get(str(p["player_id"]))
+            if not price:
+                ko.append(p.get("name"))
+                continue
+            db.insert_snapshot(p["player_id"], price, ts, source="futgenie", conn=c)
+            ok += 1
+    summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20], "source": "futgenie"}
+    db.set_status("last_snapshot", summary)
+    log.info("Snapshot horaire futgenie : %d OK / %d KO", ok, len(ko))
     return summary

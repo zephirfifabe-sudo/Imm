@@ -171,12 +171,13 @@ def _notify_pause() -> None:
 
     from scrapers.base import blocked_until
 
-    until = blocked_until(urlparse(config.FUTGG_BASE).netloc)
+    base = "https://www.futgenie.gg" if config.PRICE_SOURCE == "futgenie" else config.FUTGG_BASE
+    until = blocked_until(urlparse(base).netloc)
     if not until or (db.get_status().get("pause_notified") or {}).get("value") == until:
         return
     db.set_status("pause_notified", until)
     notifier.send_text(
-        f"⚠️ FUT.GG bloque temporairement le bot (protection Cloudflare). Pause automatique jusqu'à "
+        f"⚠️ La source de prix ({urlparse(base).netloc}) bloque temporairement le bot. Pause automatique jusqu'à "
         f"{_time.strftime('%H:%M', _time.localtime(until))}, puis reprise toute seule. "
         "Les prix déjà relevés sont conservés.")
 

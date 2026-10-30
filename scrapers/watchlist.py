@@ -15,6 +15,8 @@ log = get_logger("watchlist")
 
 
 def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -> list[dict]:
+    if config.PRICE_SOURCE == "futgenie":
+        return _build_futgenie()
     own = fetcher is None
     fetcher = fetcher or Fetcher()
     try:
@@ -63,6 +65,27 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
     finally:
         if own:
             fetcher.close()
+
+
+def _build_futgenie() -> list[dict]:
+    from scrapers.futgenie import FutGenie
+    from scrapers.price_buckets import parse_bands
+
+    fg = FutGenie()
+    try:
+        players = fg.build_watchlist(parse_bands(config.WATCHLIST_BANDS))
+    finally:
+        fg.close()
+    if not players:
+        log.error("futgenie : aucun joueur récupéré -> watchlist conservée")
+        return load_watchlist()
+    for p in players:
+        db.upsert_player({**p, "source": "futgenie"})
+    players.sort(key=lambda p: p.get("price") or 0)
+    save_watchlist(players)
+    cheap = sum(1 for p in players if (p.get("price") or 0) <= 100000)
+    log.info("Watchlist futgenie : %d joueurs (%d entre 20k et 100k)", len(players), cheap)
+    return players
 
 
 def _finalize(players: list[dict], futgg: FutGGScraper) -> list[dict]:

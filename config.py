@@ -28,7 +28,9 @@ PRICE_MIN = int(os.getenv("PRICE_MIN", "20250"))
 PRICE_MAX = int(os.getenv("PRICE_MAX", "200000"))
 WATCHLIST_SIZE = int(os.getenv("WATCHLIST_SIZE", "250"))
 # Répartition de la watchlist par fourchette de prix : "min-max:nombre,..." (cœur du marché = 20k-100k)
-WATCHLIST_BANDS = os.getenv("WATCHLIST_BANDS", "20250-100000:190,100001-200000:60")
+WATCHLIST_BANDS = os.getenv("WATCHLIST_BANDS", "20000-100000:190,100001-250000:60")
+# Source des prix : "futgenie" (prix exacts, accès autorisé par robots.txt) ou "futgg" (tranches)
+PRICE_SOURCE = os.getenv("PRICE_SOURCE", "futgenie")
 EVO_CHEAP_MAX = int(os.getenv("EVO_CHEAP_MAX", "20000"))
 
 # --- Sources (surchargeables si FUT.GG change ses URLs) ---

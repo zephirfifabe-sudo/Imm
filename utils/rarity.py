@@ -41,7 +41,7 @@ RARITIES: list[tuple[str, str, str, str]] = [
     (r"\b(evo|evolution)s?\b", "Evo", "#34d399", "evo"),
     (r"\bheroe?s?\b", "Héros", "#facc15", "hero"),
     (r"\bicons?\b", "Icône", "#fde68a", "icon"),
-    (r"\b(gold|^or)\b.*\b(non[- ]?rare|common)\b|\b(non[- ]?rare|common)\b.*\bgold\b", "Or non rare", "#b8860b", "base"),
+    (r"\b(gold|^or)\b.*\b(non[- ]?rare|common)\b|\b(non[- ]?rare|common)\b.*\bgold\b|^common$", "Or non rare", "#b8860b", "base"),
     (r"\b(gold|^or)\b.*\brare\b|\brare\b.*\bgold\b|^rare$", "Or rare", "#ca8a04", "base"),
     (r"\bgold\b|^or$", "Or", "#b8860b", "base"),
     (r"\b(silver|argent)\b", "Argent", "#94a3b8", "base"),

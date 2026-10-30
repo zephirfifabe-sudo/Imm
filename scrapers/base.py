@@ -259,7 +259,7 @@ class Fetcher:
             except Exception as e:  # noqa: BLE001
                 errors.append(f"playwright {type(e).__name__}: {e}")
 
-        if config.FLARESOLVERR_URL:
+        if config.FLARESOLVERR_URL and self.mode == "auto":  # mode "httpx" = accès normal uniquement
             try:
                 return self._flaresolverr_get(url, expect)
             except Exception as e:  # noqa: BLE001
