@@ -193,6 +193,53 @@ section { margin-top: 28px; }
 .insight.action.sell { border-color: rgba(248, 113, 113, .35); }
 .insight.action .x { color: var(--text); font-weight: 600; }
 
+/* ---------- cartes façon FUT (CSS pur, aucune image EA) */
+.fut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 12px; }
+.fut-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px; border-radius: 12px; transition: transform .15s; }
+.fut-item:hover { transform: translateY(-3px); }
+.fi-price { font-weight: 650; font-size: 14px; }
+.fi-price span { font-size: 12px; font-weight: 600; margin-left: 4px; }
+.fut-card {
+  --shape: polygon(50% 0, 100% 6%, 100% 86%, 50% 100%, 0 86%, 0 6%);
+  position: relative; width: 140px; height: 196px; clip-path: var(--shape); flex: none;
+  background: color-mix(in srgb, var(--c) 75%, black); filter: drop-shadow(0 6px 14px rgba(0,0,0,.45));
+}
+.fut-card .fc-in {
+  position: absolute; inset: 3px; clip-path: var(--shape); display: flex; flex-direction: column; align-items: center;
+  padding: 18px 10px 0; text-align: center;
+}
+.fut-card.base .fc-in {
+  background: radial-gradient(120% 60% at 30% 10%, color-mix(in srgb, var(--c) 35%, white), transparent 60%),
+              linear-gradient(160deg, color-mix(in srgb, var(--c) 70%, white), var(--c) 45%, color-mix(in srgb, var(--c) 55%, black));
+  color: #2a1d05;
+}
+.fut-card.special .fc-in {
+  background: radial-gradient(90% 55% at 50% 25%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%),
+              linear-gradient(165deg, #222a3d, #0b0f18 70%);
+  color: #f3f4f6;
+}
+.fc-top { position: absolute; left: 14px; top: 20px; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.fc-ovr { font-size: 28px; font-weight: 800; letter-spacing: -.03em; }
+.fc-pos { font-size: 11px; font-weight: 700; margin-top: 3px; letter-spacing: .04em; }
+.special .fc-ovr, .special .fc-pos { color: var(--c); }
+.fc-face {
+  width: 62px; height: 62px; border-radius: 50%; margin: 10px 0 0 34px; display: grid; place-items: center;
+  font-weight: 800; font-size: 22px; letter-spacing: -.02em;
+  background: rgba(255,255,255,.22); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+}
+.special .fc-face { background: color-mix(in srgb, var(--c) 22%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 60%, transparent); color: var(--c); }
+.fc-name { margin-top: 12px; font-weight: 800; font-size: 13.5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc-meta { font-size: 10px; opacity: .75; margin-top: 3px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc-rar { margin-top: 8px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
+.fut-card.big { width: 170px; height: 238px; }
+.big .fc-in { padding-top: 24px; }
+.big .fc-ovr { font-size: 34px; }
+.big .fc-face { width: 78px; height: 78px; font-size: 27px; margin: 14px 0 0 40px; }
+.big .fc-name { font-size: 16px; }
+.big .fc-meta { font-size: 11px; }
+.hero-wrap { display: flex; gap: 20px; align-items: center; }
+.hero-wrap .hero { flex: 1; flex-direction: column; align-items: flex-start; gap: 12px; }
+
 /* ---------- base de connaissances */
 .kb { display: grid; gap: 10px; }
 .kb-upcoming { padding: 14px 18px; margin-bottom: 10px; font-size: 13.5px; display: grid; gap: 4px; }
@@ -230,6 +277,9 @@ section { margin-top: 28px; }
   .kpi { padding: 14px; } .kpi .value { font-size: 22px; }
   .status .txt { display: none; }
   .seg { width: 100%; } .seg button { flex: 1; padding: 6px 4px; }
+  .fut-grid { grid-template-columns: repeat(2, 1fr); }
+  .fut-card { width: 132px; height: 185px; }
+  .fut-card.big { width: 140px; height: 196px; }
   .select { flex: 1; }
   .panel { top: auto; height: 92vh; width: 100%; border-left: 0; border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; transform: translateY(100%); }
   .stats { grid-template-columns: repeat(2, 1fr); }

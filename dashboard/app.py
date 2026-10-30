@@ -117,6 +117,7 @@ def api_players(engine: str | None = None):
                 "avg_7d": x.get("avg_7d"), "min_7d": x.get("min_7d"), "max_7d": x.get("max_7d"),
                 "vs_avg": x.get("vs_avg"), "trend_7d": x.get("trend_7d"), "explain": x.get("explain"),
                 "scanned_at": scans.get(s.player_id), "engine": engine,
+                **{k: (an.by_id.get(s.player_id) or {}).get(k) for k in ("club", "league", "nation")},
                 # moteur v2 : décision expliquée et prix explicites
                 "reason": x.get("reason"), "opportunity": x.get("opportunity"), "data_quality": x.get("data_quality"),
                 "probability": x.get("probability"), "habit_validated": x.get("habit_validated"),
@@ -126,7 +127,8 @@ def api_players(engine: str | None = None):
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),
                   "rarity": classify(p.get("card_type")), "price": p.get("price"), "action": "?", "confidence": None,
-                  "scanned_at": scans.get(p["player_id"]), "engine": engine}
+                  "scanned_at": scans.get(p["player_id"]), "engine": engine,
+                  "club": p.get("club"), "league": p.get("league"), "nation": p.get("nation")}
                  for p in wl if p["player_id"] not in known]
         _cache[("players", engine)] = (time.time(), rows)
         return rows
