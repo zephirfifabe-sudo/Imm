@@ -30,7 +30,8 @@ ID_PREFIX = "fgn-"  # évite toute collision avec les IDs FUT.GG déjà en base
 PRICE_RE = re.compile(r"Price\s+([\d,.]+\s*[kKmM]?)")
 CHANGE_RE = re.compile(r"([+-]?\d+(?:[.,]\d+)?)\s*%\s*\|\s*7d")
 GRADE_RE = re.compile(r"Genie Grade\s+(\d+)")
-TITLE_RE = re.compile(r"^\s*(.+?)\s+(\d{2})\s*:\s*Price", re.S)
+# « Achraf Hakimi 88: Price… » ou, pour une carte spéciale, « Christopher Nkunku 82 Team of the Week: Price… »
+TITLE_RE = re.compile(r"^\s*(.+?)\s+(\d{2})(?:\s+([^:]+?))?\s*:\s*Price", re.S)
 
 
 def list_url(min_price: int, max_price: int, page: int = 1, sort: str = "grade-desc") -> str:
@@ -70,7 +71,7 @@ def parse_fiche(html: str, player_id: str, url: str) -> dict | None:
     m = TITLE_RE.match(title)
     if not m:
         return None
-    name, rating = m.group(1).strip(), int(m.group(2))
+    name, rating, promo = m.group(1).strip(), int(m.group(2)), (m.group(3) or "").strip()
     tokens = [t.strip() for t in BeautifulSoup(html, "html.parser").get_text(" | ", strip=True).split(" | ")]
     # le bloc d'infos suit la 2e occurrence du nom (la 1re est dans le titre de la page)
     idx = [i for i, t in enumerate(tokens) if t == name]
@@ -81,7 +82,8 @@ def parse_fiche(html: str, player_id: str, url: str) -> dict | None:
     # « Ligue 1 McDonald's », « Premier League »… : on accepte le nom connu en début de texte
     league = next((lg for t in after for lg in leagues if t == lg or t.startswith(lg + " ")), None)
     nation = next((t for t in after if t in nations), None)
-    rarity = rarity_label(after[0]) if after else None
+    # la promo du titre (Team of the Week, Trailblazers…) prime sur la rareté de base affichée
+    rarity = rarity_label(promo) if promo else (rarity_label(after[0]) if after else None)
     club = after[1] if len(after) > 1 and after[1] not in (pos, league, nation) else None
     pm = PRICE_RE.search(" | ".join(tokens))
     return {
@@ -129,18 +131,19 @@ class FutGenie:
         if max_new[0] <= 0:
             return {**card, "name": card["player_id"], "source": "futgenie"}
         max_new[0] -= 1
-        info = self.read_fiche(card["player_id"], card["url"])
+        try:
+            info = self.read_fiche(card["player_id"], card["url"])
+        except FetchError as e:
+            log.warning("Fiche futgenie KO %s : %s", card["url"], str(e)[:150])
+            info = None
         p = {**(info or {"name": card["player_id"], "source": "futgenie"}), **card}
         if info:
             db.upsert_player(p)
         return p
 
     def read_fiche(self, player_id: str, url: str) -> dict | None:
-        try:
-            res = self.f.get(url, retries=1)
-        except FetchError as e:
-            log.warning("Fiche futgenie KO %s : %s", url, str(e)[:150])
-            return None
+        """Fiche lue et décodée, None si illisible. Lève FetchError si le site ne répond pas."""
+        res = self.f.get(url, retries=1)
         info = parse_fiche(res.text, player_id, url)
         if not info:
             log.warning("Fiche futgenie illisible %s (http=%s, titre « %s »)", url, res.status, page_title(res.text)[:80])
@@ -155,11 +158,14 @@ class FutGenie:
             known = db.get_player(p["player_id"]) or {}
             if known.get("rating") or not p.get("url"):
                 continue
-            info = self.read_fiche(p["player_id"], p["url"])
-            if not info:
+            try:
+                info = self.read_fiche(p["player_id"], p["url"])
+            except FetchError as e:
+                log.warning("Fiche futgenie KO %s : %s", p["url"], str(e)[:150])
                 break  # site lent ou en pause : on réessaiera au prochain passage
-            db.upsert_player({**info, "price": None})
-            done += 1
+            if info:  # une fiche illisible ne bloque plus les suivantes
+                db.upsert_player({**info, "price": None})
+                done += 1
         if done:
             log.info("Fiches futgenie complétées : %d", done)
         return done

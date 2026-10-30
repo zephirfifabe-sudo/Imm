@@ -79,3 +79,10 @@ def test_fill_missing_names():
     assert fg.fill_missing([{"player_id": "fgn-7", "url": "https://www.futgenie.gg/player-items/7"}]) == 1
     p = db.get_player("fgn-7")
     assert p["name"] == "Achraf Hakimi" and p["rating"] == 88
+
+
+def test_parse_fiche_special_card():
+    html = FICHE.replace("Achraf Hakimi 88: Price", "Christopher Nkunku 82 Team of the Week: Price").replace(
+        "Achraf Hakimi", "Christopher Nkunku")
+    p = futgenie.parse_fiche(html, "fgn-1032160", "u")
+    assert (p["name"], p["rating"], p["card_type"]) == ("Christopher Nkunku", 82, "TOTW")
