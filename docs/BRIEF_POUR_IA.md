@@ -39,7 +39,7 @@
 
 ### Stack
 - **Python 3.11** dans **Docker** (`python:3.11-slim` + Playwright Chromium, rarement utilisé), avec `docker-compose` et `restart: always`.
-- **Données** : SQLite en mode WAL (`data/sniper.db`), dans un volume `./data`.
+- **Données** : SQLite en mode WAL (`data/market_history.db`), dans un volume `./data`.
 - **Planification** : APScheduler, fuseau `Europe/Paris`.
 - **Calcul** : pandas et numpy ; graphiques avec matplotlib (Discord) et Chart.js embarqué (dashboard).
 - **Dashboard** : FastAPI + uvicorn sur le port 8000, protégé par un login HTTP Basic. HTML/CSS/JS faits main, **aucun CDN**.
