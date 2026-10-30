@@ -94,7 +94,7 @@ def parse_fiche(html: str, player_id: str, url: str) -> dict | None:
 class FutGenie:
     def __init__(self, fetcher: Fetcher | None = None):
         # Accès normal uniquement : en cas de blocage on s'arrête (pas de contournement)
-        self.f = fetcher or Fetcher(mode="httpx", min_delay=3.0)
+        self.f = fetcher or Fetcher(mode="httpx", min_delay=4.0)
         self._own = fetcher is None
 
     def close(self) -> None:
@@ -129,15 +129,40 @@ class FutGenie:
         if max_new[0] <= 0:
             return {**card, "name": card["player_id"], "source": "futgenie"}
         max_new[0] -= 1
-        try:
-            info = parse_fiche(self.f.get(card["url"], retries=1).text, card["player_id"], card["url"])
-        except FetchError as e:
-            log.warning("Fiche futgenie KO %s : %s", card["url"], str(e)[:120])
-            info = None
+        info = self.read_fiche(card["player_id"], card["url"])
         p = {**(info or {"name": card["player_id"], "source": "futgenie"}), **card}
         if info:
             db.upsert_player(p)
         return p
+
+    def read_fiche(self, player_id: str, url: str) -> dict | None:
+        try:
+            res = self.f.get(url, retries=1)
+        except FetchError as e:
+            log.warning("Fiche futgenie KO %s : %s", url, str(e)[:150])
+            return None
+        info = parse_fiche(res.text, player_id, url)
+        if not info:
+            log.warning("Fiche futgenie illisible %s (http=%s, titre « %s »)", url, res.status, page_title(res.text)[:80])
+        return info
+
+    def fill_missing(self, players: list[dict], limit: int = 20) -> int:
+        """Complète les joueurs restés sans fiche (nom « fgn-… ») : quelques-uns à chaque passage."""
+        done = 0
+        for p in players:
+            if done >= limit:
+                break
+            known = db.get_player(p["player_id"]) or {}
+            if known.get("rating") or not p.get("url"):
+                continue
+            info = self.read_fiche(p["player_id"], p["url"])
+            if not info:
+                break  # site lent ou en pause : on réessaiera au prochain passage
+            db.upsert_player({**info, "price": None})
+            done += 1
+        if done:
+            log.info("Fiches futgenie complétées : %d", done)
+        return done
 
     def build_watchlist(self, bands: list[tuple[int, int, int]], max_new: int = 300) -> list[dict]:
         budget = [max_new]

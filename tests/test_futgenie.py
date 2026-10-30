@@ -68,3 +68,14 @@ def test_watchlist_and_prices():
     assert sum(1 for p in players if p.get("rating")) == 5  # limite de fiches par passe respectée
     prices = fg.current_prices(players, [(20000, 100000, 28)])
     assert prices["fgn-1"] == 21000 and len(prices) >= 28
+
+
+def test_fill_missing_names():
+    from database import db
+
+    db.upsert_player({"player_id": "fgn-7", "name": "fgn-7", "url": "https://www.futgenie.gg/player-items/7",
+                      "source": "futgenie"})
+    fg = futgenie.FutGenie(FakeFetcher())
+    assert fg.fill_missing([{"player_id": "fgn-7", "url": "https://www.futgenie.gg/player-items/7"}]) == 1
+    p = db.get_player("fgn-7")
+    assert p["name"] == "Achraf Hakimi" and p["rating"] == 88

@@ -87,6 +87,7 @@ def _snapshot_futgenie(players: list[dict]) -> dict:
     fg = FutGenie()
     try:
         prices = fg.current_prices(players, parse_bands(config.WATCHLIST_BANDS))
+        fg.fill_missing(players, limit=20)  # rattrapage progressif des fiches manquantes
     finally:
         fg.close()
     ok, ko = 0, []
