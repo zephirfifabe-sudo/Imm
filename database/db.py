@@ -134,6 +134,10 @@ def get_conn(path=None) -> Iterator[sqlite3.Connection]:
 def init_db(path=None) -> None:
     with get_conn(path) as c:
         c.executescript(SCHEMA)
+        # migration : tendance 7 jours fournie par la source (futgenie) pour chaque relevé
+        cols = {r[1] for r in c.execute("PRAGMA table_info(price_snapshots)")}
+        if "trend_7d" not in cols:
+            c.execute("ALTER TABLE price_snapshots ADD COLUMN trend_7d REAL")
 
 
 # ---------------------------------------------------------------- players
@@ -193,15 +197,35 @@ def _player_row(r: sqlite3.Row) -> dict:
 
 # ---------------------------------------------------------------- prices
 def insert_snapshot(player_id: str, price: int, ts: datetime | None = None, min_24h=None, max_24h=None,
-                    volume=None, source: str = "futgg", conn: sqlite3.Connection | None = None) -> None:
-    args = (str(player_id), iso(ts or utcnow()), int(price), min_24h, max_24h, volume, source)
-    sql = ("INSERT INTO price_snapshots (player_id, timestamp, price, min_24h, max_24h, volume, source) "
-           "VALUES (?,?,?,?,?,?,?)")
+                    volume=None, source: str = "futgg", conn: sqlite3.Connection | None = None,
+                    trend_7d: float | None = None) -> None:
+    args = (str(player_id), iso(ts or utcnow()), int(price), min_24h, max_24h, volume, source, trend_7d)
+    sql = ("INSERT INTO price_snapshots (player_id, timestamp, price, min_24h, max_24h, volume, source, trend_7d) "
+           "VALUES (?,?,?,?,?,?,?,?)")
     if conn is not None:
         conn.execute(sql, args)
     else:
         with get_conn() as c:
             c.execute(sql, args)
+
+
+def price_stats(player_id: str, days: int = 7, conn: sqlite3.Connection | None = None) -> dict:
+    """Prix moyen / min / max sur `days` jours + dernière tendance 7j connue de la source."""
+    since = iso(utcnow() - timedelta(days=days))
+    q = ("SELECT AVG(price), MIN(price), MAX(price), COUNT(*) FROM price_snapshots "
+         "WHERE player_id=? AND timestamp>=?")
+    qt = ("SELECT trend_7d FROM price_snapshots WHERE player_id=? AND trend_7d IS NOT NULL "
+          "ORDER BY timestamp DESC LIMIT 1")
+
+    def run(c):
+        avg, lo, hi, n = c.execute(q, (str(player_id), since)).fetchone()
+        t = c.execute(qt, (str(player_id),)).fetchone()
+        return {"avg": round(avg) if avg else None, "min": lo, "max": hi, "n": n, "trend_7d": t[0] if t else None}
+
+    if conn is not None:
+        return run(conn)
+    with get_conn() as c:
+        return run(c)
 
 
 def insert_history(player_id: str, points: list[tuple[str, int]], conn: sqlite3.Connection | None = None) -> None:

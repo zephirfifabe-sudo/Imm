@@ -139,6 +139,7 @@ function renderRows() {
         <p class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">${rarityBadge(p.rarity)}<span>${esc(p.position ?? "")}</span><span class="truncate">· ${esc(p.rule ?? "")}</span></p>
       </div>
       <div class="col-span-5 md:col-span-2 text-right num font-semibold">${k(p.price)}
+        ${p.avg_7d ? `<span class="block text-[11px] font-normal text-slate-500">moy. 7j ${k(p.avg_7d)}</span>` : ""}
         <span class="md:hidden block text-[11px] ${color(p.change_24h)}">${pct(p.change_24h)} / 24h</span></div>
       <div class="hidden md:block col-span-1 text-right num text-sm ${color(p.change_24h)}">${pct(p.change_24h)}</div>
       <div class="hidden md:block col-span-2 text-right num text-sm ${color(p.habit_dev)}">${pct(p.habit_dev)}</div>
@@ -166,7 +167,11 @@ async function openChart(id) {
   const p = players.find(x => x.player_id === id) || {};
   document.getElementById("m-title").innerHTML = `${esc(p.name || id)} ${esc(p.rating || "")} ${rarityBadge(p.rarity, true)}`;
   document.getElementById("m-sub").textContent = `${k(p.price)} · ${pct(p.change_24h)} / 24h · ${p.action || ""}`;
-  document.getElementById("m-detail").innerHTML = [p.instant && `<p>⚡ ${esc(p.instant)}</p>`, p.habit && `<p>🧠 ${esc(p.habit)}</p>`,
+  const bold = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100">$1</strong>');
+  document.getElementById("m-detail").innerHTML = [
+    p.avg_7d && `<p>📊 Moy. 7j : <strong class="text-slate-100">${k(p.avg_7d)}</strong> (min ${k(p.min_7d)} – max ${k(p.max_7d)}) · actuel <span class="${color(p.vs_avg)}">${pct(p.vs_avg)}</span> vs moyenne · tendance 7j <span class="${color(p.trend_7d)}">${pct(p.trend_7d)}</span></p>`,
+    p.explain && `<p>🧭 ${bold(p.explain)}</p>`,
+    p.instant && `<p>⚡ ${esc(p.instant)}</p>`, p.habit && `<p>🧠 ${esc(p.habit)}</p>`,
     p.action_text && `<p class="font-semibold">👉 ${esc(p.action_text)}</p>`].filter(Boolean).join("");
   document.getElementById("modal").classList.remove("hidden");
   const d = await get(`/api/player/${encodeURIComponent(id)}/chart`);

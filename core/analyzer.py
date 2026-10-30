@@ -17,6 +17,7 @@ import pandas as pd
 import config
 from core import learner
 from core import pattern_detector as pdt
+from core.context import explain_move
 from core.signals import Signal, score_to_action
 from database import db
 from scrapers.requirements_parser import META_PLAYSTYLES
@@ -53,6 +54,7 @@ class MarketAnalyzer:
         self.rules = rules if rules is not None else learner.load_rules()
         self.df = pdt.load_frame(history_days, list(self.by_id), now=self.now)
         self._series: dict[str, pd.Series] = {}
+        self._market: dict[int, float | None] = {}
 
     # ------------------------------------------------------------------ données
     def series(self, pid: str) -> pd.Series:
@@ -72,6 +74,24 @@ class MarketAnalyzer:
         if past.empty:
             return None
         return float(s.iloc[-1] / past.iloc[-1] - 1)
+
+    def market_change(self, hours: int = 24) -> float | None:
+        """Variation médiane de toute la watchlist : sert à dire si un mouvement est général ou individuel."""
+        if hours not in self._market:
+            vals = [c for c in (self.change(str(p["player_id"]), hours) for p in self.watchlist) if c is not None]
+            self._market[hours] = float(np.median(vals)) if len(vals) >= 5 else None
+        return self._market[hours]
+
+    def context(self, pid: str) -> dict:
+        """Prix moyen/min/max 7j, tendance 7j et explication du mouvement en clair."""
+        st = db.price_stats(pid, days=7)
+        trend = self.change(pid, 168)
+        if trend is None:
+            trend = st.get("trend_7d")  # pas encore 7 jours de relevés : tendance affichée par la source
+        price = self.price_now(pid)
+        vs_avg = (price / st["avg"] - 1) if price and st.get("avg") else None
+        return {"avg_7d": st.get("avg"), "min_7d": st.get("min"), "max_7d": st.get("max"), "vs_avg": vs_avg,
+                "trend_7d": trend, "explain": explain_move(self.change(pid, 24), self.market_change(24), trend)}
 
     def habit(self, player: dict, price: float | None = None) -> dict:
         pid = str(player["player_id"])
@@ -127,7 +147,7 @@ class MarketAnalyzer:
             position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
             instant=instant_txt, habit=hab["text"], action_text=act, risk=risk,
             extra={**(extra or {}), "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
-                   "net_profit": round(net) if net is not None else None},
+                   "net_profit": round(net) if net is not None else None, **self.context(pid)},
         )
 
     # ------------------------------------------------------------------ R1

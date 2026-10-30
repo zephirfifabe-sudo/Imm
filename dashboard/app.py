@@ -105,6 +105,8 @@ def api_players():
                 "price": s.price, "change_24h": s.change_24h, "habit_dev": s.extra.get("habit_deviation"),
                 "action": s.action, "confidence": s.confidence, "rule": s.rule, "instant": s.instant,
                 "habit": s.habit, "action_text": s.action_text,
+                "avg_7d": s.extra.get("avg_7d"), "min_7d": s.extra.get("min_7d"), "max_7d": s.extra.get("max_7d"),
+                "vs_avg": s.extra.get("vs_avg"), "trend_7d": s.extra.get("trend_7d"), "explain": s.extra.get("explain"),
             })
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),

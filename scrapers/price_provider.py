@@ -97,7 +97,8 @@ def _snapshot_futgenie(players: list[dict]) -> dict:
             if not price:
                 ko.append(p.get("name"))
                 continue
-            db.insert_snapshot(p["player_id"], price, ts, source="futgenie", conn=c)
+            db.insert_snapshot(p["player_id"], price, ts, source="futgenie", conn=c,
+                               trend_7d=getattr(fg, "trends", {}).get(str(p["player_id"])))
             ok += 1
     summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20], "source": "futgenie"}
     db.set_status("last_snapshot", summary)

@@ -185,10 +185,11 @@ def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
             cur = db.price_at(pid, now, conn=c)
             if not cur:
                 continue
+            st = db.price_stats(pid, days=7, conn=c)
             rows.append({
                 "name": p.get("name") or pid, "rating": p.get("rating") or "", "price": cur,
                 "d24": _pct(cur, db.price_at(pid, now - timedelta(hours=24), conn=c)),
-                "d12": _pct(cur, db.price_at(pid, now - timedelta(hours=12), conn=c)),
+                "avg": st.get("avg"), "vs": _pct(cur, st.get("avg")),
             })
     source = "futgenie, prix exacts" if config.PRICE_SOURCE == "futgenie" else "FUT.GG ±3 %"
     header = f"💰 PRIX — {_now_label()} · {len(rows)} joueurs ({source})"
@@ -197,7 +198,8 @@ def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
 
     def line(r: dict) -> str:
         arrow = "▲" if (r["d24"] or 0) >= 0.03 else "▼" if (r["d24"] or 0) <= -0.03 else "="
-        return f"{arrow} {r['name'][:15]:15} {str(r['rating']):>2} {fmt_price(r['price']):>6} {_fmt_pct(r['d24'])} {_fmt_pct(r['d12'])}"
+        return (f"{arrow} {r['name'][:13]:13} {str(r['rating']):>2} {fmt_price(r['price']):>6} "
+                f"{fmt_price(r['avg']) if r['avg'] else '-':>6} {_fmt_pct(r['d24'])} {_fmt_pct(r['vs'])}")
 
     known = [r for r in rows if r["d24"] is not None]
     ups = sorted([r for r in known if r["d24"] >= 0.03], key=lambda r: -r["d24"])[:5]
@@ -211,9 +213,10 @@ def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
     if downs:
         summary.append("🔴 Plus fortes baisses 24h : " + ", ".join(f"{r['name'][:14]} {r['d24'] * 100:+.0f}%" for r in downs))
     if not known:
-        summary.append("(variations disponibles après 12 à 24h de relevés)")
+        summary.append("(variations disponibles après 24h de relevés)")
+    summary.append("Moy7j = prix moyen sur 7 jours · vsMoy = prix actuel comparé à cette moyenne")
 
-    table_head = f"  {'Joueur':15} {'Nt':>2} {'Prix':>6} {'24h':>6} {'12h':>6}"
+    table_head = f"  {'Joueur':13} {'Nt':>2} {'Prix':>6} {'Moy7j':>6} {'24h':>6} {'vsMoy':>6}"
     rows.sort(key=lambda r: (r["d24"] is None, -(r["d24"] or 0)))
     messages, block = ["\n".join(summary)], [table_head]
     for r in rows:
@@ -293,6 +296,13 @@ def daily_summary(analyzer, watchlist: list[dict]) -> str:
         if flops:
             lines.append("🔴 Plus fortes baisses : " + ", ".join(f"{n[:16]} {fmt_price(pr)} ({ch * 100:+.0f}%)"
                                                               for n, pr, ch in flops))
+        solo = [r for r in rows if abs(r[2] - mood) >= 0.04]
+        if abs(mood) >= 0.03:
+            lines.append(f"📊 Le **marché entier** a bougé ({mood * 100:+.1f} %) : la plupart des variations viennent du "
+                         f"marché, pas des joueurs eux-mêmes. {len(solo)} joueur(s) ont un mouvement propre.")
+        elif solo:
+            lines.append(f"📊 Marché calme : {len(solo)} joueur(s) bougent **seuls** (écart de plus de 4 % avec le marché), "
+                         f"ce sont eux qu'il faut regarder.")
         crashes = [r for r in rows if r[2] <= config.INSTANT_CRASH_ALERT]
         if crashes:
             lines.append(f"⚡ {len(crashes)} crash(s) de plus de 15 % : "

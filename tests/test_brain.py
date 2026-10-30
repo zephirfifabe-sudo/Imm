@@ -86,3 +86,30 @@ def test_strong_instant_rule_keeps_direction(monkeypatch):
     monkeypatch.setattr(an, "habit", lambda *a, **k: {"score": 1.0, "confidence": 0.9, "deviation": 0.0, "text": ""})
     s = an.build_signal(db.get_player("demo-1"), "R1_CONCURRENCE", -0.85, "concurrent")
     assert s.action == "VENTE" and s.risk == "Élevé"
+
+
+def test_explain_move_cases():
+    from core.context import explain_move
+
+    general = explain_move(-0.10, -0.09, None)
+    assert "général du marché" in general
+    solo = explain_move(-0.12, -0.01, None)
+    assert "propre au joueur" in solo
+    dip = explain_move(-0.08, -0.01, 0.06)
+    assert "creux passager" in dip
+    fall = explain_move(-0.06, -0.01, -0.15)
+    assert "baissière" in fall
+    assert explain_move(None, 0.0, None) == ""
+
+
+def test_price_stats_and_alert_context():
+    from core.signals import format_alert
+
+    seed_demo(days=10)
+    st = db.price_stats("demo-1", days=7)
+    assert st["avg"] and st["min"] <= st["avg"] <= st["max"] and st["n"] >= 160
+    an = MarketAnalyzer(load_watchlist())
+    sig = next(s for s in an.full_scan() if s.player_id == "demo-2")
+    assert sig.extra["avg_7d"] and sig.extra["explain"]
+    txt = format_alert(sig)
+    assert "Moy. 7j" in txt and "Contexte" in txt and "propre au joueur" in txt  # Doué chute seul (-20 %)

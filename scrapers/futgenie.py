@@ -187,9 +187,12 @@ class FutGenie:
                        max_fiches: int = 40) -> dict[str, int]:
         """Prix actuels : relit les listes des fourchettes, puis la fiche des joueurs sortis des listes."""
         prices: dict[str, int] = {}
+        self.trends: dict[str, float] = {}  # tendance 7 jours affichée par futgenie sur chaque carte
         for lo, hi, quota in bands:
             for c in self.band_cards(lo, hi, quota + PAGE_SIZE):
                 prices[c["player_id"]] = c["price"]
+                if c.get("change_7d") is not None:
+                    self.trends[c["player_id"]] = c["change_7d"]
         missing = [p for p in players if str(p["player_id"]) not in prices and p.get("url")]
         for p in missing[:max_fiches]:
             try:

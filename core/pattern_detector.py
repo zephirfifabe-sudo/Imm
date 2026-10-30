@@ -218,7 +218,8 @@ def habit_assessment(price: float, s_live: pd.Series, rule: dict | None, now_loc
         parts.append(f"Remonte {rec * 100:+.1f}% d'ici Jeudi en moyenne")
     if not parts:
         parts.append(f"Écart vs habitude {res['deviation'] * 100:+.1f}%")
-    res["text"] = f"Habitude ({weeks * 7}j) : " + ". ".join(parts) + f". Confiance {conf * 100:.0f}%."
+    source = f"{weeks * 7}j" if weeks else "règles de départ, pas encore apprises"
+    res["text"] = f"Habitude ({source}) : " + ". ".join(parts) + f". Confiance {conf * 100:.0f}%."
     return res
 
 

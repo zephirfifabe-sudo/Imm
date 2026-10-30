@@ -62,8 +62,15 @@ def format_alert(s: Signal) -> str:
     if s.price:
         chg = f" ({s.change_24h * 100:+.0f}% / 24h)" if s.change_24h is not None else ""
         lines.append(f"Prix : {fmt_price(s.price)}{chg}")
+        x = s.extra or {}
+        if x.get("avg_7d"):
+            vs = f", actuel {x['vs_avg'] * 100:+.0f} % vs moyenne" if x.get("vs_avg") is not None else ""
+            lines.append(f"Moy. 7j : {fmt_price(x['avg_7d'])} (min {fmt_price(x.get('min_7d'))} – "
+                         f"max {fmt_price(x.get('max_7d'))}){vs}")
     if s.instant:
         lines.append(f"> Instantané : {s.instant}")
+    if (s.extra or {}).get("explain"):
+        lines.append(f"> Contexte : {s.extra['explain']}")
     if s.habit:
         lines.append(f"> {s.habit}")
     if s.action_text:
