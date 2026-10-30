@@ -176,6 +176,17 @@ def run_price_test(player_url: str = "https://www.fut.gg/players/1397-zinedine-z
         except Exception as e:  # noqa: BLE001
             print(f"  ❌ {str(e)[:200]}")
 
+        print("\n[TRANCHES] 3 tranches de prix autour de 50k (méthode de secours)")
+        from scrapers.price_buckets import bucket_bounds, range_url
+
+        for b_lo, b_hi in [b for b in bucket_bounds(19750, 450000, 1.06) if 45000 <= b[0] <= 60000][:3]:
+            try:
+                players = FutGGScraper(f).list_players(range_url(config.FUTGG_POPULAR_URL, b_lo, b_hi))
+                names = ", ".join(f"{p['name'][:14]} {p.get('rating')}" for p in players[:3])
+                print(f"  ✅ {b_lo}-{b_hi} : {len(players)} joueurs ({names})")
+            except Exception as e:  # noqa: BLE001
+                print(f"  ❌ {b_lo}-{b_hi} : {str(e)[:120]}")
+
         print("\n[PRIX ANALYSÉ] (méthode utilisée par le bot)")
         res = FutGGScraper(f).prices_via_browser(player_url)
         if res:

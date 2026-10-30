@@ -128,3 +128,25 @@ def test_with_page_keeps_filters():
     assert with_page(url, 1) == url
     assert with_page(url, 3) == url.replace("page=1", "page=3")
     assert with_page("https://www.fut.gg/players/", 2) == "https://www.fut.gg/players/?page=2"
+
+
+def test_bucket_prices(monkeypatch):
+    """FUT.GG simulé : chaque joueur n'apparaît que dans la tranche qui contient son vrai prix."""
+    from urllib.parse import parse_qsl, urlsplit
+
+    from scrapers import price_buckets
+    from scrapers.futgg import FutGGScraper
+
+    true_prices = {"a": 20500, "b": 67500, "c": 449000}
+    monkeypatch.setattr(price_buckets, "_CACHE", {"at": 0.0, "prices": {}})
+
+    def fake_list(self, url):
+        q = dict(parse_qsl(urlsplit(url).query))
+        lo, hi = int(q["price__gte"]), int(q["price__lte"])
+        return [{"player_id": pid, "name": pid} for pid, pr in true_prices.items() if lo <= pr <= hi]
+
+    monkeypatch.setattr(FutGGScraper, "list_players", fake_list)
+    res = price_buckets.bucket_prices(fetcher=None, wanted=set(true_prices))
+    for pid, pr in true_prices.items():
+        assert res[pid]["min"] <= pr <= res[pid]["max"]
+        assert abs(res[pid]["price"] - pr) / pr < 0.035  # ±3 %

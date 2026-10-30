@@ -43,8 +43,20 @@ def snapshot_watchlist(players: list[dict], fetcher: Fetcher | None = None) -> d
     ts = utcnow().replace(minute=0, second=0, microsecond=0)  # aligné à l'heure -> séries propres
     ok, ko = 0, []
     try:
+        # 1) prix par tranches (une passe pour toute la watchlist) ; 2) méthode par joueur seulement
+        #    si les tranches n'ont rien donné (sinon chaque joueur manquant coûterait ~10 s pour rien)
+        from scrapers.price_buckets import bucket_prices
+
+        buckets = bucket_prices(fetcher, wanted={str(p["player_id"]) for p in players})
         for p in players:
-            res = provider.get_price(p)
+            b = buckets.get(str(p["player_id"]))
+            if b:
+                res = {"price": b["price"], "min_24h": None, "max_24h": None, "volume": None,
+                       "history": [], "source": "futgg-tranches"}
+            elif buckets:
+                res = None
+            else:
+                res = provider.get_price(p)
             if not res or not res.get("price"):
                 ko.append(p.get("name"))
                 continue

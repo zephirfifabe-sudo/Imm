@@ -20,10 +20,13 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
     try:
         futgg = FutGGScraper(fetcher)
         provider = PriceProvider(fetcher)
-        candidates = futgg.popular_players()[:max_candidates]
+        candidates = futgg.popular_players(pages=6)[:max_candidates]
         if not candidates:
             log.error("Aucun joueur populaire récupéré -> watchlist conservée")
             return load_watchlist()
+        from scrapers.price_buckets import bucket_prices
+
+        buckets = bucket_prices(fetcher, wanted={c["player_id"] for c in candidates})
         selected: list[dict] = []
         for rank, p in enumerate(candidates, 1):
             if len(selected) >= config.WATCHLIST_SIZE:
@@ -33,8 +36,8 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
                 d = futgg.player_definition(p["player_id"])
                 if d:
                     p = {**p, **{k: v for k, v in d.items() if v not in (None, "", [], "?")}}
-            price = p.get("price")
-            if not price:
+            price = p.get("price") or (buckets.get(p["player_id"]) or {}).get("price")
+            if not price and not buckets:
                 res = provider.get_price(p)
                 price = res["price"] if res else None
             # la page FUT.GG choisie fixe déjà la fourchette de prix : elle fait foi
