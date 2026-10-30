@@ -108,3 +108,13 @@ def test_futgg_real_definition_format():
     assert p["playstyles"] == []
     unknown = player_from_dict({**d, "rarityEaId": 185, "leagueEaId": 999})
     assert unknown["card_type"] == "Rareté #185" and unknown["league"] == "Ligue #999"
+
+
+def test_price_from_rendered_html():
+    from scrapers.futgg import price_from_rendered_html
+
+    html = '<div class="flex"><span class="PlayerPrice_value">1.25M</span><img alt="coin"></div>'
+    assert price_from_rendered_html(html)["price"] == 1_250_000
+    html2 = '<div class="font-bold text-price">67,500</div>'
+    assert price_from_rendered_html(html2)["price"] == 67500
+    assert price_from_rendered_html("<div class='rating'>87</div>") is None

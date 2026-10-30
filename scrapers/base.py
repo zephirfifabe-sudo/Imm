@@ -271,11 +271,18 @@ class Fetcher:
         for ck in self._context.cookies():
             self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""), path=ck.get("path", "/"))
 
-    def _flaresolverr_get(self, url: str, expect: str) -> FetchResult:
+    def flaresolverr_render(self, url: str, wait_s: int = 6) -> FetchResult:
+        """Page rendue par le navigateur de FlareSolverr, après `wait_s` s (contenu chargé en JavaScript)."""
+        self._throttle(urlparse(url).netloc)
+        return self._flaresolverr_get(url, "html", wait_s=wait_s)
+
+    def _flaresolverr_get(self, url: str, expect: str, wait_s: int = 0) -> FetchResult:
         payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
+        if wait_s:
+            payload["waitInSeconds"] = wait_s  # FlareSolverr >= 3.3 : attend le contenu dynamique
         if config.PROXY_URL:
             payload["proxy"] = {"url": config.PROXY_URL}
-        r = httpx.post(config.FLARESOLVERR_URL, json=payload, timeout=90)
+        r = httpx.post(config.FLARESOLVERR_URL, json=payload, timeout=90 + wait_s)
         try:
             body = r.json()
         except ValueError:

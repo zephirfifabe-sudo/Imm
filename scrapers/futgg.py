@@ -26,6 +26,9 @@ class FutGGScraper:
         self.year = year or config.GAME_YEAR
         self.base = (base or config.FUTGG_BASE).rstrip("/")
         self.api_blocked = False
+        self.capture_blocked = False
+        self.render_blocked = False
+        self.render_failures = 0
 
     # ------------------------------------------------------------ listes
     def list_players(self, url: str) -> list[dict]:
@@ -107,12 +110,30 @@ class FutGGScraper:
         return None
 
     def prices_via_browser(self, page_url: str) -> dict | None:
-        """Chromium ouvre la page joueur ; on intercepte la réponse de l'API prix que le site appelle lui-même."""
+        """Prix chargé en JavaScript par la page joueur.
+
+        1) Page rendue par FlareSolverr (son navigateur passe Cloudflare) -> prix lu dans la page affichée.
+        2) Sinon Chromium + laissez-passer : interception de l'API prix appelée par la page.
+        """
+        if not self.render_blocked:
+            try:
+                res = self.f.flaresolverr_render(page_url, wait_s=6)
+                parsed = price_from_rendered_html(res.text)
+                if parsed:
+                    return parsed
+            except Exception as e:  # noqa: BLE001
+                log.warning("Rendu FlareSolverr KO %s : %s", page_url, str(e)[:120])
+                self.render_failures += 1
+                self.render_blocked = self.render_failures >= 3
+        if self.capture_blocked:
+            return None
         try:
             cap = self.f.capture_api(page_url, stop_on="player-prices")
         except Exception as e:  # noqa: BLE001
             log.warning("Capture prix KO %s : %s", page_url, str(e)[:120])
             return None
+        if cap["blocked"]:  # Chromium piloté reconnu par Cloudflare : inutile de réessayer pendant ce job
+            self.capture_blocked = True
         for api_url, (status, body) in cap["api"].items():
             if "price" in api_url and status == 200 and body:
                 parsed = self.parse_prices_payload(body)
@@ -189,3 +210,30 @@ def _to_iso(ts) -> str | None:
         return iso(dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc))
     except (ValueError, OSError):
         return None
+
+
+def price_from_rendered_html(html: str) -> dict | None:
+    """Prix affiché dans une page joueur rendue (après exécution du JavaScript).
+
+    1) JSON hydraté contenant currentPrice/liveAuctions ; 2) éléments dont la classe contient « price ».
+    """
+    from bs4 import BeautifulSoup
+
+    from scrapers.parsing import iter_json_blobs
+
+    for blob in iter_json_blobs(html):
+        for d in walk_dicts(blob):
+            if "currentPrice" in d or "liveAuctions" in d:
+                parsed = FutGGScraper.parse_prices_payload(d)
+                if parsed:
+                    parsed["source"] = "futgg-rendu"
+                    return parsed
+    soup = BeautifulSoup(html, "html.parser")
+    for el in soup.select("[class*='price' i], [data-testid*='price' i], [id*='price' i]"):
+        txt = el.get_text(" ", strip=True)
+        for tok in txt.replace("\xa0", " ").split():
+            p = parse_price(tok)
+            if p and 200 <= p <= 15_000_000:
+                return {"price": p, "min_24h": None, "max_24h": None, "volume": None, "history": [],
+                        "source": "futgg-rendu"}
+    return None

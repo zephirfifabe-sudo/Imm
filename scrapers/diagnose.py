@@ -147,33 +147,38 @@ def run_inspect(player_url: str = "https://www.fut.gg/players/1397-zinedine-zida
 
 
 def run_price_test(player_url: str = "https://www.fut.gg/players/1397-zinedine-zidane/27-1397/") -> None:
-    """Teste la capture des prix via Chromium + laissez-passer FlareSolverr, et liste les API appelées par FUT.GG."""
-    from urllib.parse import urlparse as _up
-
-    from scrapers.futgg import FutGGScraper
+    """Teste les façons de lire le prix d'une carte depuis le serveur."""
+    from scrapers.futgg import FutGGScraper, price_from_rendered_html
 
     if not config.FLARESOLVERR_URL:
         print("❌ FLARESOLVERR_URL absent du .env")
         return
+    out_dir = config.DATA_DIR / "debug"
+    out_dir.mkdir(parents=True, exist_ok=True)
     with Fetcher(min_delay=1.0) as f:
         f.max_host_failures = 99
-        for name, url in (("FICHE ZIDANE", player_url), ("LISTE JOUEURS", config.FUTGG_BASE + "/players/")):
-            print(f"\n[{name}]")
-            try:
-                cap = f.capture_api(url, stop_on="player-prices" if "FICHE" in name else None, wait_s=12)
-            except Exception as e:  # noqa: BLE001
-                print(f"  ❌ {str(e)[:200]}")
-                continue
-            print(f"  page http={cap['status']} bloquée={'OUI' if cap['blocked'] else 'non'} titre={cap['title'][:35]}")
-            print(f"  {len(cap['api'])} appels API vus :")
-            for u, (st, body) in list(cap["api"].items())[:15]:
-                d = body.get("data", body) if isinstance(body, dict) else body
-                keys = list(d)[:6] if isinstance(d, dict) else (f"liste[{len(d)}]" if isinstance(d, list) else "-")
-                pu = _up(u)
-                print(f"  {st} {(pu.path + ('?' + pu.query if pu.query else ''))[:60]} {keys}")
-        print("\n[PRIX ANALYSÉ]")
+        print("[RENDU FLARESOLVERR] page Zidane + 8 s d'attente")
+        try:
+            res = f.flaresolverr_render(player_url, wait_s=8)
+            html = res.text
+            (out_dir / "fiche_rendu.html").write_text(html, encoding="utf-8")
+            print(f"  http={res.status} taille={len(html) // 1024}Ko titre={_title(html)}")
+            soup = BeautifulSoup(html, "html.parser")
+            els = soup.select("[class*='price' i], [data-testid*='price' i]")
+            print(f"  éléments 'price' : {len(els)}")
+            for el in els[:6]:
+                cls = " ".join(el.get("class", []))[:30]
+                print(f"   · [{cls}] {el.get_text(' ', strip=True)[:40]}")
+            txt = soup.get_text(" ", strip=True)
+            nums = re.findall(r"\b\d{1,3}(?:[,.\s]\d{3})+\b|\b\d+(?:[.,]\d)?\s?[KkMm]\b", txt)
+            print(f"  nombres type prix dans le texte : {nums[:10]}")
+            print(f"  -> prix détecté : {price_from_rendered_html(html)}")
+        except Exception as e:  # noqa: BLE001
+            print(f"  ❌ {str(e)[:200]}")
+
+        print("\n[PRIX ANALYSÉ] (méthode utilisée par le bot)")
         res = FutGGScraper(f).prices_via_browser(player_url)
         if res:
-            print(f"  ✅ prix={res['price']} min24h={res['min_24h']} max24h={res['max_24h']} historique={len(res['history'])} points")
+            print(f"  ✅ prix={res['price']} source={res['source']} historique={len(res['history'])} points")
         else:
             print("  ❌ aucun prix lisible")
