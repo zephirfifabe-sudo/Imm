@@ -97,7 +97,7 @@ def api_players():
             return _cache["players"][1]
         wl = load_watchlist()
         an = MarketAnalyzer(wl)
-        rows = []
+        rows, scans = [], db.last_scan_times()
         for s in an.full_scan():
             rows.append({
                 "player_id": s.player_id, "name": s.player_name, "rating": s.rating, "position": s.position,
@@ -107,10 +107,12 @@ def api_players():
                 "habit": s.habit, "action_text": s.action_text,
                 "avg_7d": s.extra.get("avg_7d"), "min_7d": s.extra.get("min_7d"), "max_7d": s.extra.get("max_7d"),
                 "vs_avg": s.extra.get("vs_avg"), "trend_7d": s.extra.get("trend_7d"), "explain": s.extra.get("explain"),
+                "scanned_at": scans.get(s.player_id),
             })
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),
-                  "rarity": classify(p.get("card_type")), "price": p.get("price"), "action": "?", "confidence": None}
+                  "rarity": classify(p.get("card_type")), "price": p.get("price"), "action": "?", "confidence": None,
+                  "scanned_at": scans.get(p["player_id"])}
                  for p in wl if p["player_id"] not in known]
         _cache["players"] = (time.time(), rows)
         return rows

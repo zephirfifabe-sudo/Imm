@@ -249,6 +249,12 @@ def latest_prices() -> dict[str, dict]:
         return {r["player_id"]: dict(r) for r in c.execute(sql).fetchall()}
 
 
+def last_scan_times() -> dict[str, str]:
+    """{player_id: timestamp du dernier prix relevé}."""
+    with get_conn() as c:
+        return {r[0]: r[1] for r in c.execute("SELECT player_id, MAX(timestamp) FROM price_snapshots GROUP BY player_id")}
+
+
 def price_at(player_id: str, ts: datetime, conn: sqlite3.Connection | None = None) -> int | None:
     """Dernier prix connu à/avant `ts`."""
     sql = "SELECT price FROM price_snapshots WHERE player_id=? AND timestamp<=? ORDER BY timestamp DESC LIMIT 1"

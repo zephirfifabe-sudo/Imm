@@ -115,6 +115,12 @@ function ago(iso) {
   return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m/60)} h` : `il y a ${Math.round(m/1440)} j`;
 }
 
+// vert < 2 h, orange < 6 h, rouge au-delà (prix qui n'est plus relevé)
+function scanColor(iso) {
+  const h = iso ? (Date.now() - new Date(iso)) / 3600000 : Infinity;
+  return h < 2 ? "text-emerald-400/80" : h < 6 ? "text-amber-400" : "text-rose-400";
+}
+
 async function loadStatus() {
   const s = await get("/api/status");
   const pill = document.getElementById("pill");
@@ -139,6 +145,7 @@ function renderRows() {
       <div class="col-span-7 md:col-span-4 min-w-0">
         <p class="font-medium truncate">${esc(p.name)} <span class="text-slate-400">${esc(p.rating ?? "")}</span></p>
         <p class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">${rarityBadge(p.rarity)}<span>${esc(p.position ?? "")}</span><span class="truncate">· ${esc(p.rule ?? "")}</span></p>
+        <p class="text-[10px] mt-0.5 ${scanColor(p.scanned_at)}">🕒 scanné ${ago(p.scanned_at)}</p>
       </div>
       <div class="col-span-5 md:col-span-2 text-right num font-semibold">${k(p.price)}
         ${p.avg_7d ? `<span class="block text-[11px] font-normal text-slate-500">moy. 7j ${k(p.avg_7d)}</span>` : ""}
@@ -168,7 +175,7 @@ async function loadAlerts() {
 async function openChart(id) {
   const p = players.find(x => x.player_id === id) || {};
   document.getElementById("m-title").innerHTML = `${esc(p.name || id)} ${esc(p.rating || "")} ${rarityBadge(p.rarity, true)}`;
-  document.getElementById("m-sub").textContent = `${k(p.price)} · ${pct(p.change_24h)} / 24h · ${p.action || ""}`;
+  document.getElementById("m-sub").textContent = `${k(p.price)} · ${pct(p.change_24h)} / 24h · ${p.action || ""} · scanné ${ago(p.scanned_at)}`;
   const bold = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100">$1</strong>');
   document.getElementById("m-detail").innerHTML = [
     p.avg_7d && `<p>📊 Moy. 7j : <strong class="text-slate-100">${k(p.avg_7d)}</strong> (min ${k(p.min_7d)} – max ${k(p.max_7d)}) · actuel <span class="${color(p.vs_avg)}">${pct(p.vs_avg)}</span> vs moyenne · tendance 7j <span class="${color(p.trend_7d)}">${pct(p.trend_7d)}</span></p>`,
