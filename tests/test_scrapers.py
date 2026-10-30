@@ -168,4 +168,4 @@ def test_bucket_boundary_player(monkeypatch):
         return [{"player_id": "k", "name": "k"}] if lo <= edge <= hi + 1 else []
 
     monkeypatch.setattr(FutGGScraper, "list_players", fake_list)
-    assert price_buckets.bucket_prices(fetcher=None, wanted={"k"})["k"]["price"] == edge
+    assert price_buckets.bucket_prices(fetcher=None)["k"]["price"] == edge
