@@ -186,3 +186,16 @@ def test_select_by_bands_balanced():
     # tour de table : toutes les tranches 20k-100k sont représentées, avec d'abord les mieux notés
     assert len({p["price"] for p in cheap}) >= 25
     assert all(p["bucket_rank"] <= 5 for p in cheap)
+
+
+def test_next_flight_players():
+    """Next.js App Router (futgenie.gg) : données dans self.__next_f.push, découpées en plusieurs blocs."""
+    import json
+
+    rows = ('1:["$","div",null,{"children":"x"}]\n'
+            '2:{"players":[{"id":231747,"name":"Kylian Mbappé","rating":91,"position":"ST","price":245000}]}\n')
+    html = ("<script>self.__next_f.push([0])</script>"
+            f"<script>self.__next_f.push([1,{json.dumps(rows[:30])}])</script>"
+            f"<script>self.__next_f.push([1,{json.dumps(rows[30:])}])</script>")
+    p = extract_players(html, "https://www.futgenie.gg")[0]
+    assert (p["player_id"], p["name"], p["rating"], p["price"]) == ("231747", "Kylian Mbappé", 91, 245000)

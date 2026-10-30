@@ -284,3 +284,50 @@ def run_futmind_test() -> None:
                 print(f"   « …{text[max(0, m.start() - 35):m.end() + 35]}… »")
             cls = sorted({c for el in soup.select("[class*='price' i]") for c in el.get("class", [])})[:8]
             print(f"  classes 'price' : {cls}")
+
+
+FUTGENIE_URL = ("https://www.futgenie.gg/players?f=%7B%22sort%22%3A%22grade-desc%22%2C%22minPrice%22%3A20000"
+                "%2C%22maxPrice%22%3A250000%7D")
+
+
+def run_futgenie_test(url: str = FUTGENIE_URL) -> None:
+    """futgenie.gg (Next.js, robots.txt autorise /players) : structure des données joueurs. Accès normal uniquement."""
+    from scrapers.parsing import next_flight_blobs, next_flight_text, walk_dicts
+
+    out_dir = config.DATA_DIR / "debug"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with Fetcher(mode="httpx", min_delay=2.0) as f:
+        f.ignore_backoff = True
+        try:
+            r = f.get(url, retries=0)
+        except Exception as e:  # noqa: BLE001
+            print(f"❌ {str(e)[:200]}")
+            return
+    html = r.text
+    (out_dir / "futgenie.html").write_text(html, encoding="utf-8")
+    flight = next_flight_text(html)
+    blobs = list(next_flight_blobs(html))
+    print(f"page http={r.status} {len(html) // 1024}Ko | données Next.js : {len(flight) // 1024}Ko, {len(blobs)} blocs JSON")
+    players = extract_players(html, "https://www.futgenie.gg")
+    print(f"joueurs reconnus : {len(players)}")
+    for p in players[:5]:
+        print(f"  -> {p['name'][:18]} {p.get('rating')} {p.get('position')} prix={p.get('price')} rareté={p.get('card_type')}")
+    shown = 0
+    for blob in blobs:
+        for d in walk_dicts(blob):
+            if any("price" in str(k).lower() for k in d) and len(d) > 3:
+                print(f"  dict: {_short(d)}"[:420])
+                shown += 1
+                break
+        if shown >= 2:
+            break
+    if not shown:
+        i = flight.lower().find("price")
+        for _ in range(3):
+            if i < 0:
+                break
+            print("  extrait:", flight[max(0, i - 160):i + 60].replace("\n", " "))
+            i = flight.lower().find("price", i + 400)
+    soup = BeautifulSoup(html, "html.parser")
+    hrefs = [a["href"] for a in soup.find_all("a", href=True) if "player" in a["href"] and "?f=" not in a["href"]]
+    print(f"liens fiches joueurs : {hrefs[:4]}")

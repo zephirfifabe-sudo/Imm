@@ -77,6 +77,33 @@ def iter_json_blobs(html: str) -> Iterator[Any]:
                         yield json.loads(blob)
                     except ValueError:
                         pass
+    if "self.__next_f" in html:
+        yield from next_flight_blobs(html)
+
+
+NEXT_F_RE = re.compile(r'self\.__next_f\.push\(\[\s*1\s*,\s*("(?:[^"\\]|\\.)*")\s*\]\)', re.S)
+RSC_ROW_RE = re.compile(r"^[0-9a-zA-Z]+:([\[{].*)$", re.M)
+
+
+def next_flight_text(html: str) -> str:
+    """Next.js (App Router) : les données de la page sont dans des blocs self.__next_f.push([1, "..."])."""
+    parts = []
+    for m in NEXT_F_RE.finditer(html):
+        try:
+            parts.append(json.loads(m.group(1)))
+        except ValueError:
+            continue
+    return "".join(parts)
+
+
+def next_flight_blobs(html: str) -> Iterator[Any]:
+    """Chaque ligne « id:[...] » ou « id:{...} » du flux Next.js est du JSON."""
+    text = next_flight_text(html)
+    for m in RSC_ROW_RE.finditer(text):
+        try:
+            yield json.loads(m.group(1))
+        except ValueError:
+            continue
 
 
 def walk_dicts(obj: Any, depth: int = 0) -> Iterator[dict]:
