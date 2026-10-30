@@ -22,6 +22,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         ok = "cf_clearance=ok" in (self.headers.get("Cookie") or "")
         body = REAL if ok else CHALLENGE
+        if ok and self.path.startswith("/api/"):
+            body = b'{"data": {"currentPrice": {"price": 67500}}}'
+        elif ok and self.path == "/page-with-api":
+            body = b"<html><body><script>fetch('/api/fut/player-prices/27/1/')</script></body></html>"
         self.send_response(200 if ok else 403)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(body)))
@@ -76,3 +80,20 @@ def test_proxy_and_title_helpers():
     assert playwright_proxy("http://u:p@1.2.3.4:8080") == {"server": "http://1.2.3.4:8080", "username": "u", "password": "p"}
     assert playwright_proxy("http://1.2.3.4:8080") == {"server": "http://1.2.3.4:8080"}
     assert page_title("<html><title>Just a moment...</title></html>") == "Just a moment..."
+
+
+def test_capture_api_intercepts_site_calls(server):
+    """La page appelle elle-même une API : Chromium récupère la réponse JSON au passage."""
+    pytest.importorskip("playwright")
+    import config
+
+    with Fetcher(mode="auto", min_delay=0) as f:
+        f._fs_cookies = [{"name": "cf_clearance", "value": "ok", "domain": "127.0.0.1", "path": "/"}]
+        try:
+            cap = f.capture_api(server + "/page-with-api", stop_on="player-prices", wait_s=5)
+        except Exception as e:  # noqa: BLE001
+            if "Executable doesn't exist" in str(e) or "playwright install" in str(e):
+                pytest.skip("Chromium non installé")
+            raise
+        hits = [(st, body) for u, (st, body) in cap["api"].items() if "player-prices" in u]
+        assert hits and hits[0][0] == 200 and hits[0][1]["data"]["currentPrice"]["price"] == 67500

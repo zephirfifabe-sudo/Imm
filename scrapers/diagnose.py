@@ -144,3 +144,36 @@ def run_inspect(player_url: str = "https://www.fut.gg/players/1397-zinedine-zida
             txt = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
             hits = re.findall(r".{0,30}\d[\d,.]*\s?[KkMm]\b.{0,20}", txt)[:6]
             print("  aucun prix dans le JSON ; extraits de texte :", hits)
+
+
+def run_price_test(player_url: str = "https://www.fut.gg/players/1397-zinedine-zidane/27-1397/") -> None:
+    """Teste la capture des prix via Chromium + laissez-passer FlareSolverr, et liste les API appelées par FUT.GG."""
+    from urllib.parse import urlparse as _up
+
+    from scrapers.futgg import FutGGScraper
+
+    if not config.FLARESOLVERR_URL:
+        print("❌ FLARESOLVERR_URL absent du .env")
+        return
+    with Fetcher(min_delay=1.0) as f:
+        f.max_host_failures = 99
+        for name, url in (("FICHE ZIDANE", player_url), ("LISTE JOUEURS", config.FUTGG_BASE + "/players/")):
+            print(f"\n[{name}]")
+            try:
+                cap = f.capture_api(url, stop_on="player-prices" if "FICHE" in name else None, wait_s=12)
+            except Exception as e:  # noqa: BLE001
+                print(f"  ❌ {str(e)[:200]}")
+                continue
+            print(f"  page http={cap['status']} bloquée={'OUI' if cap['blocked'] else 'non'} titre={cap['title'][:35]}")
+            print(f"  {len(cap['api'])} appels API vus :")
+            for u, (st, body) in list(cap["api"].items())[:15]:
+                d = body.get("data", body) if isinstance(body, dict) else body
+                keys = list(d)[:6] if isinstance(d, dict) else (f"liste[{len(d)}]" if isinstance(d, list) else "-")
+                pu = _up(u)
+                print(f"  {st} {(pu.path + ('?' + pu.query if pu.query else ''))[:60]} {keys}")
+        print("\n[PRIX ANALYSÉ]")
+        res = FutGGScraper(f).prices_via_browser(player_url)
+        if res:
+            print(f"  ✅ prix={res['price']} min24h={res['min_24h']} max24h={res['max_24h']} historique={len(res['history'])} points")
+        else:
+            print("  ❌ aucun prix lisible")

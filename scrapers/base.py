@@ -87,6 +87,9 @@ class Fetcher:
         self.client = httpx.Client(headers=self.headers, follow_redirects=True, timeout=timeout,
                                    proxy=config.PROXY_URL or None)
         self.pw_failed_hosts: set[str] = set()  # Chromium bloqué -> ne plus perdre 30 s par page
+        self._fs_cookies: list[dict] = []  # "laissez-passer" Cloudflare obtenu par FlareSolverr
+        self._fs_ua: str | None = None
+        self._cap_ctx = None
         self._last_hit: dict[str, float] = {}
         self._lock = threading.Lock()
         self._pw = None
@@ -109,7 +112,7 @@ class Fetcher:
             self.client.close()
         except Exception:  # noqa: BLE001
             pass
-        for obj in (self._context, self._browser):
+        for obj in (self._cap_ctx, self._context, self._browser):
             try:
                 if obj is not None:
                     obj.close()
@@ -120,7 +123,7 @@ class Fetcher:
                 self._pw.stop()
             except Exception:  # noqa: BLE001
                 pass
-        self._pw = self._browser = self._context = None
+        self._pw = self._browser = self._context = self._cap_ctx = None
 
     # ------------------------------------------------------------------ public API
     def get(self, url: str, expect: str = "html", retries: int = 2) -> FetchResult:
@@ -282,6 +285,9 @@ class Fetcher:
         if body.get("status") != "ok":
             raise FetchError(f"FlareSolverr : {body.get('message', '?')[:150]}")
         sol = body.get("solution") or {}
+        if sol.get("cookies"):
+            self._fs_cookies, self._fs_ua = sol["cookies"], sol.get("userAgent")
+            self._cap_ctx = None  # le prochain capture_api repartira avec les nouveaux cookies
         for ck in sol.get("cookies", []):
             self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""))
         # cf_clearance est lié au User-Agent du navigateur qui a passé le challenge
@@ -296,3 +302,68 @@ class Fetcher:
             text = BeautifulSoup(text, "html.parser").get_text()
         log.info("FlareSolverr OK %s", url)
         return FetchResult(url, int(sol.get("status", 200)), text, "flaresolverr")
+
+    # ------------------------------------------------------------------ capture des API (prix)
+    def _ensure_capture_context(self):
+        """Chromium avec le User-Agent + cookies de FlareSolverr : il passe Cloudflare comme un visiteur."""
+        if self._cap_ctx is not None:
+            return self._cap_ctx
+        self._ensure_browser()
+        ctx = self._browser.new_context(user_agent=self._fs_ua or config.USER_AGENT, locale="fr-FR",
+                                        timezone_id=config.TZ, viewport={"width": 1366, "height": 900})
+        ctx.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined});")
+        if self._fs_cookies:
+            ctx.add_cookies(pw_cookies(self._fs_cookies))
+        self._cap_ctx = ctx
+        return ctx
+
+    def capture_api(self, page_url: str, stop_on: str | None = None, wait_s: float = 15.0) -> dict:
+        """Ouvre la page dans Chromium et récupère les réponses JSON des appels /api/ faits par le site.
+
+        Sert quand une API (ex: prix FUT.GG) refuse les requêtes directes mais accepte celles
+        de sa propre page, chargée par un vrai navigateur.
+        """
+        if not self._fs_cookies and config.FLARESOLVERR_URL:
+            self._flaresolverr_get(page_url, "html")
+        self._throttle(urlparse(page_url).netloc)
+        page = self._ensure_capture_context().new_page()
+        responses = []
+        page.on("response", lambda r: responses.append(r) if "/api/" in r.url else None)
+        try:
+            resp = page.goto(page_url, wait_until="domcontentloaded", timeout=60000)
+            deadline = time.time() + wait_s
+            while time.time() < deadline:
+                if stop_on and any(stop_on in r.url for r in responses):
+                    page.wait_for_timeout(500)
+                    break
+                page.wait_for_timeout(500)
+            html = page.content()
+            status = resp.status if resp else 0
+            api = {}
+            for r in responses:
+                try:
+                    body = r.json()
+                except Exception:  # noqa: BLE001
+                    body = None
+                api[r.url] = (r.status, body)
+        finally:
+            page.close()
+        return {"status": status, "blocked": looks_blocked(status, html), "title": page_title(html), "api": api}
+
+
+def pw_cookies(fs_cookies: list[dict]) -> list[dict]:
+    """Cookies FlareSolverr (Selenium) -> format Playwright."""
+    out = []
+    for c in fs_cookies:
+        ck = {"name": c["name"], "value": c["value"], "domain": c.get("domain", ""), "path": c.get("path", "/")}
+        if c.get("expiry") or c.get("expires"):
+            try:
+                ck["expires"] = float(c.get("expiry") or c.get("expires"))
+            except (TypeError, ValueError):
+                pass
+        ck["httpOnly"] = bool(c.get("httpOnly"))
+        ck["secure"] = bool(c.get("secure"))
+        if str(c.get("sameSite", "")).capitalize() in ("Strict", "Lax", "None"):
+            ck["sameSite"] = str(c["sameSite"]).capitalize()
+        out.append(ck)
+    return out

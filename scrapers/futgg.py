@@ -25,6 +25,7 @@ class FutGGScraper:
         self.f = fetcher
         self.year = year or config.GAME_YEAR
         self.base = (base or config.FUTGG_BASE).rstrip("/")
+        self.api_blocked = False
 
     # ------------------------------------------------------------ listes
     def list_players(self, url: str) -> list[dict]:
@@ -34,9 +35,21 @@ class FutGGScraper:
         return players
 
     def popular_players(self, pages: int = 4) -> list[dict]:
+        out = self._popular_from(config.FUTGG_POPULAR_URL, pages)
+        if out:
+            return out
+        # URL bloquée (cas observé : les URLs avec ?sorts= sont plus protégées) -> pages qui passent
+        for path in ("/players/", "/players/in-packs/", "/players/best/"):
+            log.warning("Liste populaire indisponible -> repli sur %s", path)
+            out = self._popular_from(self.base + path, pages)
+            if out:
+                return out
+        return []
+
+    def _popular_from(self, base_url: str, pages: int) -> list[dict]:
         out, seen = [], set()
         for page in range(1, pages + 1):
-            url = config.FUTGG_POPULAR_URL
+            url = base_url
             if page > 1:
                 url += ("&" if "?" in url else "?") + f"page={page}"
             try:
@@ -75,15 +88,37 @@ class FutGGScraper:
         """Renvoie {price, min_24h, max_24h, volume, history:[(iso,price)], source}."""
         url = f"{self.base}/api/fut/player-prices/{self.year}/{ea_id}/"
         data = None
-        try:
-            data = self.f.get_json(url)
-        except (FetchError, ValueError) as e:
-            log.debug("prices API KO %s : %s", ea_id, e)
+        if not self.api_blocked:
+            try:
+                data = self.f.get_json(url, retries=0)
+            except (FetchError, ValueError) as e:
+                # API protégée (cas observé sur VPS) : on ne la retente plus pendant ce job
+                log.info("API prix FUT.GG bloquée (%s) -> capture via la page joueur", str(e)[:80])
+                self.api_blocked = True
         parsed = self.parse_prices_payload(data) if data else None
         if parsed and parsed.get("price"):
             return parsed
+        if page_url and config.FLARESOLVERR_URL:
+            parsed = self.prices_via_browser(page_url)
+            if parsed:
+                return parsed
         if page_url:
             return self.prices_from_page(page_url, ea_id)
+        return None
+
+    def prices_via_browser(self, page_url: str) -> dict | None:
+        """Chromium ouvre la page joueur ; on intercepte la réponse de l'API prix que le site appelle lui-même."""
+        try:
+            cap = self.f.capture_api(page_url, stop_on="player-prices")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Capture prix KO %s : %s", page_url, str(e)[:120])
+            return None
+        for api_url, (status, body) in cap["api"].items():
+            if "price" in api_url and status == 200 and body:
+                parsed = self.parse_prices_payload(body)
+                if parsed:
+                    parsed["source"] = "futgg-browser"
+                    return parsed
         return None
 
     @staticmethod
