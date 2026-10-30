@@ -70,8 +70,29 @@ def test_circuit_breaker():
         for _ in range(3):
             with pytest.raises(FetchError):
                 f.get("http://127.0.0.1:9/x", retries=0)
-        with pytest.raises(FetchError, match="coupe-circuit"):
+        with pytest.raises(FetchError, match="pause anti-blocage"):
             f.get("http://127.0.0.1:9/y", retries=0)
+    # la pause survit au job suivant (nouveau Fetcher) : on ne martèle pas un site qui nous bloque
+    with Fetcher(mode="httpx", min_delay=0) as f2:
+        with pytest.raises(FetchError, match="pause anti-blocage"):
+            f2.get("http://127.0.0.1:9/z", retries=0)
+
+
+def test_backoff_levels_and_session(tmp_data):
+    import json
+    import time
+
+    from scrapers import base
+
+    t1 = base.register_block("x.test")
+    t2 = base.register_block("x.test")
+    assert 3500 < t1 - time.time() < 3700 and 7100 < t2 - time.time() < 7300  # 1h puis 2h
+    base.clear_block("x.test")
+    assert base.blocked_until("x.test") is None
+    base.SESSION_FILE().write_text(json.dumps({"at": time.time(), "ua": "UA-FS",
+                                                "cookies": [{"name": "cf_clearance", "value": "v", "domain": ".fut.gg"}]}))
+    with Fetcher(mode="httpx", min_delay=0) as f:
+        assert f.client.headers["User-Agent"] == "UA-FS" and f._fs_cookies
 
 
 def test_proxy_and_title_helpers():

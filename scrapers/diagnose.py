@@ -55,6 +55,7 @@ def run_diagnose() -> None:
     print(f"=== DIAGNOSTIC (année {config.GAME_YEAR}, mode {config.FETCH_MODE}) ===")
     with Fetcher(min_delay=1.0) as f:
         f.max_host_failures = 99  # le diagnostic doit tester toutes les pages
+        f.ignore_backoff = True
         pages = {
             "accueil": config.FUTGG_BASE + "/",
             "watchlist": config.FUTGG_POPULAR_URL,
@@ -126,6 +127,7 @@ def run_inspect(player_url: str = "https://www.fut.gg/players/1397-zinedine-zida
         print("joueurs.html absent : lance d'abord `python main.py diagnose`")
     with Fetcher(min_delay=1.0) as f:
         f.max_host_failures = 99
+        f.ignore_backoff = True
         try:
             r = f.get(player_url, retries=1)
         except Exception as e:  # noqa: BLE001
@@ -157,6 +159,7 @@ def run_price_test(player_url: str = "https://www.fut.gg/players/1397-zinedine-z
     out_dir.mkdir(parents=True, exist_ok=True)
     with Fetcher(min_delay=1.0) as f:
         f.max_host_failures = 99
+        f.ignore_backoff = True
         print("[RENDU FLARESOLVERR] page Zidane + 8 s d'attente")
         try:
             res = f.flaresolverr_render(player_url, wait_s=8)
@@ -212,6 +215,7 @@ def run_latest_test() -> None:
     ]
     with Fetcher(min_delay=1.0) as f:
         f.max_host_failures = 99
+        f.ignore_backoff = True
         for name, url in candidates:
             try:
                 res = f.get(url, retries=0)

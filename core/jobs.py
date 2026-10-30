@@ -63,7 +63,10 @@ def job_snapshot():
     wl = _watchlist()
     if not wl:
         return
-    snapshot_watchlist(wl)
+    summary = snapshot_watchlist(wl)
+    if not summary["ok"]:
+        _notify_pause()
+        return
     an = MarketAnalyzer(wl)
     urgent = an.instant_crashes(24) + [s for s in an.full_scan() if s.rule.startswith("R4")]
     notifier.dispatch(urgent, header="⚡ ALERTE MARCHÉ", with_chart=True)
@@ -159,6 +162,23 @@ def job_learn():
 @safe_job
 def job_price_report():
     notifier.send_messages(notifier.price_report(_watchlist()))
+
+
+def _notify_pause() -> None:
+    """Prévient UNE fois par pause quand FUT.GG bloque le bot (pas de message à chaque heure)."""
+    import time as _time
+    from urllib.parse import urlparse
+
+    from scrapers.base import blocked_until
+
+    until = blocked_until(urlparse(config.FUTGG_BASE).netloc)
+    if not until or (db.get_status().get("pause_notified") or {}).get("value") == until:
+        return
+    db.set_status("pause_notified", until)
+    notifier.send_text(
+        f"⚠️ FUT.GG bloque temporairement le bot (protection Cloudflare). Pause automatique jusqu'à "
+        f"{_time.strftime('%H:%M', _time.localtime(until))}, puis reprise toute seule. "
+        "Les prix déjà relevés sont conservés.")
 
 
 def job_heartbeat():

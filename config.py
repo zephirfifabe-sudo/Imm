@@ -53,7 +53,7 @@ FLARESOLVERR_URL = os.getenv("FLARESOLVERR_URL", "")
 PLAYWRIGHT_CHROMIUM_PATH = os.getenv("PLAYWRIGHT_CHROMIUM_PATH", "")
 # Proxy (ex: résidentiel) si l'IP du VPS est bannie par Cloudflare : http://user:pass@host:port
 PROXY_URL = os.getenv("PROXY_URL", "")
-REQUEST_MIN_DELAY = float(os.getenv("REQUEST_MIN_DELAY", "1.5"))
+REQUEST_MIN_DELAY = float(os.getenv("REQUEST_MIN_DELAY", "3"))  # secondes entre 2 pages d'un même site
 USER_AGENT = os.getenv(
     "USER_AGENT",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

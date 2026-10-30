@@ -50,6 +50,49 @@ def playwright_proxy(url: str) -> dict:
     return out
 
 
+SESSION_MAX_AGE_S = 3 * 3600
+BACKOFF_STEPS_S = [3600, 7200, 14400, 21600]  # 1h, 2h, 4h, puis 6h max
+
+
+def SESSION_FILE():  # noqa: N802 (chemin dépendant de config.DATA_DIR, modifiable en test)
+    config.ensure_dirs()
+    return config.DATA_DIR / "cf_session.json"
+
+
+def _backoff_file():
+    config.ensure_dirs()
+    return config.DATA_DIR / "cf_backoff.json"
+
+
+def _read_backoff() -> dict:
+    try:
+        return json.loads(_backoff_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def blocked_until(host: str) -> float | None:
+    b = _read_backoff().get(host)
+    return b["until"] if b and b["until"] > time.time() else None
+
+
+def register_block(host: str) -> float:
+    data = _read_backoff()
+    level = min(data.get(host, {}).get("level", -1) + 1, len(BACKOFF_STEPS_S) - 1)
+    until = time.time() + BACKOFF_STEPS_S[level]
+    data[host] = {"until": until, "level": level}
+    _backoff_file().write_text(json.dumps(data), encoding="utf-8")
+    log.warning("%s nous bloque : pause anti-blocage de %d h", host, BACKOFF_STEPS_S[level] // 3600)
+    return until
+
+
+def clear_block(host: str) -> None:
+    data = _read_backoff()
+    if host in data:
+        del data[host]
+        _backoff_file().write_text(json.dumps(data), encoding="utf-8")
+
+
 class FetchError(RuntimeError):
     pass
 
@@ -99,6 +142,8 @@ class Fetcher:
         # Coupe-circuit : après 3 échecs complets d'affilée, le site est ignoré jusqu'à la fin du job
         self.host_failures: dict[str, int] = {}
         self.max_host_failures = 3
+        self.ignore_backoff = False  # True pour les diagnostics manuels
+        self._load_session()
 
     # ------------------------------------------------------------------ context manager
     def __enter__(self):
@@ -128,15 +173,44 @@ class Fetcher:
     # ------------------------------------------------------------------ public API
     def get(self, url: str, expect: str = "html", retries: int = 2) -> FetchResult:
         host = urlparse(url).netloc
+        until = blocked_until(host)
+        if until and not self.ignore_backoff:
+            raise FetchError(f"{host} en pause anti-blocage jusqu'à {time.strftime('%H:%M', time.localtime(until))}")
         if self.host_failures.get(host, 0) >= self.max_host_failures:
             raise FetchError(f"{host} ignoré (coupe-circuit : {self.max_host_failures} échecs d'affilée)")
         try:
             res = self._get(url, host, expect, retries)
         except FetchError:
             self.host_failures[host] = self.host_failures.get(host, 0) + 1
+            if self.host_failures[host] >= self.max_host_failures and not self.ignore_backoff:
+                register_block(host)  # le site nous bloque : pause de 1h, 2h, 4h puis 6h max
             raise
         self.host_failures[host] = 0
+        clear_block(host)
         return res
+
+    # ------------------------------------------------------------------ session Cloudflare persistante
+    def _load_session(self) -> None:
+        """Réutilise le laissez-passer Cloudflare d'un job précédent (repasser le challenge à chaque
+        relevé est un signal de robot)."""
+        try:
+            data = json.loads(SESSION_FILE().read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if time.time() - data.get("at", 0) > SESSION_MAX_AGE_S or not data.get("cookies"):
+            return
+        self._fs_cookies, self._fs_ua = data["cookies"], data.get("ua")
+        for ck in self._fs_cookies:
+            self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""))
+        if self._fs_ua:
+            self.client.headers["User-Agent"] = self._fs_ua
+
+    def _save_session(self) -> None:
+        try:
+            SESSION_FILE().write_text(json.dumps({"at": time.time(), "cookies": self._fs_cookies, "ua": self._fs_ua}),
+                                      encoding="utf-8")
+        except OSError:
+            pass
 
     def _get(self, url: str, host: str, expect: str, retries: int) -> FetchResult:
         self._throttle(host)
@@ -304,6 +378,7 @@ class Fetcher:
         if sol.get("cookies"):
             self._fs_cookies, self._fs_ua = sol["cookies"], sol.get("userAgent")
             self._cap_ctx = None  # le prochain capture_api repartira avec les nouveaux cookies
+            self._save_session()
         for ck in sol.get("cookies", []):
             self.client.cookies.set(ck["name"], ck["value"], domain=ck.get("domain", ""))
         # cf_clearance est lié au User-Agent du navigateur qui a passé le challenge
