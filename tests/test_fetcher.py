@@ -118,3 +118,10 @@ def test_capture_api_intercepts_site_calls(server):
             raise
         hits = [(st, body) for u, (st, body) in cap["api"].items() if "player-prices" in u]
         assert hits and hits[0][0] == 200 and hits[0][1]["data"]["currentPrice"]["price"] == 67500
+
+
+def test_flaresolverr_proxy_format():
+    from scrapers.base import flaresolverr_proxy
+
+    assert flaresolverr_proxy("http://user_1:pw@109.0.0.9:50100") == {
+        "url": "http://109.0.0.9:50100", "username": "user_1", "password": "pw"}

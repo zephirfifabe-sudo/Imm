@@ -364,7 +364,7 @@ class Fetcher:
         if wait_s:
             payload["waitInSeconds"] = wait_s  # FlareSolverr >= 3.3 : attend le contenu dynamique
         if config.PROXY_URL:
-            payload["proxy"] = {"url": config.PROXY_URL}
+            payload["proxy"] = flaresolverr_proxy(config.PROXY_URL)
         r = httpx.post(config.FLARESOLVERR_URL, json=payload, timeout=90 + wait_s)
         try:
             body = r.json()
@@ -440,6 +440,15 @@ class Fetcher:
         finally:
             page.close()
         return {"status": status, "blocked": looks_blocked(status, html), "title": page_title(html), "api": api}
+
+
+def flaresolverr_proxy(url: str) -> dict:
+    """FlareSolverr veut l'identifiant et le mot de passe à part : {"url", "username", "password"}."""
+    u = urlparse(url)
+    out = {"url": f"{u.scheme}://{u.hostname}:{u.port}"}
+    if u.username:
+        out.update(username=u.username, password=u.password or "")
+    return out
 
 
 def pw_cookies(fs_cookies: list[dict]) -> list[dict]:
