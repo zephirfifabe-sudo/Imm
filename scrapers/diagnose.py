@@ -57,7 +57,7 @@ def run_diagnose() -> None:
         f.max_host_failures = 99  # le diagnostic doit tester toutes les pages
         pages = {
             "accueil": config.FUTGG_BASE + "/",
-            "populaires": config.FUTGG_POPULAR_URL,
+            "watchlist": config.FUTGG_POPULAR_URL,
             "nouveautes": config.FUTGG_LATEST_URL,
             "joueurs": config.FUTGG_BASE + "/players/",
             "evos": config.FUTGG_EVOS_URL,

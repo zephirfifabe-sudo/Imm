@@ -118,3 +118,13 @@ def test_price_from_rendered_html():
     html2 = '<div class="font-bold text-price">67,500</div>'
     assert price_from_rendered_html(html2)["price"] == 67500
     assert price_from_rendered_html("<div class='rating'>87</div>") is None
+
+
+def test_with_page_keeps_filters():
+    from scrapers.futgg import with_page
+
+    url = ("https://www.fut.gg/players/?page=1&quality_id=%5B1%2C10%5D&price__gte=19750"
+           "&price__lte=450000&sorts=-gg_rating")
+    assert with_page(url, 1) == url
+    assert with_page(url, 3) == url.replace("page=1", "page=3")
+    assert with_page("https://www.fut.gg/players/", 2) == "https://www.fut.gg/players/?page=2"

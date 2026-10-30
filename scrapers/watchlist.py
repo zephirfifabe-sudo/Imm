@@ -37,7 +37,10 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
             if not price:
                 res = provider.get_price(p)
                 price = res["price"] if res else None
-            if not price or not (config.PRICE_MIN <= price <= config.PRICE_MAX):
+            # la page FUT.GG choisie fixe déjà la fourchette de prix : elle fait foi
+            if price and not futgg.list_price_filtered and not (config.PRICE_MIN <= price <= config.PRICE_MAX):
+                continue
+            if not price and not futgg.list_price_filtered:
                 continue
             p["price"] = price
             p["popularity_rank"] = rank

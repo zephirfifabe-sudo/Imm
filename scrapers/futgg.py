@@ -26,6 +26,7 @@ class FutGGScraper:
         self.year = year or config.GAME_YEAR
         self.base = (base or config.FUTGG_BASE).rstrip("/")
         self.api_blocked = False
+        self.list_price_filtered = False
         self.capture_blocked = False
         self.render_blocked = False
         self.render_failures = 0
@@ -39,6 +40,8 @@ class FutGGScraper:
 
     def popular_players(self, pages: int = 4) -> list[dict]:
         out = self._popular_from(config.FUTGG_POPULAR_URL, pages)
+        # la liste FUT.GG filtre déjà par prix : un joueur sans prix lu reste dans la fourchette
+        self.list_price_filtered = bool(out) and "price__gte" in config.FUTGG_POPULAR_URL
         if out:
             return out
         # URL bloquée (cas observé : les URLs avec ?sorts= sont plus protégées) -> pages qui passent
@@ -52,9 +55,7 @@ class FutGGScraper:
     def _popular_from(self, base_url: str, pages: int) -> list[dict]:
         out, seen = [], set()
         for page in range(1, pages + 1):
-            url = base_url
-            if page > 1:
-                url += ("&" if "?" in url else "?") + f"page={page}"
+            url = with_page(base_url, page)
             try:
                 batch = self.list_players(url)
             except FetchError as e:
@@ -195,6 +196,17 @@ class FutGGScraper:
                 return {"price": p["price"], "min_24h": None, "max_24h": None, "volume": None,
                         "history": [], "source": "futgg-html"}
         return None
+
+
+def with_page(url: str, page: int) -> str:
+    """Remplace (ou ajoute) le paramètre page= sans toucher aux autres filtres."""
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "page"]
+    if page > 1 or "page=" in parts.query:
+        query.insert(0, ("page", str(page)))
+    return urlunsplit(parts._replace(query=urlencode(query)))
 
 
 def _to_iso(ts) -> str | None:

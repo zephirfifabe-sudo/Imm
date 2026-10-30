@@ -24,14 +24,18 @@ TZ = os.getenv("TZ_MARKET", os.getenv("TZ", "Europe/Paris")) or "Europe/Paris"
 # --- Marché ---
 GAME_YEAR = os.getenv("GAME_YEAR", "27")
 PLATFORM = os.getenv("PLATFORM", "console")  # console | pc
-PRICE_MIN = int(os.getenv("PRICE_MIN", "20000"))
-PRICE_MAX = int(os.getenv("PRICE_MAX", "400000"))
+PRICE_MIN = int(os.getenv("PRICE_MIN", "19750"))
+PRICE_MAX = int(os.getenv("PRICE_MAX", "450000"))
 WATCHLIST_SIZE = int(os.getenv("WATCHLIST_SIZE", "150"))
 EVO_CHEAP_MAX = int(os.getenv("EVO_CHEAP_MAX", "20000"))
 
 # --- Sources (surchargeables si FUT.GG change ses URLs) ---
 FUTGG_BASE = os.getenv("FUTGG_BASE", "https://www.fut.gg")
-FUTGG_POPULAR_URL = os.getenv("FUTGG_POPULAR_URL", f"{FUTGG_BASE}/players/?sorts=-popularity")
+# Liste de la watchlist : cartes or (quality 1 et 10), 19 750 - 450 000 crédits, triées par note FUT.GG
+FUTGG_POPULAR_URL = os.getenv(
+    "FUTGG_POPULAR_URL",
+    f"{FUTGG_BASE}/players/?page=1&quality_id=%5B1%2C10%5D&price__gte=19750&price__lte=450000&sorts=-gg_rating",
+)
 FUTGG_LATEST_URL = os.getenv("FUTGG_LATEST_URL", f"{FUTGG_BASE}/players/new/")
 FUTGG_EVOS_URL = os.getenv("FUTGG_EVOS_URL", f"{FUTGG_BASE}/evolutions/")
 FUTGG_SBC_URL = os.getenv("FUTGG_SBC_URL", f"{FUTGG_BASE}/sbc/")
