@@ -68,7 +68,12 @@ def bucket_prices(fetcher: Fetcher, base_url: str | None = None, ratio: float = 
                 log.warning("Tranche %s-%s page %d KO : %s", b_lo, b_hi, page, str(e)[:100])
                 break
             for p in players:
-                prices[p["player_id"]] = {"price": mid, "min": b_lo, "max": b_hi, "player": p}
+                prev = prices.get(p["player_id"])
+                if prev and prev["max"] < b_lo:
+                    # vu dans 2 tranches voisines : prix pile à la limite -> valeur de la limite
+                    prices[p["player_id"]] = {"price": b_lo, "min": prev["min"], "max": b_hi, "player": p}
+                else:
+                    prices[p["player_id"]] = {"price": mid, "min": b_lo, "max": b_hi, "player": p}
             if len(players) < PAGE_SIZE:
                 break
         if wanted and wanted <= set(prices):

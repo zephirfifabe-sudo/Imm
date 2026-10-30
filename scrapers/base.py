@@ -157,6 +157,15 @@ class Fetcher:
                     errors.append(f"httpx {type(e).__name__}: {e}")
                 time.sleep(2 ** attempt + random.random())
 
+        # FlareSolverr configuré : on l'essaie AVANT Chromium (bloqué par Cloudflare sur FUT.GG/FUTBIN,
+        # il ferait perdre 30 s par job)
+        if config.FLARESOLVERR_URL and self.mode == "auto":
+            try:
+                return self._flaresolverr_get(url, expect)
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"flaresolverr {type(e).__name__}: {e}")
+            raise FetchError(f"Impossible de récupérer {url} : " + " | ".join(errors))
+
         skip_pw = host in self.pw_failed_hosts and bool(config.FLARESOLVERR_URL)
         if self.mode in ("auto", "playwright") and not skip_pw:
             try:

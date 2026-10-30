@@ -150,3 +150,22 @@ def test_bucket_prices(monkeypatch):
     for pid, pr in true_prices.items():
         assert res[pid]["min"] <= pr <= res[pid]["max"]
         assert abs(res[pid]["price"] - pr) / pr < 0.035  # ±3 %
+
+
+def test_bucket_boundary_player(monkeypatch):
+    from urllib.parse import parse_qsl, urlsplit
+
+    from scrapers import price_buckets
+    from scrapers.futgg import FutGGScraper
+
+    monkeypatch.setattr(price_buckets, "_CACHE", {"at": 0.0, "prices": {}})
+    edge = price_buckets.bucket_bounds(19750, 450000, 1.06)[10][0]  # 1re valeur d'une tranche
+
+    def fake_list(self, url):
+        q = dict(parse_qsl(urlsplit(url).query))
+        lo, hi = int(q["price__gte"]), int(q["price__lte"])
+        # le prix bouge pendant la passe : visible dans la tranche du dessous ET celle du dessus
+        return [{"player_id": "k", "name": "k"}] if lo <= edge <= hi + 1 else []
+
+    monkeypatch.setattr(FutGGScraper, "list_players", fake_list)
+    assert price_buckets.bucket_prices(fetcher=None, wanted={"k"})["k"]["price"] == edge
