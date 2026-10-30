@@ -30,6 +30,14 @@ def send_text(text: str) -> bool:
     return sent_tg or sent_dc
 
 
+def send_messages(messages: list[str]) -> bool:
+    """Plusieurs messages à la suite (chacun déjà sous la limite Discord de 2000 caractères)."""
+    ok = True
+    for m in messages:
+        ok &= send_text(m)
+    return ok
+
+
 def send_photo(png: bytes, caption: str = "") -> None:
     telegram.send_photo(png, caption)
     discord.send_photo(png, caption)
@@ -79,7 +87,9 @@ def dispatch(signals: list[Signal], header: str = "", min_conf: int | None = Non
 
 # --------------------------------------------------------------------------- rapports planifiés
 def _now_label() -> str:
-    return to_local(utcnow()).strftime("%a %d/%m %H:%M")
+    now = to_local(utcnow())
+    jours = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+    return f"{jours[now.weekday()]} {now:%d/%m %H:%M}"
 
 
 def report_pre19(analyzer, leaks: list[dict]) -> str:
@@ -149,3 +159,67 @@ def report_recap(analyzer, rules: dict) -> str:
         n = c.execute("SELECT COUNT(*) FROM alerts WHERE timestamp>=? AND sent=1", (since,)).fetchone()[0]
     lines.append(f"📨 {n} alerte(s) envoyée(s) aujourd'hui.")
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- rapport des prix
+def _pct(cur: float | None, old: float | None) -> float | None:
+    return (cur / old - 1) if cur and old else None
+
+
+def _fmt_pct(v: float | None) -> str:
+    if v is None:
+        return "   -  "
+    return f"{v * 100:+5.1f}%"
+
+
+def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
+    """Prix de chaque joueur de la watchlist + variation 24h / 12h, en tableaux Discord (blocs de code).
+
+    Les prix viennent des tranches FUT.GG (±3 %) : une variation de moins de 3 % peut être du bruit.
+    """
+    now = utcnow()
+    rows = []
+    with db.get_conn() as c:
+        for p in watchlist:
+            pid = str(p["player_id"])
+            cur = db.price_at(pid, now, conn=c)
+            if not cur:
+                continue
+            rows.append({
+                "name": p.get("name") or pid, "rating": p.get("rating") or "", "price": cur,
+                "d24": _pct(cur, db.price_at(pid, now - timedelta(hours=24), conn=c)),
+                "d12": _pct(cur, db.price_at(pid, now - timedelta(hours=12), conn=c)),
+            })
+    header = f"💰 PRIX — {_now_label()} · {len(rows)} joueurs (prix FUT.GG ±3 %)"
+    if not rows:
+        return [header + "\nAucun prix relevé pour l'instant."]
+
+    def line(r: dict) -> str:
+        arrow = "▲" if (r["d24"] or 0) >= 0.03 else "▼" if (r["d24"] or 0) <= -0.03 else "="
+        return f"{arrow} {r['name'][:15]:15} {str(r['rating']):>2} {fmt_price(r['price']):>6} {_fmt_pct(r['d24'])} {_fmt_pct(r['d12'])}"
+
+    known = [r for r in rows if r["d24"] is not None]
+    ups = sorted([r for r in known if r["d24"] >= 0.03], key=lambda r: -r["d24"])[:5]
+    downs = sorted([r for r in known if r["d24"] <= -0.03], key=lambda r: r["d24"])[:5]
+    summary = [header]
+    if known:
+        avg = sum(r["d24"] for r in known) / len(known)
+        summary.append(f"Marché (moyenne 24h) : {avg * 100:+.1f}%")
+    if ups:
+        summary.append("🟢 Plus fortes hausses 24h : " + ", ".join(f"{r['name'][:14]} {r['d24'] * 100:+.0f}%" for r in ups))
+    if downs:
+        summary.append("🔴 Plus fortes baisses 24h : " + ", ".join(f"{r['name'][:14]} {r['d24'] * 100:+.0f}%" for r in downs))
+    if not known:
+        summary.append("(variations disponibles après 12 à 24h de relevés)")
+
+    table_head = f"  {'Joueur':15} {'Nt':>2} {'Prix':>6} {'24h':>6} {'12h':>6}"
+    rows.sort(key=lambda r: (r["d24"] is None, -(r["d24"] or 0)))
+    messages, block = ["\n".join(summary)], [table_head]
+    for r in rows:
+        ln = line(r)
+        if sum(len(x) + 1 for x in block) + len(ln) + 8 > chunk_chars:
+            messages.append("```\n" + "\n".join(block) + "\n```")
+            block = [table_head]
+        block.append(ln)
+    messages.append("```\n" + "\n".join(block) + "\n```")
+    return messages

@@ -77,6 +77,9 @@ ALERT_MIN_CONFIDENCE = int(os.getenv("ALERT_MIN_CONFIDENCE", "7"))
 ALERT_MAX_PER_REPORT = int(os.getenv("ALERT_MAX_PER_REPORT", "8"))
 ALERT_COOLDOWN_HOURS = int(os.getenv("ALERT_COOLDOWN_HOURS", "6"))
 
+# --- Rapport des prix sur Discord/Telegram (heures de Paris) ---
+PRICE_REPORT_HOURS = os.getenv("PRICE_REPORT_HOURS", "10,22")
+
 # --- Dashboard ---
 DASHBOARD_USER = os.getenv("DASHBOARD_USER", "")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "")

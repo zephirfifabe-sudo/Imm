@@ -8,6 +8,7 @@
   18:55-20:30 / 3 min     surveillance nouvelles cartes -> analyse d'impact immédiate (R1/R5)
   19:15                   rapport POST-19H
   23:00                   récap du jour
+  10:10 et 22:10          rapport des prix + variations 24h/12h (PRICE_REPORT_HOURS)
   lundi 05:00             learn_patterns() (auto-apprentissage sur 30 jours)
 """
 from __future__ import annotations
@@ -155,6 +156,11 @@ def job_learn():
         f"Confiance : {g.get('confidence')}")
 
 
+@safe_job
+def job_price_report():
+    notifier.send_messages(notifier.price_report(_watchlist()))
+
+
 def job_heartbeat():
     db.set_status("heartbeat", {"alive": True})
 
@@ -172,6 +178,8 @@ def build_scheduler() -> BlockingScheduler:
     s.add_job(job_latest, "cron", hour="18-20", minute="*/3", id="latest")  # filtré 18:55-20:30
     s.add_job(job_post19, "cron", hour=19, minute=15, id="post19")
     s.add_job(job_recap, "cron", hour=23, minute=0, id="recap")
+    # rapport des prix : minute 10, après le relevé horaire (lancé à :02, ~3 min)
+    s.add_job(job_price_report, "cron", hour=config.PRICE_REPORT_HOURS, minute=10, id="price_report")
     s.add_job(job_learn, "cron", day_of_week="mon", hour=5, minute=0, id="learn")
     s.add_job(job_heartbeat, "interval", minutes=5, id="heartbeat")
     return s

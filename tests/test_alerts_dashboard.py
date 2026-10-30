@@ -84,3 +84,14 @@ def test_dashboard_api(monkeypatch):
     assert c.get("/api/status").status_code == 401
     assert c.get("/api/status", auth=("moi", "secret")).status_code == 200
     assert c.get("/health").status_code == 200
+
+
+def test_price_report():
+    seed_demo(days=3)
+    msgs = notifier.price_report(load_watchlist())
+    assert "💰 PRIX" in msgs[0] and "joueurs" in msgs[0]
+    assert all(len(m) < 2000 for m in msgs)  # limite Discord
+    body = "\n".join(msgs[1:])
+    assert body.startswith("```") and "Koné" in body and "%" in body
+    assert "Plus fortes hausses" in msgs[0]  # Koné +35 % en 24h (scénario démo)
+    assert "price_report" in {j.id for j in build_scheduler().get_jobs()}
