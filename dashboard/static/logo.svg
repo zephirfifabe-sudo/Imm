@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b8"/>
+      <stop offset="0.35" stop-color="#f2c94c"/>
+      <stop offset="0.7" stop-color="#c9952b"/>
+      <stop offset="1" stop-color="#8a5a12"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="bg" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#1b2540"/>
+      <stop offset="1" stop-color="#070b14"/>
+    </radialGradient>
+  </defs>
+
+  <!-- fond -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- carte dorée façon « Légende » -->
+  <path d="M256 44 L300 70 L392 70 L404 112 L404 372 Q404 404 372 418 L256 468 L140 418 Q108 404 108 372 L108 112 L120 70 L212 70 Z"
+        fill="url(#gold)" stroke="#5c3a08" stroke-width="6"/>
+  <path d="M256 60 L296 84 L382 84 L390 114 L390 220 L122 220 L122 114 L130 84 L216 84 Z" fill="url(#shine)"/>
+  <path d="M256 78 L292 98 L370 98 L376 118 L376 368 Q376 390 354 400 L256 444 L158 400 Q136 390 136 368 L136 118 L142 98 L220 98 Z"
+        fill="none" stroke="#7a4e0e" stroke-width="3" opacity="0.7"/>
+
+  <!-- étoiles « légende » -->
+  <g fill="#7a4e0e">
+    <path d="M206 128 l5 10 11 2 -8 8 2 11 -10 -5 -10 5 2 -11 -8 -8 11 -2z"/>
+    <path d="M256 118 l6 12 13 2 -10 9 3 13 -12 -6 -12 6 3 -13 -10 -9 13 -2z"/>
+    <path d="M306 128 l5 10 11 2 -8 8 2 11 -10 -5 -10 5 2 -11 -8 -8 11 -2z"/>
+  </g>
+
+  <!-- viseur -->
+  <g transform="translate(256 262)" fill="none" stroke="#1a1206" stroke-linecap="round">
+    <circle r="78" stroke-width="12"/>
+    <circle r="44" stroke-width="5" opacity="0.8"/>
+    <line x1="0" y1="-104" x2="0" y2="-54" stroke-width="10"/>
+    <line x1="0" y1="54" x2="0" y2="84" stroke-width="10"/>
+    <line x1="-104" y1="0" x2="-54" y2="0" stroke-width="10"/>
+    <line x1="54" y1="0" x2="104" y2="0" stroke-width="10"/>
+    <!-- courbe de prix qui remonte -->
+    <polyline points="-40,18 -18,4 -2,14 18,-12 40,-28" stroke="#0f8a4b" stroke-width="7" stroke-linejoin="round"/>
+  </g>
+  <circle cx="256" cy="262" r="7" fill="#e5383b"/>
+
+  <!-- légende -->
+  <text x="256" y="388" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif"
+        font-weight="900" font-size="46" letter-spacing="3" fill="#1a1206">SNIPER</text>
+  <text x="256" y="418" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-weight="700" font-size="20" letter-spacing="8" fill="#5c3a08">FC27</text>
+</svg>
