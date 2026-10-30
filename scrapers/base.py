@@ -273,8 +273,12 @@ class Fetcher:
         if config.PROXY_URL:
             payload["proxy"] = {"url": config.PROXY_URL}
         r = httpx.post(config.FLARESOLVERR_URL, json=payload, timeout=90)
-        r.raise_for_status()
-        body = r.json()
+        try:
+            body = r.json()
+        except ValueError:
+            r.raise_for_status()
+            raise
+        # FlareSolverr renvoie HTTP 500 + {"status": "error", "message": "..."} : on garde la raison
         if body.get("status") != "ok":
             raise FetchError(f"FlareSolverr : {body.get('message', '?')[:150]}")
         sol = body.get("solution") or {}

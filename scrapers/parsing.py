@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from utils.helpers import POSITIONS, normalize_position, parse_price
+from utils import fut_ids
 from utils.rarity import detect_in_text, label as rarity_label
 
 NAME_KEYS = ("commonName", "common_name", "cardName", "displayName", "name", "lastName", "last_name")
@@ -113,9 +114,16 @@ def _name_of(v) -> str | None:
     return None
 
 
+def _int(v) -> int | None:
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
 def looks_like_player(d: dict) -> bool:
-    rating = pick(d, *RATING_KEYS)
-    if not isinstance(rating, (int, float)) or not (40 <= rating <= 99):
+    rating = _int(pick(d, *RATING_KEYS))  # FUT.GG peut renvoyer "87" (texte) ou 87
+    if rating is None or not (40 <= rating <= 99):
         return False
     if not any(isinstance(d.get(k), str) and d.get(k) for k in NAME_KEYS):
         if not (d.get("firstName") or d.get("lastName")):
@@ -129,7 +137,8 @@ def player_from_dict(d: dict, base_url: str = "") -> dict:
         first, last = d.get("firstName") or "", d.get("lastName") or ""
         name = (f"{first} {last}".strip() if first or last else None) or d.get("name")
     pos = normalize_position(pick(d, "position", "positionShort", "preferredPosition", "pos"))
-    alt = pick(d, "alternativePositions", "alternatePositions", "altPositions", "positions", default=[]) or []
+    alt = pick(d, "alternativePositionIds", "alternativePositions", "alternatePositions", "altPositions",
+               "positions", default=[]) or []
     alt = [p for p in (normalize_position(x) for x in alt) if p and p != pos] if isinstance(alt, list) else []
     price = None
     for k in PRICE_KEYS:
@@ -145,19 +154,21 @@ def player_from_dict(d: dict, base_url: str = "") -> dict:
         if isinstance(v, list):
             for ps in v:
                 n = _name_of(ps)
-                if n:
+                if n and not n.isdigit():  # IDs numériques de playstyles : sans intérêt pour l'utilisateur
                     playstyles.append(n + ("+" if "Plus" in k and not n.endswith("+") else ""))
     url = d.get("url") or d.get("href")
     return {
         "player_id": str(pick(d, *ID_KEYS)),
         "base_id": str(pick(d, "basePlayerEaId", "baseId", "base_id", "basePlayerId", default="") or "") or None,
         "name": str(name or "?"),
-        "rating": int(pick(d, *RATING_KEYS)),
+        "rating": _int(pick(d, *RATING_KEYS)),
         "position": pos,
         "alt_positions": alt,
-        "league": _name_of(pick(d, "league", "leagueName", "league_name")),
-        "nation": _name_of(pick(d, "nation", "nationName", "nation_name", "country")),
-        "club": _name_of(pick(d, "club", "clubName", "club_name", "team")),
+        "league": _name_of(pick(d, "league", "leagueName", "league_name"))
+        or fut_ids.name(fut_ids.LEAGUES, pick(d, "leagueEaId", "leagueId"), "Ligue"),
+        "nation": _name_of(pick(d, "nation", "nationName", "nation_name", "country"))
+        or fut_ids.name(fut_ids.NATIONS, pick(d, "nationEaId", "nationId"), "Nation"),
+        "club": _name_of(pick(d, "club", "clubName", "club_name", "team")) or _club_from_slug(d),
         "card_type": _card_type(d),
         "playstyles": playstyles,
         "price": price,
@@ -172,12 +183,24 @@ def _card_type(d: dict) -> str | None:
         lab = rarity_label(_name_of(pick(d, key)))
         if lab:
             return lab
-    return None
+    # FUT.GG : uniquement un ID (rarityEaId). Inconnu -> « Rareté #85 », affiché comme spéciale
+    rid = pick(d, "rarityEaId", "rarityId")
+    return rarity_label(fut_ids.name(fut_ids.RARITIES, rid, "Rareté")) if rid not in (None, "None") else None
+
+
+def _club_from_slug(d: dict) -> str | None:
+    """'114605-hero' -> 'Hero' ; sinon l'ID du club (suffisant pour comparer)."""
+    slug = pick(d, "uniqueClubSlug", "clubSlug")
+    if isinstance(slug, str) and "-" in slug:
+        return slug.split("-", 1)[1].replace("-", " ").title()
+    cid = pick(d, "clubEaId", "uniqueClubEaId", "clubId")
+    return f"Club #{cid}" if cid not in (None, "None") else None
 
 
 def players_from_json(html: str, base_url: str = "") -> list[dict]:
     out: dict[str, dict] = {}
     for blob in iter_json_blobs(html):
+        fut_ids.learn_from_blobs(walk_dicts(blob))  # tables ID -> nom fournies par la page
         for d in walk_dicts(blob):
             if looks_like_player(d):
                 p = player_from_dict(d, base_url)

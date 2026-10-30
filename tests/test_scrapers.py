@@ -89,3 +89,22 @@ def test_card_type_extracted():
     by_id = {p["player_id"]: p for p in extract_players(html, "https://www.fut.gg")}
     assert by_id["50544321"]["card_type"] == "Or rare"   # depuis le JSON (rarityName)
     assert by_id["256630"]["card_type"] == "POTM"        # depuis le texte de la carte
+
+
+def test_futgg_real_definition_format():
+    """Format réel observé sur FUT.GG (API player-item-definitions, oct. 2026)."""
+    from scrapers.parsing import looks_like_player, player_from_dict
+
+    d = {"playerType": "players", "game": "27", "id": 169667, "eaId": 27, "basePlayerEaId": 27,
+         "basePlayerSlug": "27-joe-cole", "slug": "27-27", "firstName": "Joe", "lastName": "Cole",
+         "nickname": None, "overall": "87", "nationEaId": 14, "leagueEaId": 13, "clubEaId": None,
+         "uniqueClubEaId": 114605, "uniqueClubSlug": "114605-hero", "rarityEaId": 72, "position": 23,
+         "alternativePositionIds": [27, 18], "playstyles": [5, 12], "playstylesPlus": [3]}
+    assert looks_like_player(d)
+    p = player_from_dict(d)
+    assert (p["player_id"], p["name"], p["rating"]) == ("27", "Joe Cole", 87)
+    assert (p["league"], p["nation"], p["club"]) == ("Premier League", "England", "Hero")
+    assert p["card_type"] == "Héros" and p["position"] == "RW" and p["alt_positions"] == ["LW", "CAM"]
+    assert p["playstyles"] == []
+    unknown = player_from_dict({**d, "rarityEaId": 185, "leagueEaId": 999})
+    assert unknown["card_type"] == "Rareté #185" and unknown["league"] == "Ligue #999"
