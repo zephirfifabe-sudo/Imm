@@ -67,7 +67,9 @@ def parse_cards(html: str) -> list[dict]:
 
 
 def parse_fiche(html: str, player_id: str, url: str) -> dict | None:
-    title = page_title(html).replace("&amp;", "&")
+    # titre COMPLET (page_title le coupe à 60 caractères, trop court pour les noms longs + promo)
+    t = BeautifulSoup(html, "html.parser").title
+    title = t.get_text(strip=True) if t else ""
     m = TITLE_RE.match(title)
     if not m:
         return None

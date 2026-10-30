@@ -86,3 +86,11 @@ def test_parse_fiche_special_card():
         "Achraf Hakimi", "Christopher Nkunku")
     p = futgenie.parse_fiche(html, "fgn-1032160", "u")
     assert (p["name"], p["rating"], p["card_type"]) == ("Christopher Nkunku", 82, "TOTW")
+
+
+def test_parse_fiche_long_name_and_promo():
+    long_name = "Mateus Gonçalo Espanha Fernandes"
+    html = FICHE.replace("Achraf Hakimi 88: Price", f"{long_name} 85 Destined for Glory: Price").replace(
+        "Achraf Hakimi", long_name)
+    p = futgenie.parse_fiche(html, "fgn-1030497", "u")
+    assert (p["name"], p["rating"], p["card_type"]) == (long_name, 85, "Destined for Glory")
