@@ -37,6 +37,8 @@ def test_parse_fiche():
     assert (p["name"], p["rating"], p["price"]) == ("Achraf Hakimi", 88, 99500)
     assert (p["card_type"], p["club"], p["league"], p["nation"], p["position"]) == (
         "Or non rare", "Paris SG", "Ligue 1", "Morocco", "RB")
+    p2 = futgenie.parse_fiche(FICHE.replace("<span>Ligue 1</span>", "<span>Ligue 1 McDonald's</span>"), "x", "u")
+    assert p2["league"] == "Ligue 1"
 
 
 class FakeFetcher:
@@ -50,7 +52,8 @@ class FakeFetcher:
         if "/player-items/" in url:
             return FetchResult(url, 200, FICHE, "httpx")
         n = 3 if '"page":3' in unquote(url) else 2 if '"page":2' in unquote(url) else 1
-        ids = range(1, 25) if n == 1 else range(25, 31)
+        # page 1 : 23 cartes seulement (une carte sans prix sur le vrai site) ; page 2 : la suite
+        ids = range(1, 24) if n == 1 else range(25, 31) if n == 2 else range(25, 31)
         return FetchResult(url, 200, page([{"id": i, "k": "x", "p": f"{20000 + i * 1000:,}", "chg": "1.0"}
                                            for i in ids]), "httpx")
 
@@ -61,7 +64,7 @@ class FakeFetcher:
 def test_watchlist_and_prices():
     fg = futgenie.FutGenie(FakeFetcher())
     players = fg.build_watchlist([(20000, 100000, 28)], max_new=5)
-    assert len(players) == 28 and players[0]["name"] == "Achraf Hakimi"  # fiche lue pour les nouveaux
+    assert len(players) == 28  # 23 (page 1) + 5 (page 2) : la page « incomplète » n'arrête plus la lecture and players[0]["name"] == "Achraf Hakimi"  # fiche lue pour les nouveaux
     assert sum(1 for p in players if p.get("rating")) == 5  # limite de fiches par passe respectée
     prices = fg.current_prices(players, [(20000, 100000, 28)])
     assert prices["fgn-1"] == 21000 and len(prices) >= 28

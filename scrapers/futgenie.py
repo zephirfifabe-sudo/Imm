@@ -78,7 +78,8 @@ def parse_fiche(html: str, player_id: str, url: str) -> dict | None:
     after = tokens[start + 1:start + 60]
     leagues, nations = set(fut_ids.LEAGUES.values()), set(fut_ids.NATIONS.values())
     pos = next((t for t in after if t.upper() in POSITIONS), None)
-    league = next((t for t in after if t in leagues), None)
+    # « Ligue 1 McDonald's », « Premier League »… : on accepte le nom connu en début de texte
+    league = next((lg for t in after for lg in leagues if t == lg or t.startswith(lg + " ")), None)
     nation = next((t for t in after if t in nations), None)
     rarity = rarity_label(after[0]) if after else None
     club = after[1] if len(after) > 1 and after[1] not in (pos, league, nation) else None
@@ -103,7 +104,7 @@ class FutGenie:
     def band_cards(self, lo: int, hi: int, wanted: int) -> list[dict]:
         """Les `wanted` meilleures cartes (Genie Grade) entre lo et hi, page après page."""
         cards, seen = [], set()
-        for page in range(1, wanted // PAGE_SIZE + 3):
+        for page in range(1, wanted // PAGE_SIZE + 6):
             try:
                 batch = parse_cards(self.f.get(list_url(lo, hi, page), retries=1).text)
             except FetchError as e:
@@ -115,7 +116,8 @@ class FutGenie:
             for c in new:
                 seen.add(c["player_id"])
                 cards.append(c)
-            if len(cards) >= wanted or len(batch) < PAGE_SIZE:
+            # pas d'arrêt sur une page « incomplète » : une carte sans prix affiché ne signifie pas la fin
+            if len(cards) >= wanted:
                 break
         return cards[:wanted]
 

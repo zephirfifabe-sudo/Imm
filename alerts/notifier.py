@@ -190,7 +190,8 @@ def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
                 "d24": _pct(cur, db.price_at(pid, now - timedelta(hours=24), conn=c)),
                 "d12": _pct(cur, db.price_at(pid, now - timedelta(hours=12), conn=c)),
             })
-    header = f"💰 PRIX — {_now_label()} · {len(rows)} joueurs (prix FUT.GG ±3 %)"
+    source = "futgenie, prix exacts" if config.PRICE_SOURCE == "futgenie" else "FUT.GG ±3 %"
+    header = f"💰 PRIX — {_now_label()} · {len(rows)} joueurs ({source})"
     if not rows:
         return [header + "\nAucun prix relevé pour l'instant."]
 
