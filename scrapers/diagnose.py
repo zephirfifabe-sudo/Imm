@@ -242,3 +242,45 @@ def run_latest_test() -> None:
                 print("   liens sbc :", hrefs[:6])
         except Exception as e:  # noqa: BLE001
             print(f"\n[SBC] ❌ {str(e)[:120]}")
+
+
+def run_futmind_test() -> None:
+    """Inspecte futmind.com (non protégé par Cloudflare) : structure des joueurs, des prix et des API."""
+    from scrapers.parsing import walk_dicts
+
+    out_dir = config.DATA_DIR / "debug"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with Fetcher(min_delay=2.0) as f:
+        f.max_host_failures = 99
+        f.ignore_backoff = True
+        for name, url in (("liste", "https://futmind.com/fr/players"),):
+            try:
+                r = f.get(url, retries=0)
+            except Exception as e:  # noqa: BLE001
+                print(f"[{name}] ❌ {str(e)[:200]}")
+                continue
+            html = r.text
+            (out_dir / f"futmind_{name}.html").write_text(html, encoding="utf-8")
+            print(f"[{name}] via={r.via} http={r.status} {len(html) // 1024}Ko titre={_title(html)}")
+            players = extract_players(html, "https://futmind.com")
+            print(f"  joueurs reconnus : {len(players)}")
+            for p in players[:4]:
+                print(f"   -> {p['name'][:18]} {p.get('rating')} {p.get('position')} prix={p.get('price')}")
+            blobs = list(iter_json_blobs(html))
+            print(f"  blocs JSON : {len(blobs)}")
+            for blob in blobs:
+                x = next((d for d in walk_dicts(blob)
+                          if len(d) > 4 and any(k in d for k in ("rating", "overall", "ovr", "price", "name"))), None)
+                if x:
+                    print(f"   json: {_short(x)}"[:350])
+                    break
+            soup = BeautifulSoup(html, "html.parser")
+            hrefs = sorted({a["href"] for a in soup.find_all("a", href=True) if "player" in a["href"].lower()})
+            print(f"  liens 'player' ({len(hrefs)}) : {hrefs[:5]}")
+            apis = sorted(set(re.findall(r"https?://[^\s\"'<>]*api[^\s\"'<>]*|[\"'](/api/[^\"'\s]+)", html)))
+            print(f"  API vues : {[a if isinstance(a, str) else a for a in apis][:6]}")
+            text = soup.get_text(" ", strip=True)
+            for m in list(re.finditer(r"(?i)prix|price|coins?", text))[:5]:
+                print(f"   « …{text[max(0, m.start() - 35):m.end() + 35]}… »")
+            cls = sorted({c for el in soup.select("[class*='price' i]") for c in el.get("class", [])})[:8]
+            print(f"  classes 'price' : {cls}")
