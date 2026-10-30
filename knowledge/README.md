@@ -40,10 +40,10 @@ La base est **en lecture seule pour le cerveau**. Elle explique et donne du cont
 4. Enregistre (*Commit changes*), puis fais la mise à jour habituelle sur le VPS.
 5. Vérifie le format :
    ```
-   cd /root/sniper && docker compose exec bot python main.py knowledge
+   cd /root/sniper && docker compose exec sniper python main.py knowledge
    ```
    La dernière ligne doit afficher « format OK ».
 6. Pour voir la théorie confrontée aux données à tout moment :
    ```
-   docker compose exec bot python main.py knowledge-verify
+   docker compose exec sniper python main.py knowledge-verify
    ```

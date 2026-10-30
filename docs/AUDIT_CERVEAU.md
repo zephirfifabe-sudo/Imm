@@ -130,7 +130,7 @@ Autres flux :
 
 **Ce qui reste à mesurer sur le VPS** (je ne peux pas le voir d'ici). Commande à lancer :
 ```
-cd /root/sniper && docker compose exec bot python -c "
+cd /root/sniper && docker compose exec sniper python -c "
 from database import db
 with db.get_conn() as c:
   print(c.execute('select min(timestamp), max(timestamp), count(*), count(distinct player_id) from price_snapshots').fetchone())

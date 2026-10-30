@@ -220,6 +220,6 @@ deploy.sh / install.sh installation en 3 questions et mise à jour sur le VPS
 
 - **Déploiement** : le code est sur GitHub (dépôt privé). Sur le VPS, dans `/root/sniper`, la commande `./deploy.sh` récupère le code et reconstruit le conteneur Docker.
 - **Logs** : `docker compose logs -f --tail 50`.
-- **Diagnostic** : `docker compose exec bot python main.py futgenie-test`, `… snapshot`, `… resume`.
+- **Diagnostic** : `docker compose exec sniper python main.py futgenie-test`, `… snapshot`, `… resume`.
 - **Tests** : `pytest` (environ 44 tests). Un **mode démo** (`python main.py demo-seed` / `demo-reset`) remplit la base avec des données synthétiques pour essayer le dashboard.
 - **Variables utiles** (`.env.example`) : `PRICE_SOURCE`, `WATCHLIST_BANDS`, `ALERT_MIN_CONFIDENCE`, `PRICE_REPORT_HOURS`, `SUMMARY_HOUR`, `DASHBOARD_USER/PASSWORD`, `DISCORD_WEBHOOK_URL`, `PROXY_URL`.

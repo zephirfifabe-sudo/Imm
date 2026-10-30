@@ -63,7 +63,7 @@ Chaque problème a un test `xfail(strict=True)` qui décrit le **comportement at
 
 **Sur le VPS** (à lancer par le propriétaire, après la mise à jour) :
 ```
-cd /root/sniper && docker compose exec bot python main.py baseline
+cd /root/sniper && docker compose exec sniper python main.py baseline
 ```
 Le rapport donne : profondeur de l'historique, relevés par source, **doublons existants**, fraîcheur par joueur, **trous** (≤ 30 h, donc interpolés, ou plus de 30 h), alertes des 7 derniers jours, confiance de l'habitude, répartition des signaux actuels, et **nombre d'ACHAT/VENTE dus à l'habitude seule**.
 
