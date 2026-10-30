@@ -1,232 +1,314 @@
 <!doctype html>
-<html lang="fr" class="dark">
+<html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b0f17">
+<meta name="theme-color" content="#0a0d14">
 <title>FC27 Sniper Analyst</title>
 <link rel="icon" type="image/png" href="/static/favicon.png">
 <link rel="apple-touch-icon" href="/static/logo.png">
-<!-- Assets embarqués (aucun CDN). Si tu ajoutes des classes Tailwind : voir README "Dashboard". -->
-<link rel="stylesheet" href="/static/app.css">
+<!-- Assets embarqués (aucun CDN) -->
+<link rel="stylesheet" href="/static/style.css">
 <script src="/static/chart.umd.js"></script>
-<style>
-  body { background:#0b0f17; padding-bottom: env(safe-area-inset-bottom); }
-  .tab-on { background:#1f2937; color:#fff; }
-  .num { font-variant-numeric: tabular-nums; }
-</style>
 </head>
-<body class="text-slate-200 antialiased">
-<div class="max-w-6xl mx-auto px-4 py-4 space-y-4">
+<body>
 
-  <!-- En-tête / statut -->
-  <header class="flex items-center justify-between gap-3">
-    <div>
-      <h1 class="text-lg font-bold tracking-tight flex items-center gap-2"><img src="/static/logo.png" alt="" class="w-8 h-8 rounded-lg">FC27 Sniper Analyst</h1>
-      <p id="sub" class="text-xs text-slate-400">Chargement…</p>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><img src="/static/logo.png" alt=""><h1>FC27 <span>Sniper</span> Analyst</h1></div>
+    <div class="status">
+      <i id="dot" class="dot"></i><span id="status-txt" class="txt">Chargement…</span>
+      <button id="refresh" class="icon-btn" title="Actualiser" aria-label="Actualiser">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
+      </button>
     </div>
-    <span id="pill" class="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-slate-700">…</span>
-  </header>
+  </div>
+</header>
 
-  <div id="demo" class="hidden text-xs rounded-lg bg-amber-500/15 text-amber-300 px-3 py-2">
-    Mode DÉMO : données synthétiques. <code>python main.py demo-reset</code> pour les supprimer.
+<main class="wrap">
+  <div id="demo" class="banner hidden">Mode démo : données synthétiques. <code>python main.py demo-reset</code> pour les supprimer.</div>
+
+  <!-- Chiffres clés -->
+  <div class="kpis">
+    <div class="card kpi"><div class="label">Opportunités d'achat</div><div id="k-buy" class="value num up">–</div><div class="hint">signaux ACHAT actifs</div></div>
+    <div class="card kpi"><div class="label">Ventes conseillées</div><div id="k-sell" class="value num down">–</div><div class="hint">signaux VENTE actifs</div></div>
+    <div class="card kpi"><div class="label">Marché sur 24 h</div><div id="k-market" class="value num">–</div><div class="hint">variation médiane</div></div>
+    <div class="card kpi"><div class="label">Joueurs suivis</div><div id="k-wl" class="value num">–</div><div id="k-scan" class="hint">–</div></div>
   </div>
 
-  <!-- KPIs -->
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-2">
-    <div class="rounded-xl bg-slate-900 p-3"><p class="text-[11px] text-slate-400">Dernier scan</p><p id="k-scan" class="font-semibold num">–</p></div>
-    <div class="rounded-xl bg-slate-900 p-3"><p class="text-[11px] text-slate-400">Joueurs suivis</p><p id="k-wl" class="font-semibold num">–</p></div>
-    <div class="rounded-xl bg-slate-900 p-3"><p class="text-[11px] text-slate-400">Meilleur achat appris</p><p id="k-buy" class="font-semibold">–</p></div>
-    <div class="rounded-xl bg-slate-900 p-3"><p class="text-[11px] text-slate-400">Crash FUT Champions moy.</p><p id="k-crash" class="font-semibold num">–</p></div>
+  <!-- Meilleures opportunités -->
+  <section>
+    <div class="sec-head"><h2>Meilleures opportunités</h2><small id="best-window"></small></div>
+    <div id="picks" class="picks"></div>
   </section>
 
-  <!-- Résumé des 24 dernières heures (même texte que sur Discord) -->
-  <details id="summary" class="hidden rounded-xl bg-slate-900 p-3" open>
-    <summary class="text-sm font-semibold text-slate-300 cursor-pointer">📰 Résumé des 24 dernières heures
-      <span id="summary-time" class="text-[11px] text-slate-500 font-normal ml-1"></span></summary>
-    <div id="summary-text" class="whitespace-pre-wrap text-sm text-slate-300 mt-2 leading-relaxed"></div>
-  </details>
-
-  <!-- Filtres -->
-  <section class="flex flex-wrap items-center gap-2">
-    <div class="flex rounded-lg bg-slate-900 p-1 text-sm" id="tabs">
-      <button data-f="all" class="tab-on px-3 py-1 rounded-md">Tous</button>
-      <button data-f="buy" class="px-3 py-1 rounded-md">Achats</button>
-      <button data-f="sell" class="px-3 py-1 rounded-md">Ventes</button>
-      <button data-f="special" class="px-3 py-1 rounded-md">✨ Spéciales</button>
-    </div>
-    <input id="q" type="search" placeholder="Joueur ou promo (TOTW…)" class="flex-1 min-w-[140px] bg-slate-900 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-slate-600">
+  <!-- Résumé 24 h (même texte que sur Discord) -->
+  <section id="summary-sec" class="hidden">
+    <details id="summary" class="card summary">
+      <summary><span>📰 Résumé des 24 dernières heures <span id="summary-time" class="faint" style="font-weight:400;font-size:12px;margin-left:6px"></span></span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div id="summary-text" class="body"></div>
+    </details>
   </section>
 
-  <!-- Tableau joueurs -->
-  <section class="rounded-xl bg-slate-900 overflow-hidden">
-    <div class="hidden md:grid grid-cols-12 gap-2 px-3 py-2 text-[11px] uppercase text-slate-400 border-b border-slate-800">
-      <div class="col-span-4">Joueur</div><div class="col-span-2 text-right">Prix</div><div class="col-span-1 text-right">24h</div>
-      <div class="col-span-2 text-right">vs habitude</div><div class="col-span-2 text-center">Signal</div><div class="col-span-1 text-right">Conf.</div>
+  <!-- Marché -->
+  <section>
+    <div class="sec-head"><h2>Marché</h2><small id="count"></small></div>
+    <div class="toolbar">
+      <div class="seg" id="tabs">
+        <button data-f="all" class="on">Tous</button>
+        <button data-f="buy">Achats<span class="count" id="c-buy"></span></button>
+        <button data-f="sell">Ventes<span class="count" id="c-sell"></span></button>
+        <button data-f="special">Spéciales<span class="count" id="c-special"></span></button>
+      </div>
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Rechercher un joueur ou une promo (TOTW…)" autocomplete="off">
+      </label>
+      <select id="sort" class="select" aria-label="Trier">
+        <option value="conf">Trier : confiance</option>
+        <option value="price-desc">Prix décroissant</option>
+        <option value="price-asc">Prix croissant</option>
+        <option value="chg-desc">Plus fortes hausses 24 h</option>
+        <option value="chg-asc">Plus fortes baisses 24 h</option>
+        <option value="name">Nom</option>
+      </select>
     </div>
-    <div id="rows" class="divide-y divide-slate-800"></div>
+    <div class="card table">
+      <div class="thead"><div>Joueur</div><div>Prix</div><div>24 h</div><div>7 jours</div><div class="c">Signal</div><div>Confiance</div></div>
+      <div id="rows"></div>
+    </div>
   </section>
 
   <!-- Alertes -->
   <section>
-    <h2 class="text-sm font-semibold mb-2 text-slate-300">📨 Dernières alertes</h2>
-    <div id="alerts" class="space-y-2"></div>
+    <div class="sec-head"><h2>Dernières alertes</h2></div>
+    <div id="alerts" class="card alerts"></div>
   </section>
-</div>
+</main>
 
-<!-- Modale graphique -->
-<div id="modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-end md:items-center justify-center">
-  <div class="bg-slate-900 w-full md:max-w-3xl rounded-t-2xl md:rounded-2xl p-4 max-h-[92vh] overflow-y-auto">
-    <div class="flex justify-between items-start gap-2">
-      <div><h3 id="m-title" class="font-bold"></h3><p id="m-sub" class="text-xs text-slate-400"></p></div>
-      <button id="m-close" class="text-slate-400 text-2xl leading-none px-2">×</button>
-    </div>
-    <div class="h-64 md:h-80 mt-3"><canvas id="chart"></canvas></div>
-    <div id="m-detail" class="mt-3 text-sm space-y-1 text-slate-300"></div>
+<!-- Panneau de détail d'un joueur -->
+<div id="overlay" class="overlay"></div>
+<aside id="panel" class="panel" aria-hidden="true">
+  <div class="panel-head">
+    <div id="p-avatar" class="avatar"></div>
+    <div style="min-width:0"><h3 id="p-name"></h3><div id="p-sub" class="sub"></div></div>
+    <button id="p-close" class="icon-btn" aria-label="Fermer">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
   </div>
-</div>
+  <div class="panel-body">
+    <div class="hero">
+      <div><div id="p-price" class="big num"></div><div id="p-chg" class="chg num"></div></div>
+      <div id="p-signal"></div>
+    </div>
+    <div id="p-stats" class="stats"></div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <div class="legend">
+      <span><i style="background:#60a5fa"></i>Prix réel</span>
+      <span><i style="background:#a78bfa"></i>Habitude</span>
+      <span><i style="background:#e9b949"></i>Prévision 48 h</span>
+    </div>
+    <div id="p-insights" class="insights"></div>
+  </div>
+</aside>
 
 <script>
+const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const k = p => p == null ? "–" : p >= 1e6 ? (p/1e6).toFixed(2)+"M" : p >= 1e3 ? (p/1e3).toFixed(1).replace(".0","")+"k" : String(p);
-const pct = v => v == null ? "–" : (v > 0 ? "+" : "") + (v*100).toFixed(1) + "%";
-const color = v => v == null ? "text-slate-500" : v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-slate-300";
-const BADGE = {"ACHAT FORT":"bg-emerald-500 text-black","ACHAT":"bg-emerald-500/20 text-emerald-300",
-  "VENTE URGENTE":"bg-rose-500 text-white","VENTE":"bg-rose-500/20 text-rose-300","HOLD":"bg-slate-700 text-slate-300"};
+const pct = v => v == null ? "–" : (v > 0 ? "+" : "") + (v*100).toFixed(1) + " %";
+const tone = v => v == null ? "faint" : v > 0.0005 ? "up" : v < -0.0005 ? "down" : "flat";
+const bold = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+const isBuy = a => (a || "").startsWith("ACHAT"), isSell = a => (a || "").startsWith("VENTE");
+const SIGNAL = {"ACHAT FORT": "s-buy-strong", "ACHAT": "s-buy", "VENTE URGENTE": "s-sell-strong", "VENTE": "s-sell"};
+const signal = a => `<span class="signal ${SIGNAL[a] || "s-hold"}">${esc(a === "HOLD" ? "ATTENDRE" : a || "–")}</span>`;
 let players = [], filter = "all", chart = null;
-
-// Badge de rareté : couleur de la promo, contour plus marqué pour les cartes spéciales
-function rarityBadge(r, big) {
-  if (!r) return `<span class="text-[10px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-500">Rareté ?</span>`;
-  const size = big ? "text-xs px-2 py-0.5" : "text-[10px] px-1.5 py-0.5";
-  const style = r.special
-    ? `background:${r.color}26;color:${r.color};border:1px solid ${r.color}aa`
-    : `color:${r.color};border:1px solid ${r.color}55`;
-  return `<span class="${size} rounded font-semibold whitespace-nowrap" style="${style}" title="${esc(r.raw)}">${r.special ? "✨ " : ""}${esc(r.label)}</span>`;
-}
-
-async function get(url) { const r = await fetch(url, {credentials: "same-origin"}); if (!r.ok) throw new Error(r.status); return r.json(); }
 
 function ago(iso) {
   if (!iso) return "jamais";
   const m = Math.round((Date.now() - new Date(iso)) / 60000);
   return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m/60)} h` : `il y a ${Math.round(m/1440)} j`;
 }
-
-// vert < 2 h, orange < 6 h, rouge au-delà (prix qui n'est plus relevé)
-function scanColor(iso) {
+// fraîcheur du prix : vert < 2 h, orange < 6 h, rouge au-delà (joueur qui n'est plus relevé)
+function scanDot(iso) {
   const h = iso ? (Date.now() - new Date(iso)) / 3600000 : Infinity;
-  return h < 2 ? "text-emerald-400/80" : h < 6 ? "text-amber-400" : "text-rose-400";
+  return h < 2 ? "var(--up)" : h < 6 ? "var(--warn)" : "var(--down)";
 }
+function avatar(p, el) {
+  const c = p.rarity?.color || "#8a94a8";
+  const style = `background:${c}1f;color:${c};box-shadow:inset 0 0 0 1px ${c}55`;
+  if (el) { el.textContent = p.rating ?? "?"; el.style.cssText = style; return; }
+  return `<div class="avatar" style="${style}">${esc(p.rating ?? "?")}</div>`;
+}
+function chip(r) {
+  if (!r) return "";
+  const style = r.special ? `background:${r.color}24;color:${r.color}` : `color:${r.color};box-shadow:inset 0 0 0 1px ${r.color}44`;
+  return `<span class="chip" style="${style}" title="${esc(r.raw)}">${r.special ? "✦ " : ""}${esc(r.label)}</span>`;
+}
+const meter = c => c == null ? `<span class="faint">–</span>`
+  : `<span class="meter"><span class="bar"><b style="width:${c*10}%"></b></span><span class="num">${c}/10</span></span>`;
+
+async function get(url) { const r = await fetch(url, {credentials: "same-origin"}); if (!r.ok) throw new Error(r.status); return r.json(); }
 
 async function loadStatus() {
   const s = await get("/api/status");
-  const pill = document.getElementById("pill");
-  pill.textContent = s.online ? "● ONLINE" : "● OFFLINE";
-  pill.className = "shrink-0 text-xs font-semibold px-3 py-1 rounded-full " + (s.online ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300");
-  document.getElementById("sub").textContent = `Dernier scan ${ago(s.last_snapshot_at)} · ${s.tz}`;
-  document.getElementById("k-scan").textContent = s.last_snapshot ? `${s.last_snapshot.ok} OK / ${s.last_snapshot.failed} KO` : "–";
-  document.getElementById("k-wl").textContent = s.watchlist ? s.watchlist.count : "–";
-  document.getElementById("k-buy").textContent = s.global.best_buy || "–";
-  document.getElementById("k-crash").textContent = s.global.wl_crash_avg || "–";
-  document.getElementById("demo").classList.toggle("hidden", !s.demo);
+  $("dot").className = "dot " + (s.online ? "on" : "off");
+  $("status-txt").textContent = `${s.online ? "En ligne" : "Hors ligne"} · scan ${ago(s.last_snapshot_at)}`;
+  $("k-wl").textContent = s.watchlist ? s.watchlist.count : "–";
+  $("k-scan").textContent = s.last_snapshot ? `dernier scan : ${s.last_snapshot.ok} OK · ${s.last_snapshot.failed} KO` : "aucun scan";
+  $("best-window").textContent = s.global.best_buy ? `Meilleur moment d'achat appris : ${s.global.best_buy}` : "";
+  $("demo").classList.toggle("hidden", !s.demo);
 }
+
+function renderKpis() {
+  const buys = players.filter(p => isBuy(p.action)), sells = players.filter(p => isSell(p.action));
+  $("k-buy").textContent = buys.length; $("k-sell").textContent = sells.length;
+  $("c-buy").textContent = buys.length; $("c-sell").textContent = sells.length;
+  $("c-special").textContent = players.filter(p => p.rarity?.special).length;
+  const ch = players.map(p => p.change_24h).filter(v => v != null).sort((a, b) => a - b);
+  const med = ch.length ? ch[Math.floor(ch.length / 2)] : null;
+  $("k-market").textContent = pct(med);
+  $("k-market").className = "value num " + tone(med);
+}
+
+function renderPicks() {
+  const top = players.filter(p => isBuy(p.action) || isSell(p.action))
+    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)).slice(0, 4);
+  $("picks").innerHTML = top.map(p => `
+    <button class="card pick ${isBuy(p.action) ? "buy" : "sell"}" data-id="${esc(p.player_id)}">
+      <div class="row1"><span class="name">${esc(p.name)} <span class="muted" style="font-weight:500">${esc(p.rating ?? "")}</span></span>${signal(p.action)}</div>
+      <div class="row1"><span class="price num">${k(p.price)}</span><span class="num ${tone(p.change_24h)}" style="margin-top:10px;font-size:13px;font-weight:600">${pct(p.change_24h)}</span></div>
+      <div class="why">${esc(p.action_text || p.instant || "")}</div>
+    </button>`).join("") || `<div class="card empty" style="grid-column:1/-1">Aucune opportunité nette pour le moment. Le bot te préviendra sur Discord.</div>`;
+  document.querySelectorAll(".pick").forEach(b => b.onclick = () => openPlayer(b.dataset.id));
+}
+
+const SORTS = {
+  "conf": (a, b) => (isBuy(b.action) || isSell(b.action)) - (isBuy(a.action) || isSell(a.action)) || (b.confidence ?? 0) - (a.confidence ?? 0),
+  "price-desc": (a, b) => (b.price ?? 0) - (a.price ?? 0),
+  "price-asc": (a, b) => (a.price ?? 0) - (b.price ?? 0),
+  "chg-desc": (a, b) => (b.change_24h ?? -9) - (a.change_24h ?? -9),
+  "chg-asc": (a, b) => (a.change_24h ?? 9) - (b.change_24h ?? 9),
+  "name": (a, b) => a.name.localeCompare(b.name),
+};
 
 function renderRows() {
-  const q = document.getElementById("q").value.toLowerCase();
+  const q = $("q").value.trim().toLowerCase();
   const list = players.filter(p =>
-    (filter === "all" || (filter === "buy" && p.action.startsWith("ACHAT")) || (filter === "sell" && p.action.startsWith("VENTE"))
-      || (filter === "special" && p.rarity && p.rarity.special))
-    && (!q || `${p.name} ${p.rarity ? p.rarity.label + " " + p.rarity.raw : ""}`.toLowerCase().includes(q)));
-  document.getElementById("rows").innerHTML = list.map(p => `
-    <button data-id="${esc(p.player_id)}" class="row w-full text-left grid grid-cols-12 gap-2 px-3 py-2.5 items-center hover:bg-slate-800/60">
-      <div class="col-span-7 md:col-span-4 min-w-0">
-        <p class="font-medium truncate">${esc(p.name)} <span class="text-slate-400">${esc(p.rating ?? "")}</span></p>
-        <p class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">${rarityBadge(p.rarity)}<span>${esc(p.position ?? "")}</span><span class="truncate">· ${esc(p.rule ?? "")}</span></p>
-        <p class="text-[10px] mt-0.5 ${scanColor(p.scanned_at)}">🕒 scanné ${ago(p.scanned_at)}</p>
+    (filter === "all" || (filter === "buy" && isBuy(p.action)) || (filter === "sell" && isSell(p.action))
+      || (filter === "special" && p.rarity?.special))
+    && (!q || `${p.name} ${p.rarity ? p.rarity.label + " " + p.rarity.raw : ""}`.toLowerCase().includes(q)))
+    .sort(SORTS[$("sort").value]);
+  $("count").textContent = `${list.length} joueur${list.length > 1 ? "s" : ""}`;
+  $("rows").innerHTML = list.map(p => `
+    <button class="trow" data-id="${esc(p.player_id)}">
+      <div class="player col-player">${avatar(p)}
+        <div class="meta"><div class="n">${esc(p.name)}</div>
+          <div class="sub">${chip(p.rarity)}<span>${esc(p.position ?? "")}</span>
+            <span class="scan" title="Dernier prix relevé"><i style="background:${scanDot(p.scanned_at)}"></i>${ago(p.scanned_at)}</span></div></div>
       </div>
-      <div class="col-span-5 md:col-span-2 text-right num font-semibold">${k(p.price)}
-        ${p.avg_7d ? `<span class="block text-[11px] font-normal text-slate-500">moy. 7j ${k(p.avg_7d)}</span>` : ""}
-        <span class="md:hidden block text-[11px] ${color(p.change_24h)}">${pct(p.change_24h)} / 24h</span></div>
-      <div class="hidden md:block col-span-1 text-right num text-sm ${color(p.change_24h)}">${pct(p.change_24h)}</div>
-      <div class="hidden md:block col-span-2 text-right num text-sm ${color(p.habit_dev)}">${pct(p.habit_dev)}</div>
-      <div class="col-span-8 md:col-span-2 md:text-center"><span class="text-[11px] font-semibold px-2 py-0.5 rounded ${BADGE[p.action] || "bg-slate-700"}">${esc(p.action)}</span>
-        <span class="md:hidden text-[11px] ml-1 ${color(p.habit_dev)}">habitude ${pct(p.habit_dev)}</span></div>
-      <div class="col-span-4 md:col-span-1 text-right num text-sm">${p.confidence ?? "–"}/10</div>
-    </button>`).join("") || `<p class="p-4 text-sm text-slate-500">Aucun joueur.</p>`;
-  document.querySelectorAll(".row").forEach(b => b.onclick = () => openChart(b.dataset.id));
+      <div class="price-cell"><div class="p num">${k(p.price)}</div>
+        <div class="a num">${p.avg_7d ? "moy. 7 j " + k(p.avg_7d) : ""}</div>
+        <div class="a num m ${tone(p.change_24h)}" style="display:none">${pct(p.change_24h)} / 24 h</div></div>
+      <div class="col-24h num ${tone(p.change_24h)}">${pct(p.change_24h)}</div>
+      <div class="col-7d num ${tone(p.trend_7d)}">${pct(p.trend_7d)}</div>
+      <div class="c col-signal">${signal(p.action)}</div>
+      <div class="col-conf">${meter(p.confidence)}</div>
+    </button>`).join("") || `<div class="empty">Aucun joueur ne correspond.</div>`;
+  document.querySelectorAll(".trow").forEach(b => b.onclick = () => openPlayer(b.dataset.id));
 }
 
-async function loadPlayers() { players = await get("/api/players"); renderRows(); }
+async function loadPlayers() { players = await get("/api/players"); renderKpis(); renderPicks(); renderRows(); }
 
 async function loadAlerts() {
-  const a = await get("/api/alerts?limit=20");
-  document.getElementById("alerts").innerHTML = a.map(x => `
-    <details class="rounded-xl bg-slate-900 px-3 py-2">
-      <summary class="text-sm cursor-pointer"><span class="text-[11px] font-semibold px-2 py-0.5 rounded ${BADGE[x.action] || "bg-slate-700"}">${esc(x.action)}</span>
-        <span class="ml-1">${esc((x.message.split("\n")[1] || "").replace("Joueur : ", ""))}</span>
-        <span class="text-[11px] text-slate-500 ml-1">${ago(x.timestamp)} · ${x.confidence}/10${x.sent ? "" : " · non envoyée"}</span></summary>
-      <pre class="whitespace-pre-wrap text-xs text-slate-300 mt-2 font-sans">${esc(x.message)}</pre>
-    </details>`).join("") || `<p class="text-sm text-slate-500">Aucune alerte pour l'instant.</p>`;
+  const a = await get("/api/alerts?limit=15");
+  $("alerts").innerHTML = a.map(x => `
+    <details class="alert">
+      <summary>${signal(x.action)}<span class="who">${esc((x.message.split("\n")[1] || "").replace("Joueur : ", ""))}</span>
+        <span class="when">${ago(x.timestamp)} · ${x.confidence}/10${x.sent ? "" : " · non envoyée"}</span></summary>
+      <pre>${esc(x.message)}</pre>
+    </details>`).join("") || `<div class="empty">Aucune alerte pour l'instant.</div>`;
 }
-
-async function openChart(id) {
-  const p = players.find(x => x.player_id === id) || {};
-  document.getElementById("m-title").innerHTML = `${esc(p.name || id)} ${esc(p.rating || "")} ${rarityBadge(p.rarity, true)}`;
-  document.getElementById("m-sub").textContent = `${k(p.price)} · ${pct(p.change_24h)} / 24h · ${p.action || ""} · scanné ${ago(p.scanned_at)}`;
-  const bold = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100">$1</strong>');
-  document.getElementById("m-detail").innerHTML = [
-    p.avg_7d && `<p>📊 Moy. 7j : <strong class="text-slate-100">${k(p.avg_7d)}</strong> (min ${k(p.min_7d)} – max ${k(p.max_7d)}) · actuel <span class="${color(p.vs_avg)}">${pct(p.vs_avg)}</span> vs moyenne · tendance 7j <span class="${color(p.trend_7d)}">${pct(p.trend_7d)}</span></p>`,
-    p.explain && `<p>🧭 ${bold(p.explain)}</p>`,
-    p.instant && `<p>⚡ ${esc(p.instant)}</p>`, p.habit && `<p>🧠 ${esc(p.habit)}</p>`,
-    p.action_text && `<p class="font-semibold">👉 ${esc(p.action_text)}</p>`].filter(Boolean).join("");
-  document.getElementById("modal").classList.remove("hidden");
-  const d = await get(`/api/player/${encodeURIComponent(id)}/chart`);
-  const fmt = t => new Date(t).toLocaleString("fr-FR", {weekday: "short", hour: "2-digit"});
-  const labels = [...d.real, ...d.forecast].map(x => fmt(x.t));
-  const pad = n => Array(n).fill(null);
-  if (chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: { labels, datasets: [
-      { label: "Prix réel", data: [...d.real.map(x => x.p), ...pad(d.forecast.length)], borderColor: "#38bdf8", borderWidth: 2, pointRadius: 0, tension: .2 },
-      { label: "Habitude (prédit)", data: [...d.predicted.map(x => x.p), ...pad(d.forecast.length)], borderColor: "#a78bfa", borderDash: [5,4], borderWidth: 1.5, pointRadius: 0, tension: .2 },
-      { label: "Prévision 48h", data: [...pad(d.real.length), ...d.forecast.map(x => x.p)], borderColor: "#fbbf24", borderDash: [2,3], borderWidth: 1.5, pointRadius: 0, tension: .2 },
-    ]},
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
-      plugins: { legend: { labels: { color: "#cbd5e1", boxWidth: 12, font: { size: 11 } } },
-                 tooltip: { callbacks: { label: c => `${c.dataset.label}: ${k(c.parsed.y)}` } } },
-      scales: { x: { ticks: { color: "#64748b", maxTicksLimit: 8, maxRotation: 0 }, grid: { color: "#1e293b" } },
-                y: { ticks: { color: "#64748b", callback: v => k(v) }, grid: { color: "#1e293b" } } } }
-  });
-}
-
-document.getElementById("m-close").onclick = () => document.getElementById("modal").classList.add("hidden");
-document.getElementById("modal").onclick = e => { if (e.target.id === "modal") e.target.classList.add("hidden"); };
-document.getElementById("q").oninput = renderRows;
-document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
-  filter = b.dataset.f;
-  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("tab-on", x === b));
-  renderRows();
-});
 
 async function loadSummary() {
   const r = await get("/api/summary");
-  const box = document.getElementById("summary");
-  if (!r.text) { box.classList.add("hidden"); return; }
-  box.classList.remove("hidden");
-  document.getElementById("summary-time").textContent = ago(r.timestamp);
-  document.getElementById("summary-text").innerHTML = esc(r.text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100">$1</strong>')
-    .replace(/^_(.*)_$/gm, '<span class="text-slate-500 text-xs">$1</span>');
+  $("summary-sec").classList.toggle("hidden", !r.text);
+  if (!r.text) return;
+  $("summary-time").textContent = ago(r.timestamp);
+  $("summary-text").innerHTML = bold(r.text).replace(/^_(.*)_$/gm, '<span class="faint" style="font-size:12px">$1</span>');
 }
 
-async function refresh() {
-  try { await Promise.all([loadStatus(), loadPlayers(), loadAlerts(), loadSummary()]); }
-  catch (e) { document.getElementById("sub").textContent = "Erreur de chargement : " + e.message; }
+// ---------- panneau de détail
+function closePanel() { $("panel").classList.remove("open"); $("overlay").classList.remove("open"); $("panel").setAttribute("aria-hidden", "true"); }
+
+async function openPlayer(id) {
+  const p = players.find(x => x.player_id === id) || {name: id};
+  avatar(p, $("p-avatar"));
+  $("p-name").textContent = p.name;
+  $("p-sub").innerHTML = `${chip(p.rarity)}<span>${esc(p.position ?? "")}</span>
+    <span class="scan"><i style="background:${scanDot(p.scanned_at)}"></i>scanné ${ago(p.scanned_at)}</span>`;
+  $("p-price").textContent = k(p.price);
+  $("p-chg").innerHTML = `<span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span> <span class="faint" style="font-weight:400">sur 24 h</span>`;
+  $("p-signal").innerHTML = signal(p.action) + (p.confidence != null ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">confiance ${p.confidence}/10</div>` : "");
+  const stat = (l, v, cls = "") => `<div><div class="l">${l}</div><div class="v num ${cls}">${v}</div></div>`;
+  $("p-stats").innerHTML = [
+    stat("Moyenne 7 j", k(p.avg_7d)), stat("Min 7 j", k(p.min_7d)), stat("Max 7 j", k(p.max_7d)),
+    stat("vs moyenne", pct(p.vs_avg), tone(p.vs_avg)), stat("Tendance 7 j", pct(p.trend_7d), tone(p.trend_7d)),
+    stat("vs habitude", pct(p.habit_dev), tone(p.habit_dev))].join("");
+  const ins = (t, body, cls = "") => body ? `<div class="insight ${cls}"><div class="t">${t}</div>${body}</div>` : "";
+  const side = isBuy(p.action) ? "buy" : isSell(p.action) ? "sell" : "";
+  $("p-insights").innerHTML = [
+    ins("Conseil", p.action_text && `<span class="x">${esc(p.action_text)}</span>`, "action " + side),
+    ins("Pourquoi ça bouge", p.explain && bold(p.explain)),
+    ins("Signal du moment", p.instant && esc(p.instant)),
+    ins("Habitude du marché", p.habit && esc(p.habit))].join("");
+  $("overlay").classList.add("open"); $("panel").classList.add("open"); $("panel").setAttribute("aria-hidden", "false");
+  $("panel").scrollTop = 0;
+
+  const d = await get(`/api/player/${encodeURIComponent(id)}/chart`);
+  const fmt = t => new Date(t).toLocaleString("fr-FR", {weekday: "short", hour: "2-digit"});
+  const pad = n => Array(n).fill(null);
+  const line = (data, color, dash) => ({data, borderColor: color, borderDash: dash || [], borderWidth: dash ? 1.5 : 2.2, pointRadius: 0, tension: .25});
+  const real = line([...d.real.map(x => x.p), ...pad(d.forecast.length)], "#60a5fa");
+  real.fill = {target: "origin", above: "rgba(96,165,250,.08)"};
+  if (chart) chart.destroy();
+  chart = new Chart($("chart"), {
+    type: "line",
+    data: { labels: [...d.real, ...d.forecast].map(x => fmt(x.t)), datasets: [
+      {label: "Prix réel", ...real},
+      {label: "Habitude", ...line([...d.predicted.map(x => x.p), ...pad(d.forecast.length)], "#a78bfa", [5, 4])},
+      {label: "Prévision 48 h", ...line([...pad(d.real.length), ...d.forecast.map(x => x.p)], "#e9b949", [2, 3])},
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, interaction: {mode: "index", intersect: false},
+      plugins: { legend: {display: false},
+        tooltip: { backgroundColor: "#171c28", borderColor: "#222a3a", borderWidth: 1, padding: 10, titleColor: "#e8ecf3", bodyColor: "#c3cad8",
+                   callbacks: {label: c => ` ${c.dataset.label} : ${k(c.parsed.y)}`} } },
+      scales: { x: {ticks: {color: "#5b6478", maxTicksLimit: 6, maxRotation: 0, font: {size: 11}}, grid: {display: false}, border: {display: false}},
+                y: {ticks: {color: "#5b6478", callback: v => k(v), maxTicksLimit: 5, font: {size: 11}}, grid: {color: "#1a2030"}, border: {display: false}} } }
+  });
 }
+
+$("p-close").onclick = closePanel;
+$("overlay").onclick = closePanel;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
+$("q").oninput = renderRows;
+$("sort").onchange = renderRows;
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  filter = b.dataset.f;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  renderRows();
+});
+
+async function refresh() {
+  $("refresh").classList.add("spin");
+  try { await Promise.all([loadStatus(), loadPlayers(), loadAlerts(), loadSummary()]); }
+  catch (e) { $("status-txt").textContent = "Erreur de chargement : " + e.message; }
+  finally { $("refresh").classList.remove("spin"); }
+}
+$("refresh").onclick = refresh;
 refresh();
 setInterval(refresh, 60000);
 </script>

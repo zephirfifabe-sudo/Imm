@@ -113,7 +113,4 @@ dashboard/              FastAPI + index.html (Tailwind compilé + Chart.js embar
 
 ## Dashboard : modifier le style
 
-Le CSS est pré-compilé (`dashboard/static/app.css`). Si tu ajoutes des classes Tailwind dans `index.html` :
-```bash
-npx tailwindcss@3.4.16 -o dashboard/static/app.css --content dashboard/index.html --minify
-```
+Le style est dans `dashboard/static/style.css` (CSS simple, aucune compilation). Les couleurs sont regroupées en variables en haut du fichier (`:root`).
