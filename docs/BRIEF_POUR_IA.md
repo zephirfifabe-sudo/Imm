@@ -192,7 +192,7 @@ deploy.sh / install.sh installation en 3 questions et mise à jour sur le VPS
 3. **Dashboard installable** (PWA) sur l'écran d'accueil de l'iPhone, éventuellement avec notifications push.
 4. **Bot Discord interactif** (commandes slash : `/prix Mbappé`, `/top achats`, `/fodder 86`) au lieu du simple webhook.
 5. **Page « Réglages » dans le dashboard** (budget, tranches de prix, seuil de confiance, heures des rapports), sans éditer `.env` en SSH.
-6. **Sauvegarde automatique** de `data/sniper.db` (chaque nuit, et de façon chiffrée hors du VPS).
+6. **Sauvegarde automatique** de `data/market_history.db` (chaque nuit, et de façon chiffrée hors du VPS).
 7. **Supervision** : une alerte Discord si le bot ne relève plus de prix depuis 2 h, ou si la source change de format.
 
 ### C. Qualité technique
