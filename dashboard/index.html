@@ -168,7 +168,8 @@ try { engine = localStorage.getItem("engine"); } catch (e) {}
 function ago(iso) {
   if (!iso) return "jamais";
   const m = Math.round((Date.now() - new Date(iso)) / 60000);
-  return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m/60)} h` : `il y a ${Math.round(m/1440)} j`;
+  return m < 1 ? "à l'instant" : m < 60 ? `il y a ${m} min` : m < 180 ? `il y a ${Math.floor(m/60)} h ${String(m % 60).padStart(2, "0")}`
+    : m < 1440 ? `il y a ${Math.floor(m/60)} h` : `il y a ${Math.floor(m/1440)} j`;
 }
 // fraîcheur du prix : vert < 2 h, orange < 6 h, rouge au-delà (joueur qui n'est plus relevé)
 function scanDot(iso) {
@@ -241,7 +242,8 @@ async function get(url) { const r = await fetch(url, {credentials: "same-origin"
 async function loadStatus() {
   const s = await get("/api/status");
   $("dot").className = "dot " + (s.online ? "on" : "off");
-  $("status-txt").textContent = `${s.online ? "En ligne" : "Hors ligne"} · scan ${ago(s.last_snapshot_at)}`;
+  const at = s.last_snapshot_at ? new Date(s.last_snapshot_at).toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris"}) : null;
+  $("status-txt").textContent = `${s.online ? "En ligne" : "Hors ligne"} · ${at ? `dernier scan à ${at} (${ago(s.last_snapshot_at)})` : "aucun scan"}`;
   $("k-wl").textContent = s.watchlist ? s.watchlist.count : "–";
   $("k-scan").textContent = s.last_snapshot ? `dernier scan : ${s.last_snapshot.ok} OK · ${s.last_snapshot.failed} KO` : "aucun scan";
   status = s;
