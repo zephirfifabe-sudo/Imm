@@ -267,18 +267,28 @@ def cmd_knowledge_verify(_):
     print_verification()
 
 
-def cmd_test_leak(_):
+def cmd_test_leak(args):
     import config
     from alerts import notifier
-    from scrapers.leak_watcher import analyze_leak
+    from scrapers.base import Fetcher
+    from scrapers.leak_watcher import analyze_leak, channels, parse_telegram_page
     from scrapers.watchlist import load_watchlist
 
     wl = load_watchlist()
-    star = next((p for p in wl if p.get("position") in ("RW", "LW", "ST")), None)
-    text = ("🧪 TEST (faux leak, ignorez) — Thunderstruck Team 1 : "
-            + (f"{star['name']} {star['position']} {(star.get('rating') or 85) + 3} " if star else "RW 89 Premier League ")
-            + "+ nouveau SBC Icône demandant des 86 et 88")
-    msg = notifier.format_leaks([({"text": text, "source": "https://t.me/s/test"}, analyze_leak(text, wl))])
+    if args.dernier:  # vrai dernier message du 1er canal configuré
+        url = channels()[0]
+        with Fetcher(mode="httpx") as f:
+            msgs = parse_telegram_page(f.get(url).text, url)
+        if not msgs:
+            print(f"Aucun message lisible sur {url}")
+            return
+        leak = msgs[-1]
+    else:
+        star = next((p for p in wl if p.get("position") in ("RW", "LW", "ST")), None)
+        leak = {"source": "https://t.me/s/test", "text": "🧪 TEST (faux leak, ignorez) — Thunderstruck Team 1 : "
+                + (f"{star['name']} {star['position']} {(star.get('rating') or 85) + 3} " if star else "RW 89 Premier League ")
+                + "+ nouveau SBC Icône demandant des 86 et 88"}
+    msg = notifier.format_leaks([(leak, analyze_leak(leak["text"], wl))])
     where = "salon leaks dédié" if config.DISCORD_LEAKS_WEBHOOK_URL else "salon principal (DISCORD_LEAKS_WEBHOOK_URL vide)"
     print(msg + "\n")
     print(("✅ Envoyé sur le " if notifier.send_leaks(msg) else "❌ Échec d'envoi vers le ") + where)
@@ -301,7 +311,7 @@ def cmd_demo_reset(_):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
-    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("knowledge", cmd_knowledge), ("knowledge-verify", cmd_knowledge_verify), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert), ("test-leak", cmd_test_leak),
+    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("knowledge", cmd_knowledge), ("knowledge-verify", cmd_knowledge_verify), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
                      ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:
@@ -313,6 +323,9 @@ def main(argv=None):
     p.add_argument("--all", action="store_true", help="inclure les HOLD")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(fn=cmd_analyze)
+    p = sub.add_parser("test-leak", help="envoie un leak de test (ou --dernier : le vrai dernier message du canal)")
+    p.add_argument("--dernier", action="store_true")
+    p.set_defaults(fn=cmd_test_leak)
     p = sub.add_parser("performance", help="résultats théoriques des décisions journalisées")
     p.add_argument("--days", type=int, default=30)
     p.set_defaults(fn=cmd_performance)
