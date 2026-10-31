@@ -129,7 +129,7 @@
     <div id="p-stats" class="stats"></div>
     <div class="chart-head"><span class="faint">Évolution du prix</span>
       <div class="seg seg-sm" id="periods"><button data-d="1">24 h</button><button data-d="7" class="on">7 j</button><button data-d="30">30 j</button></div></div>
-    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <div class="chart-box"><canvas id="chart"></canvas><div id="chart-msg" class="chart-msg hidden"></div></div>
     <div class="legend">
       <span><i style="background:#60a5fa"></i>Prix réel</span>
       <span><i style="background:#a78bfa"></i>Habitude</span>
@@ -411,7 +411,20 @@ async function openPlayer(id) {
 
 let current = null, period = 7;
 async function drawChart() {
-  const d = await get(`/api/player/${encodeURIComponent(current)}/chart?days=${period}`);
+  const msg = t => { $("chart-msg").textContent = t; $("chart-msg").classList.toggle("hidden", !t); };
+  let d;
+  try {
+    if (typeof Chart === "undefined") throw new Error("bibliothèque graphique non chargée (/static/chart.umd.js)");
+    d = await get(`/api/player/${encodeURIComponent(current)}/chart?days=${period}`);
+  } catch (e) {
+    if (chart) { chart.destroy(); chart = null; }
+    return msg(`Graphique indisponible : ${e.message}`);
+  }
+  if (!d.real.length) {
+    if (chart) { chart.destroy(); chart = null; }
+    return msg("Pas encore assez de relevés de prix pour ce joueur.");
+  }
+  msg("");
   const fmt = t => new Date(t).toLocaleString("fr-FR", period > 7 ? {day: "2-digit", month: "2-digit"} : {weekday: "short", hour: "2-digit"});
   const pad = n => Array(n).fill(null);
   const line = (data, color, dash) => ({data, borderColor: color, borderDash: dash || [], borderWidth: dash ? 1.5 : 2.2, pointRadius: 0, tension: .25});
