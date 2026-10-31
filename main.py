@@ -294,8 +294,9 @@ def cmd_test_leak(args):
     print(("✅ Envoyé sur le " if notifier.send_leaks(msg) else "❌ Échec d'envoi vers le ") + where)
 
 
-def cmd_fodder(_):
-    from scrapers.fodder import fodder_status, load_spec, snapshot_fodder
+def cmd_fodder(args):
+    from alerts import notifier
+    from scrapers.fodder import fodder_status, format_report, load_spec, snapshot_fodder
     from utils.helpers import fmt_coins
 
     done = snapshot_fodder()
@@ -309,6 +310,8 @@ def cmd_fodder(_):
         best = "  ⭐ meilleur prix par point" if x.get("best_value") else ""
         print(f"{x['rating']} : {fmt_coins(x['price'])} · 24 h {ch} · {x['sbc_points'] or '?'} pts · "
               f"{fmt_coins(x['per_1k_points'])} / 1 000 pts{best}")
+    if args.discord:
+        print("✅ Envoyé sur Discord" if notifier.send_text(format_report(fodder_status())) else "❌ Échec de l'envoi Discord")
 
 
 def cmd_demo_seed(_):
@@ -328,7 +331,7 @@ def cmd_demo_reset(_):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
-    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("knowledge", cmd_knowledge), ("knowledge-verify", cmd_knowledge_verify), ("fodder", cmd_fodder), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
+    for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("knowledge", cmd_knowledge), ("knowledge-verify", cmd_knowledge_verify), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
                      ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:
@@ -340,6 +343,9 @@ def main(argv=None):
     p.add_argument("--all", action="store_true", help="inclure les HOLD")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(fn=cmd_analyze)
+    p = sub.add_parser("fodder", help="relève les fodders maintenant (--discord : envoie le tableau sur Discord)")
+    p.add_argument("--discord", action="store_true")
+    p.set_defaults(fn=cmd_fodder)
     p = sub.add_parser("test-leak", help="envoie un leak de test (ou --dernier : le vrai dernier message du canal)")
     p.add_argument("--dernier", action="store_true")
     p.set_defaults(fn=cmd_test_leak)

@@ -101,3 +101,9 @@ def test_cheapest_card_whatever_its_version():
 
     done = fodder.snapshot_fodder(Mixed())
     assert done[90]["min_price"] == 35250 and done[90]["sbc_points"] == 26000
+
+
+def test_fodder_report_for_discord():
+    fodder.snapshot_fodder(FakeFutgenie())
+    txt = fodder.format_report(fodder.fodder_status())
+    assert txt.startswith("🧱 **FODDERS") and "**88**" in txt and "⭐" in txt and len(txt) < 1900
