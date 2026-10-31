@@ -132,6 +132,7 @@ class FutGenie:
             # pas d'arrêt sur une page « incomplète » : une carte sans prix affiché ne signifie pas la fin
             if len(cards) >= wanted:
                 break
+        log.info("Tranche %s-%s : %d/%d cartes en %d page(s)", lo, hi, min(len(cards), wanted), wanted, page)
         return cards[:wanted]
 
     def details(self, card: dict, max_new: list[int]) -> dict:
