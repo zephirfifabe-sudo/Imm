@@ -181,7 +181,7 @@ class FutGenie:
             log.info("Fiches futgenie complétées : %d", done)
         return done
 
-    def build_watchlist(self, bands: list[tuple[int, int, int]], max_new: int = 300) -> list[dict]:
+    def build_watchlist(self, bands: list[tuple[int, int, int]], max_new: int = 450) -> list[dict]:
         budget = [max_new]
         players = []
         for lo, hi, quota in bands:

@@ -29,10 +29,10 @@ PRICE_MAX = int(os.getenv("PRICE_MAX", "200000"))
 WATCHLIST_SIZE = int(os.getenv("WATCHLIST_SIZE", "250"))
 # Répartition de la watchlist par fourchette de prix : "min-max:nombre,..." (cœur du marché = 20k-100k)
 # Petites tranches : futgenie ne sert qu'environ 4 pages (~100 joueurs) par recherche, et la watchlist
-# se répartit mieux sur tous les niveaux de prix (190 joueurs entre 20k et 100k, 60 au-dessus)
+# se répartit mieux sur tous les niveaux de prix (12 tranches : ~305 joueurs entre 20k et 110k, ~105 au-dessus)
 WATCHLIST_BANDS = os.getenv(
     "WATCHLIST_BANDS",
-    "20000-35000:50,35001-50000:50,50001-75000:45,75001-100000:45,100001-150000:35,150001-250000:25",
+    "20000-25000:40,25001-30000:40,30001-35000:35,35001-42000:40,42001-50000:40,50001-60000:35,60001-75000:40,75001-90000:35,90001-110000:30,110001-140000:30,140001-180000:25,180001-250000:20",
 )
 # Source des prix : "futgenie" (prix exacts, accès autorisé par robots.txt) ou "futgg" (tranches)
 PRICE_SOURCE = os.getenv("PRICE_SOURCE", "futgenie")

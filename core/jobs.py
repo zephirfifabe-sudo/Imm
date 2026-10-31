@@ -113,9 +113,12 @@ def job_outcomes():
 def job_watchlist():
     from scrapers.watchlist import build_watchlist
 
+    from scrapers.price_buckets import parse_bands
+
     wl = build_watchlist()
+    bands = parse_bands(config.WATCHLIST_BANDS)
     notifier.send_text(f"📋 Watchlist du jour : {len(wl)} joueurs entre "
-                       f"{config.PRICE_MIN // 1000}k et {config.PRICE_MAX // 1000}k.")
+                       f"{bands[0][0] // 1000}k et {bands[-1][1] // 1000}k.")
 
 
 def in_19h_window(now_local=None) -> bool:
