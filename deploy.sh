@@ -17,9 +17,16 @@ fi
 mkdir -p data/logs
 
 git pull --ff-only
-docker compose down
-docker compose up -d --build
+# Construire AVANT d'arrêter l'ancien bot : si la construction échoue, le bot actuel continue de tourner.
+if ! docker compose build; then
+  echo "❌ La construction a échoué : l'ancien bot continue de tourner (rien n'a été arrêté)."
+  echo "   Envoie les lignes d'erreur ci-dessus pour diagnostic."
+  docker compose up -d >/dev/null 2>&1 || true
+  exit 1
+fi
+docker compose up -d
 docker image prune -f >/dev/null
+docker builder prune -f >/dev/null 2>&1 || true
 sleep 5
 docker compose ps
 echo "✅ Dashboard : http://$(curl -s -4 ifconfig.me 2>/dev/null || echo IP_DU_VPS):8000"
