@@ -159,6 +159,21 @@ def api_knowledge():
             "observed_meta": observed.get("_meta"), "profil_jours": observed.get("profil_jours_observe")}
 
 
+@app.get("/api/leaks", dependencies=[Depends(auth)])
+def api_leaks(limit: int = 12):
+    """Derniers leaks liés à FUT (non confirmés), analysés avec la watchlist actuelle."""
+    from scrapers.leak_watcher import analyze_leak, channels
+
+    wl = load_watchlist()
+    with db.get_conn() as c:
+        rows = c.execute("SELECT * FROM leaks WHERE tags != '[]' ORDER BY COALESCE(timestamp, first_seen) DESC LIMIT ?",
+                         (min(limit, 50),)).fetchall()
+    out = [{"source": (r["source"] or "").rsplit("/", 1)[-1], "url": (r["leak_id"] or "").replace("tg:", "https://t.me/")
+            if (r["leak_id"] or "").startswith("tg:") else None, "timestamp": r["timestamp"] or r["first_seen"],
+            "text": r["text"], **analyze_leak(r["text"] or "", wl)} for r in rows]
+    return {"leaks": out, "channels": [u.rsplit("/", 1)[-1] for u in channels()]}
+
+
 @app.get("/api/performance", dependencies=[Depends(auth)])
 def api_performance(days: int = 30):
     from core.decision_journal import performance

@@ -149,11 +149,19 @@ def job_sbc_evo():
 def job_leaks():
     from scrapers.leak_watcher import fetch_leaks
 
+    from scrapers.leak_watcher import analyze_leak
+
     wl = _watchlist()
-    new = fetch_leaks([p["name"] for p in wl])
-    hot = [l for l in new if any(t.startswith("player:") for t in l.get("tags", []))]
-    if hot:
-        notifier.send_text("🔮 LEAK sur ta watchlist :\n\n" + "\n\n".join(l["text"][:400] for l in hot[:5]))
+    new = [l for l in fetch_leaks([p["name"] for p in wl]) if not l.get("initial")]  # 1re lecture d'un canal : pas d'alerte
+    dedicated = bool(config.DISCORD_LEAKS_WEBHOOK_URL)  # salon dédié : tous les leaks FUT ; sinon les importants
+    chosen = []
+    for leak in new:
+        a = analyze_leak(leak["text"], wl)
+        if (dedicated and leak.get("tags")) or a["players"] or \
+                (a["kind"] in ("sbc", "promo", "totw", "evo", "icone") and a["impact"]):
+            chosen.append((leak, a))
+    if chosen:
+        notifier.send_leaks(notifier.format_leaks(chosen[:6 if dedicated else 3]))
 
 
 @safe_job

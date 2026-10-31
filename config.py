@@ -50,7 +50,9 @@ FUTGG_EVOS_URL = os.getenv("FUTGG_EVOS_URL", f"{FUTGG_BASE}/evolutions/")
 FUTGG_SBC_URL = os.getenv("FUTGG_SBC_URL", f"{FUTGG_BASE}/sbc/")
 FUTBIN_BASE = os.getenv("FUTBIN_BASE", "https://www.futbin.com")
 
-LEAK_CHANNEL_URL = os.getenv("LEAK_CHANNEL_URL", "")
+LEAK_CHANNEL_URL = os.getenv("LEAK_CHANNEL_URL", "")  # ancien réglage (1 canal), toujours accepté
+# Canaux Telegram PUBLICS de leaks, séparés par des virgules (nom, @nom ou lien t.me)
+LEAK_CHANNELS = [c.strip() for c in os.getenv("LEAK_CHANNELS", LEAK_CHANNEL_URL or "FUTopedia").split(",") if c.strip()]
 NITTER_URL = os.getenv("NITTER_URL", "")
 NITTER_ACCOUNTS = [a.strip() for a in os.getenv("NITTER_ACCOUNTS", "FutSheriff").split(",") if a.strip()]
 
@@ -71,6 +73,7 @@ USER_AGENT = os.getenv(
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+DISCORD_LEAKS_WEBHOOK_URL = os.getenv("DISCORD_LEAKS_WEBHOOK_URL", "")  # salon dédié aux leaks (sinon salon principal)
 
 # --- Seuils du cerveau ---
 SIMILARITY_ALERT = 0.85

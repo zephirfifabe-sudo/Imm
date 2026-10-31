@@ -92,6 +92,24 @@ def _now_label() -> str:
     return f"{jours[now.weekday()]} {now:%d/%m %H:%M}"
 
 
+def send_leaks(text: str) -> bool:
+    """Leaks -> salon Discord dédié s'il est configuré, sinon canaux habituels."""
+    if config.DISCORD_LEAKS_WEBHOOK_URL:
+        return discord.send_message(text, webhook=config.DISCORD_LEAKS_WEBHOOK_URL)
+    return send_text(text)
+
+
+def format_leaks(items: list[tuple[dict, dict]]) -> str:
+    """Leaks importants (non confirmés) avec leur impact estimé."""
+    blocks = []
+    for leak, a in items:
+        src = (leak.get("source") or "").rsplit("/", 1)[-1]
+        lines = [f"🔮 **LEAK {a['kind_label']}** (non confirmé · {src})", leak["text"][:350]]
+        lines += [f"> {i}" for i in a["impact"]]
+        blocks.append("\n".join(lines))
+    return SEP.join(blocks)
+
+
 def report_pre19(analyzer, leaks: list[dict]) -> str:
     """18h45 : leaks récents + ventes à sécuriser AVANT les nouveautés de 19h."""
     lines = [f"🕡 PRÉ-19H — {_now_label()}"]

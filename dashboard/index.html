@@ -53,6 +53,12 @@
     </details>
   </section>
 
+  <!-- Leaks -->
+  <section>
+    <div class="sec-head"><h2>Leaks</h2><small id="leaks-src" class="faint"></small></div>
+    <div id="leaks" class="leaks"></div>
+  </section>
+
   <!-- Marché -->
   <section>
     <div class="sec-head"><h2>Marché</h2>
@@ -338,6 +344,18 @@ async function loadKnowledge() {
     </details>`).join("");
 }
 
+async function loadLeaks() {
+  const r = await get("/api/leaks?limit=8");
+  $("leaks-src").textContent = `non confirmés · ${r.channels.length ? "Telegram : " + r.channels.join(", ") : "aucun canal configuré"}`;
+  $("leaks").innerHTML = r.leaks.map(l => `
+    <div class="card leak ${l.players.length ? "hot" : ""}">
+      <div class="leak-head"><span class="chip leak-kind">${esc(l.kind_label)}</span>
+        <span class="faint">${ago(l.timestamp)} · ${l.url ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.source)}</a>` : esc(l.source)}</span></div>
+      <p class="leak-text">${esc(l.text)}</p>
+      ${l.impact.length ? `<ul class="leak-impact">${l.impact.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}
+    </div>`).join("") || `<div class="card empty">Aucun leak pour l'instant. Les canaux sont relus toutes les 20 minutes.</div>`;
+}
+
 async function loadPerformance() {
   const r = await get("/api/performance");
   const H = {6: "6 h", 24: "24 h", 48: "48 h", 168: "7 j"};
@@ -474,7 +492,7 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 
 async function refresh() {
   $("refresh").classList.add("spin");
-  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance(), loadKnowledge()]); }
+  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance(), loadKnowledge(), loadLeaks()]); }
   catch (e) { $("status-txt").textContent = "Erreur de chargement : " + e.message; }
   finally { $("refresh").classList.remove("spin"); }
 }
