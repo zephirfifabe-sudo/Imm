@@ -168,8 +168,20 @@ def api_performance(days: int = 30):
 
 
 @app.get("/api/player/{player_id}/chart", dependencies=[Depends(auth)])
-def api_chart(player_id: str):
-    return real_vs_predicted(player_id)
+def api_chart(player_id: str, days: int = 7):
+    return real_vs_predicted(player_id, days=min(max(days, 1), 30))
+
+
+@app.get("/api/sparklines", dependencies=[Depends(auth)])
+def api_sparklines():
+    """Mini-courbes 7 jours de tous les joueurs (relevés réels, 1 point / 3 h), cache 5 min."""
+    with _lock:
+        hit = _cache.get("sparklines")
+        if hit and time.time() - hit[0] < 300:
+            return hit[1]
+        data = db.sparklines(days=7, step_h=3)
+        _cache["sparklines"] = (time.time(), data)
+        return data
 
 
 @app.get("/api/summary", dependencies=[Depends(auth)])

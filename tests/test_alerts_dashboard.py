@@ -128,3 +128,16 @@ def test_card_image_url(monkeypatch):
     assert card_image("demo-1") is None  # autres sources : carte dessinée
     monkeypatch.setattr(config, "CARD_IMAGES", False)
     assert card_image("fgn-949899") is None
+
+
+def test_sparklines_and_chart_periods():
+    seed_demo(days=10)
+    from dashboard import app
+
+    c = TestClient(app)
+    sp = c.get("/api/sparklines").json()
+    assert set(sp) >= {"demo-1", "demo-12"}
+    pts = sp["demo-1"]
+    assert 50 <= len(pts) <= 58 and pts[-1][1] > 0  # 7 jours, 1 point / 3 h, relevés réels
+    assert len(c.get("/api/player/demo-1/chart?days=1").json()["real"]) <= 25
+    assert len(c.get("/api/player/demo-1/chart?days=30").json()["real"]) > 200  # tout l'historique disponible (10 j)

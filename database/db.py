@@ -358,6 +358,19 @@ def last_scan_times() -> dict[str, str]:
         return {r[0]: r[1] for r in c.execute("SELECT player_id, MAX(timestamp) FROM price_snapshots GROUP BY player_id")}
 
 
+def sparklines(days: int = 7, step_h: int = 3, now: datetime | None = None) -> dict[str, list[list]]:
+    """{player_id: [[timestamp, prix], ...]} : un relevé réel par tranche de `step_h` heures (mini-courbes)."""
+    now = now or utcnow()
+    out: dict[str, dict[int, list]] = {}
+    with get_conn() as c:
+        rows = c.execute("SELECT player_id, timestamp, price FROM price_snapshots WHERE timestamp >= ? AND timestamp <= ? "
+                         "ORDER BY timestamp", (iso(now - timedelta(days=days)), iso(now))).fetchall()
+    for pid, ts, price in rows:
+        bucket = int(datetime.fromisoformat(ts).timestamp() // (step_h * 3600))
+        out.setdefault(pid, {})[bucket] = [ts, price]  # le dernier relevé de la tranche
+    return {pid: list(b.values()) for pid, b in out.items()}
+
+
 def price_at(player_id: str, ts: datetime, conn: sqlite3.Connection | None = None) -> int | None:
     """Dernier prix connu à/avant `ts`."""
     sql = "SELECT price FROM price_snapshots WHERE player_id=? AND timestamp<=? ORDER BY timestamp DESC LIMIT 1"

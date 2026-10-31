@@ -127,6 +127,8 @@
       <div id="p-signal"></div>
     </div></div>
     <div id="p-stats" class="stats"></div>
+    <div class="chart-head"><span class="faint">Évolution du prix</span>
+      <div class="seg seg-sm" id="periods"><button data-d="1">24 h</button><button data-d="7" class="on">7 j</button><button data-d="30">30 j</button></div></div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
     <div class="legend">
       <span><i style="background:#60a5fa"></i>Prix réel</span>
@@ -196,6 +198,22 @@ function drawnCard(p, big) {
 }
 let view = "list";
 try { view = localStorage.getItem("view") || "list"; } catch (e) {}
+
+// Mini-courbe 7 jours (SVG, une seule série) : verte si le prix a monté sur la période, rouge sinon
+let sparks = {};
+function spark(pid, w = 96, h = 28) {
+  const pts = sparks[pid];
+  if (!pts || pts.length < 2) return `<span class="faint spark-empty">–</span>`;
+  const v = pts.map(x => x[1]), lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
+  const xy = v.map((y, i) => [(i / (v.length - 1)) * (w - 4) + 2, h - 3 - ((y - lo) / span) * (h - 6)]);
+  const d = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join("");
+  const up = v[v.length - 1] >= v[0], col = up ? "var(--up)" : "var(--down)";
+  const [lx, ly] = xy[xy.length - 1];
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img"
+    aria-label="7 jours : de ${k(v[0])} à ${k(v[v.length - 1])}"><title>7 jours · min ${k(lo)} · max ${k(hi)} · actuel ${k(v[v.length - 1])}</title>
+    <path d="${d}L${lx},${h}L2,${h}Z" fill="${col}" opacity=".12"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lx}" cy="${ly}" r="2.2" fill="${col}"/></svg>`;
+}
 
 const meter = c => c == null ? `<span class="faint">–</span>`
   : `<span class="meter"><span class="bar"><b style="width:${c*10}%"></b></span><span class="num">${c}/10</span></span>`;
@@ -275,13 +293,14 @@ function renderRows() {
         <div class="a num">${p.avg_7d ? "moy. 7 j " + k(p.avg_7d) : ""}</div>
         <div class="a num m ${tone(p.change_24h)}" style="display:none">${pct(p.change_24h)} / 24 h</div></div>
       <div class="col-24h num ${tone(p.change_24h)}">${pct(p.change_24h)}</div>
-      <div class="col-7d num ${tone(p.trend_7d)}">${pct(p.trend_7d)}</div>
+      <div class="col-7d num ${tone(p.trend_7d)}">${spark(p.player_id)}<div class="spark-pct">${pct(p.trend_7d)}</div></div>
       <div class="c col-signal">${signal(p.action)}</div>
       <div class="col-conf">${scoreCell(p)}</div>
     </button>`).join("") || `<div class="empty">Aucun joueur ne correspond.</div>`;
   $("grid").innerHTML = list.map(p => `
     <button class="fut-item" data-id="${esc(p.player_id)}">${futCard(p)}
       <div class="fi-price num">${k(p.price)} <span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span></div>
+      ${spark(p.player_id, 120, 26)}
       <div>${signal(p.action)}</div>
     </button>`).join("") || `<div class="empty">Aucun joueur ne correspond.</div>`;
   $("grid").classList.toggle("hidden", view !== "cards");
@@ -290,7 +309,7 @@ function renderRows() {
 }
 
 async function loadPlayers() {
-  players = await get("/api/players" + (engine ? `?engine=${engine}` : ""));
+  [players, sparks] = await Promise.all([get("/api/players" + (engine ? `?engine=${engine}` : "")), get("/api/sparklines")]);
   $("th-score").textContent = engine === "v2" ? "Opportunité" : "Confiance";
   renderKpis(); renderPicks(); renderRows();
 }
@@ -386,9 +405,14 @@ async function openPlayer(id) {
     ins("Habitude du marché", p.habit && esc(p.habit))].join("");
   $("overlay").classList.add("open"); $("panel").classList.add("open"); $("panel").setAttribute("aria-hidden", "false");
   $("panel").scrollTop = 0;
+  current = id;
+  drawChart();
+}
 
-  const d = await get(`/api/player/${encodeURIComponent(id)}/chart`);
-  const fmt = t => new Date(t).toLocaleString("fr-FR", {weekday: "short", hour: "2-digit"});
+let current = null, period = 7;
+async function drawChart() {
+  const d = await get(`/api/player/${encodeURIComponent(current)}/chart?days=${period}`);
+  const fmt = t => new Date(t).toLocaleString("fr-FR", period > 7 ? {day: "2-digit", month: "2-digit"} : {weekday: "short", hour: "2-digit"});
   const pad = n => Array(n).fill(null);
   const line = (data, color, dash) => ({data, borderColor: color, borderDash: dash || [], borderWidth: dash ? 1.5 : 2.2, pointRadius: 0, tension: .25});
   const real = line([...d.real.map(x => x.p), ...pad(d.forecast.length)], "#60a5fa");
@@ -410,6 +434,11 @@ async function openPlayer(id) {
   });
 }
 
+document.querySelectorAll("#periods button").forEach(b => b.onclick = () => {
+  period = +b.dataset.d;
+  document.querySelectorAll("#periods button").forEach(x => x.classList.toggle("on", x === b));
+  if (current) drawChart();
+});
 $("p-close").onclick = closePanel;
 $("overlay").onclick = closePanel;
 document.addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
