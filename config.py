@@ -85,6 +85,11 @@ SATURATION_COUNT = 3
 EA_TAX = 0.05  # taxe EA sur chaque vente
 MIN_NET_MARGIN = float(os.getenv("MIN_NET_MARGIN", "0.04"))  # marge nette mini après taxe pour un ACHAT
 
+# --- Fréquence des relevés de prix ---
+# futgenie rafraîchit ses prix environ toutes les 6 min (mesure refresh-test du 31/10/2026) :
+# un relevé toutes les 15 min capte vite les mouvements sans surcharger la source.
+SNAPSHOT_EVERY_MIN = int(os.getenv("SNAPSHOT_EVERY_MIN", "15"))
+
 # --- Moteur de décision ---
 # v1 = moteur historique (référence, retour arrière) ; v2 = moteur fiabilisé (qualité des données, abstention).
 BRAIN_VERSION = os.getenv("BRAIN_VERSION", "v1")  # moteur qui envoie les alertes et remplit le dashboard

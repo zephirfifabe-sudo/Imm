@@ -1,6 +1,6 @@
 """Scheduler complet (heure de Paris).
 
-  toutes les heures :02   snapshot prix (MÉMOIRE) + alerte instantanée crash >15% / R4
+  toutes les 15 min :02   snapshot prix (MÉMOIRE) + alerte instantanée crash >15% / R4 (SNAPSHOT_EVERY_MIN)
                           + journal de TOUTES les décisions (moteur actif + moteur en observation)
   toutes les heures :35   évaluation théorique des décisions à 6 h / 24 h / 48 h / 7 j
   toutes les heures :12   fodders 85-91 (moins cher par note) + alerte si une note grimpe d'un coup
@@ -77,7 +77,8 @@ def job_snapshot():
         return
     an = MarketAnalyzer(wl)
     scan = an.full_scan()
-    journal_scan(wl, an, scan)
+    if utcnow().minute < config.SNAPSHOT_EVERY_MIN:  # journal des décisions : une fois par heure suffit
+        journal_scan(wl, an, scan)
     urgent = dedupe(an.instant_crashes(24) + [s for s in scan if s.rule.startswith("R4")])  # 1 alerte max / joueur
     notifier.dispatch(urgent, header="⚡ ALERTE MARCHÉ", with_chart=True)
 
@@ -305,7 +306,8 @@ def job_heartbeat():
 def build_scheduler() -> BlockingScheduler:
     s = BlockingScheduler(timezone=config.TZ, executors={"default": ThreadPoolExecutor(4)},
                           job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 300})
-    s.add_job(job_snapshot, "cron", minute=2, id="snapshot")
+    every = max(1, min(60, config.SNAPSHOT_EVERY_MIN))
+    s.add_job(job_snapshot, "cron", minute=",".join(str(m + 2) for m in range(0, 60, every)), id="snapshot")
     s.add_job(job_outcomes, "cron", minute=35, id="outcomes")
     s.add_job(job_watchlist, "cron", hour=8, minute=0, id="watchlist")
     s.add_job(job_leaks, "cron", minute="*/20", id="leaks")

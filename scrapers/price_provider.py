@@ -83,11 +83,14 @@ def _snapshot_futgenie(players: list[dict]) -> dict:
     from scrapers.futgenie import FutGenie
     from scrapers.price_buckets import parse_bands
 
-    ts = utcnow().replace(minute=0, second=0, microsecond=0)
+    now = utcnow()
+    step = max(1, min(60, config.SNAPSHOT_EVERY_MIN))
+    ts = now.replace(minute=now.minute // step * step, second=0, microsecond=0)  # aligné sur la grille des relevés
+    per_hour = 60 / step  # budgets de fiches répartis sur l'heure (même charge horaire qu'avant pour les fiches)
     fg = FutGenie()
     try:
-        prices = fg.current_prices(players, parse_bands(config.WATCHLIST_BANDS))
-        fg.fill_missing(players, limit=20)  # rattrapage progressif des fiches manquantes
+        prices = fg.current_prices(players, parse_bands(config.WATCHLIST_BANDS), max_fiches=max(5, round(40 / per_hour)))
+        fg.fill_missing(players, limit=max(3, round(20 / per_hour)))  # rattrapage progressif des fiches manquantes
     finally:
         fg.close()
     ok, ko = 0, []

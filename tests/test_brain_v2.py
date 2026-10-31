@@ -106,6 +106,7 @@ def test_job_snapshot_logs_active_and_shadow_engines(monkeypatch):
     seed(flat_then(48, 50000, 40000))
     monkeypatch.setattr(jobs, "_watchlist", lambda: [PLAYER])
     monkeypatch.setattr(price_provider, "snapshot_watchlist", lambda wl: {"ok": 1})
+    monkeypatch.setattr(jobs, "utcnow", lambda: NOW.replace(minute=4))  # relevé de début d'heure -> journal
     monkeypatch.setattr(notifier, "send_text", lambda *a, **k: True)
     monkeypatch.setattr(notifier, "send_photo", lambda *a, **k: True, raising=False)
     monkeypatch.setattr(config, "BRAIN_VERSION", "v1")

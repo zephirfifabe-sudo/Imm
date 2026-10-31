@@ -183,3 +183,48 @@ def test_supervision_alerts_on_outage_partial_and_recovery():
     assert "partiel" in supervision_check(now + timedelta(hours=5)).lower()
     db.set_status("last_snapshot", {"ok": 155, "failed": 3})
     assert supervision_check(now + timedelta(hours=5)).startswith("✅")
+
+
+def test_snapshot_every_15_minutes_and_hourly_journal(monkeypatch):
+    from datetime import datetime, timezone
+
+    from core import jobs
+    from scrapers import price_provider
+
+    trig = {j.id: str(j.trigger) for j in build_scheduler().get_jobs()}["snapshot"]
+    assert "minute='2,17,32,47'" in trig
+
+    class FG:  # faux futgenie : 1 prix par joueur
+        trends = {}
+
+        def __init__(self, *a, **k):
+            self.calls = []
+
+        def current_prices(self, players, bands, max_fiches=40):
+            FG.max_fiches = max_fiches
+            return {p["player_id"]: 1000 for p in players}
+
+        def fill_missing(self, players, limit=20):
+            FG.limit = limit
+
+        def close(self):
+            pass
+
+    import scrapers.futgenie as fgmod
+    monkeypatch.setattr(fgmod, "FutGenie", FG)
+    monkeypatch.setattr(price_provider, "utcnow", lambda: datetime(2026, 10, 31, 9, 33, tzinfo=timezone.utc))
+    from database import db
+
+    db.upsert_player({"player_id": "q1", "name": "Q"})
+    price_provider._snapshot_futgenie([{"player_id": "q1", "name": "Q"}])
+    assert db.get_snapshots(["q1"])[0]["timestamp"] == "2026-10-31T09:30:00+00:00"  # grille de 15 min
+    assert (FG.max_fiches, FG.limit) == (10, 5)  # budgets de fiches répartis sur l'heure
+
+    logged = []
+    monkeypatch.setattr(jobs, "_watchlist", lambda: [{"player_id": "q1", "name": "Q"}])
+    monkeypatch.setattr(price_provider, "snapshot_watchlist", lambda wl: {"ok": 1})
+    monkeypatch.setattr(jobs, "journal_scan", lambda *a: logged.append(1))
+    for minute, expected in ((5, 1), (20, 1), (35, 1), (50, 1)):
+        monkeypatch.setattr(jobs, "utcnow", lambda m=minute: datetime(2026, 10, 31, 9, m, tzinfo=timezone.utc))
+        jobs.job_snapshot()
+    assert len(logged) == 1  # journal seulement au relevé de début d'heure
