@@ -76,16 +76,34 @@ def test_status_best_value_and_rising_alert():
     assert fodder.rising_alerts(list(st.values()), now=now + timedelta(hours=1)) == []  # pas de répétition (12 h)
 
 
-def test_fodder_api_and_summary_line():
+def test_fodder_api_and_not_in_daily_summary():
     from fastapi.testclient import TestClient
 
-    from alerts.notifier import fodder_lines
+    from alerts import notifier
+    from core.analyzer import MarketAnalyzer
     from dashboard import app
 
     fodder.snapshot_fodder(FakeFutgenie())
     r = TestClient(app).get("/api/fodder").json()
     assert r["active"] and {x["rating"] for x in r["rows"]} == set(config.FODDER_RATINGS)
-    assert "Fodders" in fodder_lines()[0] and "88" in fodder_lines()[0] and "⭐" not in fodder_lines()[0]
+    assert "Fodders" not in notifier.daily_summary(MarketAnalyzer([]), [])
+
+
+def test_fodder_schedule_and_weekly_averages():
+    from core.jobs import build_scheduler
+
+    jobs = {j.id: j for j in build_scheduler().get_jobs()}
+    assert "hour='15'" in str(jobs["fodder_report"].trigger)
+    assert "day_of_week='tue,sun'" in str(jobs["fodder_averages"].trigger)
+    now = datetime(2026, 11, 3, 9, tzinfo=timezone.utc)
+    fake = FakeFutgenie()
+    for h in range(14 * 24, 0, -6):  # 2 semaines : 1re à prix normal, 2e à +10 %
+        fake.bump = {r: 1.10 for r in POINTS} if h <= 7 * 24 else {}
+        fodder.snapshot_fodder(fake, now=now - timedelta(hours=h))
+    rows = {x["rating"]: x for x in fodder.averages(now=now)}
+    assert rows[88]["avg"] == 14300 and rows[88]["prev_avg"] == 13000 and round(rows[88]["change"], 2) == 0.10
+    txt = fodder.format_averages(list(rows.values()))
+    assert "prix moyens sur 7 jours" in txt and "**88** : moyenne 14" in txt and "+10 %" in txt
 
 
 def test_cheapest_card_whatever_its_version():

@@ -103,6 +103,9 @@ FODDER_RATINGS = [int(r) for r in os.getenv("FODDER_RATINGS", "85,86,87,88,89,90
 FODDER_ALERT_RISE = float(os.getenv("FODDER_ALERT_RISE", "0.12"))  # hausse vs médiane 7 j pour alerter
 FODDER_ALERT_RISE_6H = 0.08  # ... et hausse récente (6 h) minimale
 FODDER_ALERT_COOLDOWN_H = 12
+FODDER_REPORT_HOUR = int(os.getenv("FODDER_REPORT_HOUR", "15"))  # tableau des fodders chaque jour à cette heure
+FODDER_AVG_DAYS = os.getenv("FODDER_AVG_DAYS", "tue,sun")  # rapport des prix moyens (jours, format cron)
+FODDER_AVG_HOUR = int(os.getenv("FODDER_AVG_HOUR", "10"))
 
 # --- Supervision : alerte Discord si plus aucun prix relevé ---
 STALE_ALERT_HOURS = float(os.getenv("STALE_ALERT_HOURS", "2"))

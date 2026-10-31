@@ -200,6 +200,35 @@ def format_report(status: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def averages(now: datetime | None = None, days: int = 7) -> list[dict]:
+    """Prix moyen / min / max par note sur `days` jours, et évolution vs la période précédente."""
+    now = now or utcnow()
+    out = []
+    for r in config.FODDER_RATINGS:
+        cur = [p for _, p, _ in _series(r, now - timedelta(days=days), now)]
+        prev = [p for _, p, _ in _series(r, now - timedelta(days=2 * days), now - timedelta(days=days, seconds=1))]
+        if not cur:
+            continue
+        avg = round(statistics.mean(cur))
+        prev_avg = round(statistics.mean(prev)) if len(prev) >= 24 else None
+        out.append({"rating": r, "avg": avg, "min": min(cur), "max": max(cur), "n": len(cur),
+                    "prev_avg": prev_avg, "change": avg / prev_avg - 1 if prev_avg else None})
+    return out
+
+
+def format_averages(rows: list[dict], days: int = 7) -> str:
+    from utils.helpers import fmt_coins
+
+    if not rows:
+        return "🧱 Fodders : pas encore assez de relevés pour calculer des moyennes."
+    lines = [f"📊 **FODDERS — prix moyens sur {days} jours** (prix observés sur futgenie)"]
+    for x in rows:
+        ch = f" · {x['change'] * 100:+.0f} % vs semaine d'avant" if x.get("change") is not None else ""
+        lines.append(f"• **{x['rating']}** : moyenne {fmt_coins(x['avg'])} (min {fmt_coins(x['min'])} – "
+                     f"max {fmt_coins(x['max'])}){ch}")
+    return "\n".join(lines)
+
+
 def format_rising(alerts: list[dict]) -> str:
     from utils.helpers import fmt_coins
 

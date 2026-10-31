@@ -4,6 +4,8 @@
                           + journal de TOUTES les décisions (moteur actif + moteur en observation)
   toutes les heures :35   évaluation théorique des décisions à 6 h / 24 h / 48 h / 7 j
   toutes les heures :12   fodders 85-91 (moins cher par note) + alerte si une note grimpe d'un coup
+  15:00                   tableau des fodders sur Discord (FODDER_REPORT_HOUR)
+  mardi + dimanche 10:05  prix moyens des fodders sur 7 jours (FODDER_AVG_DAYS / FODDER_AVG_HOUR)
   :15 et :45              supervision : alerte Discord si plus aucun prix relevé depuis 2 h (et à la reprise)
   08:00                   watchlist du jour (150 joueurs populaires 20k-400k)
   toutes les 20 min       leaks (alerte immédiate si un joueur de la watchlist est cité)
@@ -238,6 +240,20 @@ def job_fodder():
         notifier.send_fodder(format_rising(alerts))
 
 
+@safe_job
+def job_fodder_report():
+    from scrapers.fodder import fodder_status, format_report
+
+    notifier.send_fodder(format_report(fodder_status()))
+
+
+@safe_job
+def job_fodder_averages():
+    from scrapers.fodder import averages, format_averages
+
+    notifier.send_fodder(format_averages(averages()))
+
+
 def supervision_check(now=None) -> str | None:
     """Message à envoyer si l'état des relevés de prix change (panne / partiel / reprise), sinon None."""
     now = now or utcnow()
@@ -303,6 +319,9 @@ def build_scheduler() -> BlockingScheduler:
     s.add_job(job_heartbeat, "interval", minutes=5, id="heartbeat")
     s.add_job(job_supervision, "cron", minute="15,45", id="supervision")
     s.add_job(job_fodder, "cron", minute=12, id="fodder")
+    s.add_job(job_fodder_report, "cron", hour=config.FODDER_REPORT_HOUR, minute=0, id="fodder_report")
+    s.add_job(job_fodder_averages, "cron", day_of_week=config.FODDER_AVG_DAYS, hour=config.FODDER_AVG_HOUR, minute=5,
+              id="fodder_averages")
     return s
 
 
