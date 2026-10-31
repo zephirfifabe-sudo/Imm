@@ -86,3 +86,18 @@ def test_fodder_api_and_summary_line():
     r = TestClient(app).get("/api/fodder").json()
     assert r["active"] and {x["rating"] for x in r["rows"]} == set(config.FODDER_RATINGS)
     assert "Fodders" in fodder_lines()[0] and "88" in fodder_lines()[0]
+
+
+def test_cheapest_card_whatever_its_version():
+    """En 90 : la carte or (21 000 pts) est une star à 390k ; le fodder réel est une spéciale moins chère."""
+    class Mixed(FakeFutgenie):
+        def get(self, url, **k):
+            r = super().get(url, **k)
+            if '%22minOvr%22%3A90' in url and "price-asc" in url:
+                cards = [{"id": 1, "p": 35250, "pts": 26000}, {"id": 2, "p": 39000, "pts": 26000}] + \
+                        [{"id": 10 + i, "p": 390000 + i * 1000, "pts": 21000} for i in range(8)]
+                r.text = "<html>" + "".join(CARD.format(**c) for c in cards) + "</html>"
+            return r
+
+    done = fodder.snapshot_fodder(Mixed())
+    assert done[90]["min_price"] == 35250 and done[90]["sbc_points"] == 26000

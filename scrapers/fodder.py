@@ -109,11 +109,14 @@ def snapshot_fodder(fetcher: Fetcher | None = None, now: datetime | None = None)
             except FetchError as e:
                 log.warning("Fodder %d KO : %s", r, e)
                 break
-            points, _ = _dominant_points(cards)
-            same = sorted(c["price"] for c in cards if not points or c.get("sbc_points") == points)
-            if not same:
+            # la moins chère de la note, QUELLE QUE SOIT sa version : en 90-91 les fodders bon marché sont des cartes
+            # spéciales (points SBC différents des cartes or, qui sont des stars hors de prix)
+            cards = sorted((c for c in cards if c.get("price")), key=lambda c: c["price"])
+            if not cards:
                 continue
-            row = {"min_price": same[0], "avg5": round(statistics.mean(same[:5])), "sbc_points": points, "n": len(same)}
+            points = cards[0].get("sbc_points")
+            row = {"min_price": cards[0]["price"], "avg5": round(statistics.mean(c["price"] for c in cards[:5])),
+                   "sbc_points": points, "n": len(cards)}
             with db.get_conn() as c:
                 c.execute("INSERT OR REPLACE INTO fodder_snapshots VALUES (?,?,?,?,?,?)",
                           (iso(ts), r, row["min_price"], row["avg5"], points, row["n"]))
