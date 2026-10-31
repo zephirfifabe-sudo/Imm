@@ -237,6 +237,11 @@ section { margin-top: 28px; }
 .big .fc-face { width: 78px; height: 78px; font-size: 27px; margin: 14px 0 0 40px; }
 .big .fc-name { font-size: 16px; }
 .big .fc-meta { font-size: 11px; }
+.card-slot { display: flex; justify-content: center; }
+.fut-photo { display: none; width: 150px; height: 210px; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+.card-slot.big .fut-photo { width: 180px; height: 252px; }
+.card-slot.has-img .fut-photo { display: block; }
+.card-slot.has-img .fut-card { display: none; }
 .hero-wrap { display: flex; gap: 20px; align-items: center; }
 .hero-wrap .hero { flex: 1; flex-direction: column; align-items: flex-start; gap: 12px; }
 

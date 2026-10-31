@@ -96,6 +96,14 @@ def api_status():
     }
 
 
+def card_image(player_id: str) -> str | None:
+    """fgn-949899 -> https://www.futgenie.gg/api/cards/949899 (image d'aperçu publique de la fiche futgenie)."""
+    from scrapers.futgenie import BASE, ID_PREFIX
+
+    pid = str(player_id)
+    return f"{BASE}/api/cards/{pid[len(ID_PREFIX):]}" if config.CARD_IMAGES and pid.startswith(ID_PREFIX) else None
+
+
 @app.get("/api/players", dependencies=[Depends(auth)])
 def api_players(engine: str | None = None):
     engine = engine if engine in ("v1", "v2") else config.BRAIN_VERSION
@@ -116,7 +124,7 @@ def api_players(engine: str | None = None):
                 "habit": s.habit, "action_text": s.action_text,
                 "avg_7d": x.get("avg_7d"), "min_7d": x.get("min_7d"), "max_7d": x.get("max_7d"),
                 "vs_avg": x.get("vs_avg"), "trend_7d": x.get("trend_7d"), "explain": x.get("explain"),
-                "scanned_at": scans.get(s.player_id), "engine": engine,
+                "scanned_at": scans.get(s.player_id), "engine": engine, "image": card_image(s.player_id),
                 **{k: (an.by_id.get(s.player_id) or {}).get(k) for k in ("club", "league", "nation")},
                 # moteur v2 : décision expliquée et prix explicites
                 "reason": x.get("reason"), "opportunity": x.get("opportunity"), "data_quality": x.get("data_quality"),
@@ -127,7 +135,7 @@ def api_players(engine: str | None = None):
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),
                   "rarity": classify(p.get("card_type")), "price": p.get("price"), "action": "?", "confidence": None,
-                  "scanned_at": scans.get(p["player_id"]), "engine": engine,
+                  "scanned_at": scans.get(p["player_id"]), "engine": engine, "image": card_image(p["player_id"]),
                   "club": p.get("club"), "league": p.get("league"), "nation": p.get("nation")}
                  for p in wl if p["player_id"] not in known]
         _cache[("players", engine)] = (time.time(), rows)

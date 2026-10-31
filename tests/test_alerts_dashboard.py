@@ -119,3 +119,12 @@ def test_consignes_by_weekday():
     assert any("crash FUT Champions" in t and "acheter" in t for t in sunday_night)
     friday = notifier._consignes(datetime(2026, 10, 30, 15, 0, tzinfo=tz), 0.06)
     assert any("Vendredi" in t for t in friday) and any("forte hausse" in t for t in friday)
+
+
+def test_card_image_url(monkeypatch):
+    from dashboard.app import card_image
+
+    assert card_image("fgn-949899") == "https://www.futgenie.gg/api/cards/949899"
+    assert card_image("demo-1") is None  # autres sources : carte dessinée
+    monkeypatch.setattr(config, "CARD_IMAGES", False)
+    assert card_image("fgn-949899") is None

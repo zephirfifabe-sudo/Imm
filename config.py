@@ -104,6 +104,9 @@ PRICE_REPORT_HOURS = os.getenv("PRICE_REPORT_HOURS", "10,22")
 SUMMARY_HOUR = int(os.getenv("SUMMARY_HOUR", "23"))  # résumé des 24 dernières heures
 
 # --- Dashboard ---
+# Image de la carte : aperçu public (og:image) que futgenie déclare pour chaque fiche, chargé par le
+# NAVIGATEUR de l'utilisateur (rien n'est téléchargé ni stocké par le bot). 0 = cartes dessinées seulement.
+CARD_IMAGES = os.getenv("CARD_IMAGES", "1") == "1"
 DASHBOARD_USER = os.getenv("DASHBOARD_USER", "")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "")
 

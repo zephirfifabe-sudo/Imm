@@ -174,7 +174,15 @@ function chip(r) {
 }
 // Carte façon FUT dessinée en CSS (aucune image EA) : couleur de la rareté, note, poste, nom, club
 const initials = n => String(n || "?").split(/\s+/).filter(Boolean).map(w => w[0]).slice(-2).join("").toUpperCase();
+// Avec image (aperçu public futgenie) : l'image remplace la carte dessinée une fois chargée ; en cas d'échec,
+// la carte dessinée reste affichée.
 function futCard(p, big) {
+  const drawn = drawnCard(p, big);
+  if (!p.image) return drawn;
+  return `<div class="card-slot${big ? " big" : ""}"><img class="fut-photo" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy"
+    referrerpolicy="no-referrer" onload="this.parentElement.classList.add('has-img')" onerror="this.remove()">${drawn}</div>`;
+}
+function drawnCard(p, big) {
   const r = p.rarity || {label: "?", color: "#c9a227", special: false};
   const meta = [p.club, p.league].filter(Boolean).join(" · ");
   return `<div class="fut-card ${r.special ? "special" : "base"}${big ? " big" : ""}" style="--c:${r.color}">
