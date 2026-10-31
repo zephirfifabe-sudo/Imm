@@ -187,7 +187,7 @@ def rising_alerts(status: list[dict], now: datetime | None = None) -> list[dict]
 
 
 def format_report(status: list[dict]) -> str:
-    """Tableau des fodders pour Discord (prix observés, ⭐ = meilleur prix par point SBC)."""
+    """Tableau des fodders pour Discord : le prix le moins cher par note (prix observés)."""
     from utils.helpers import fmt_coins
 
     rows = [x for x in status if x.get("price")]
@@ -196,9 +196,7 @@ def format_report(status: list[dict]) -> str:
     lines = ["🧱 **FODDERS — moins cher par note** (prix observés sur futgenie)"]
     for x in rows:
         ch = f" ({x['change_24h'] * 100:+.0f} % / 24 h)" if x.get("change_24h") is not None else ""
-        pts = f" · {fmt_coins(x['per_1k_points'])} / 1 000 pts SBC" if x.get("per_1k_points") else ""
-        lines.append(f"• **{x['rating']}** : {fmt_coins(x['price'])}{ch}{pts}{'  ⭐' if x.get('best_value') else ''}")
-    lines.append("⭐ = la note qui coûte le moins cher par point pour les SBC à points.")
+        lines.append(f"• **{x['rating']}** : {fmt_coins(x['price'])}{ch}")
     return "\n".join(lines)
 
 

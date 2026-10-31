@@ -308,8 +308,8 @@ def fodder_lines() -> list[str]:
     if not rows:
         return []
     parts = [f"{x['rating']} {fmt_price(x['price'])}" + (f" ({x['change_24h'] * 100:+.0f}%)" if x.get("change_24h") is not None else "")
-             + (" ⭐" if x.get("best_value") else "") for x in rows]
-    return ["\n🧱 **Fodders** (⭐ = meilleur prix par point SBC) : " + " · ".join(parts)]
+             for x in rows]
+    return ["\n🧱 **Fodders** (moins cher par note) : " + " · ".join(parts)]
 
 
 def knowledge_lines(now) -> list[str]:

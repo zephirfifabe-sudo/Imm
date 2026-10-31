@@ -85,7 +85,7 @@ def test_fodder_api_and_summary_line():
     fodder.snapshot_fodder(FakeFutgenie())
     r = TestClient(app).get("/api/fodder").json()
     assert r["active"] and {x["rating"] for x in r["rows"]} == set(config.FODDER_RATINGS)
-    assert "Fodders" in fodder_lines()[0] and "88" in fodder_lines()[0]
+    assert "Fodders" in fodder_lines()[0] and "88" in fodder_lines()[0] and "⭐" not in fodder_lines()[0]
 
 
 def test_cheapest_card_whatever_its_version():
@@ -106,4 +106,4 @@ def test_cheapest_card_whatever_its_version():
 def test_fodder_report_for_discord():
     fodder.snapshot_fodder(FakeFutgenie())
     txt = fodder.format_report(fodder.fodder_status())
-    assert txt.startswith("🧱 **FODDERS") and "**88**" in txt and "⭐" in txt and len(txt) < 1900
+    assert txt.startswith("🧱 **FODDERS") and "**88** : 13" in txt and "pts" not in txt and len(txt) < 1900
