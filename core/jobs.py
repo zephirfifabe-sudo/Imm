@@ -235,7 +235,7 @@ def job_fodder():
         return
     alerts = rising_alerts(fodder_status())
     if alerts:
-        notifier.send_text(format_rising(alerts))
+        notifier.send_fodder(format_rising(alerts))
 
 
 def supervision_check(now=None) -> str | None:

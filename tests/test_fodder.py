@@ -107,3 +107,12 @@ def test_fodder_report_for_discord():
     fodder.snapshot_fodder(FakeFutgenie())
     txt = fodder.format_report(fodder.fodder_status())
     assert txt.startswith("🧱 **FODDERS") and "**88** : 13" in txt and "pts" not in txt and len(txt) < 1900
+
+
+def test_fodder_alerts_go_to_dedicated_webhook(monkeypatch):
+    from alerts import discord, notifier
+
+    calls = []
+    monkeypatch.setattr(config, "DISCORD_FODDER_WEBHOOK_URL", "https://discord.test/fodder")
+    monkeypatch.setattr(discord, "send_message", lambda text, webhook=None: calls.append(webhook) or True)
+    assert notifier.send_fodder("x") and calls == ["https://discord.test/fodder"]

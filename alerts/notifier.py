@@ -92,6 +92,13 @@ def _now_label() -> str:
     return f"{jours[now.weekday()]} {now:%d/%m %H:%M}"
 
 
+def send_fodder(text: str) -> bool:
+    """Fodders -> salon Discord dédié s'il est configuré, sinon canaux habituels."""
+    if config.DISCORD_FODDER_WEBHOOK_URL:
+        return discord.send_message(text, webhook=config.DISCORD_FODDER_WEBHOOK_URL)
+    return send_text(text)
+
+
 def send_leaks(text: str) -> bool:
     """Leaks -> salon Discord dédié s'il est configuré, sinon canaux habituels."""
     if config.DISCORD_LEAKS_WEBHOOK_URL:

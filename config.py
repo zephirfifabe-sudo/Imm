@@ -74,6 +74,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 DISCORD_LEAKS_WEBHOOK_URL = os.getenv("DISCORD_LEAKS_WEBHOOK_URL", "")  # salon dédié aux leaks (sinon salon principal)
+DISCORD_FODDER_WEBHOOK_URL = os.getenv("DISCORD_FODDER_WEBHOOK_URL", "")  # salon dédié aux fodders (sinon salon principal)
 
 # --- Seuils du cerveau ---
 SIMILARITY_ALERT = 0.85

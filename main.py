@@ -309,7 +309,11 @@ def cmd_fodder(args):
         ch = f"{x['change_24h'] * 100:+.1f} %" if x.get("change_24h") is not None else "–"
         print(f"{x['rating']} : {fmt_coins(x['price'])} · 24 h {ch}")
     if args.discord:
-        print("✅ Envoyé sur Discord" if notifier.send_text(format_report(fodder_status())) else "❌ Échec de l'envoi Discord")
+        import config
+
+        where = "salon fodders dédié" if config.DISCORD_FODDER_WEBHOOK_URL else "salon principal"
+        ok = notifier.send_fodder(format_report(fodder_status()))
+        print(f"✅ Envoyé sur Discord ({where})" if ok else f"❌ Échec de l'envoi Discord ({where})")
 
 
 def cmd_demo_seed(_):
