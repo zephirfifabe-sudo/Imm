@@ -316,6 +316,49 @@ def cmd_fodder(args):
         print(f"✅ Envoyé sur Discord ({where})" if ok else f"❌ Échec de l'envoi Discord ({where})")
 
 
+def cmd_refresh_test(args):
+    """Mesure à quelle fréquence futgenie met ses prix à jour : 1 tranche relue toutes les `interval` s."""
+    import time
+    from datetime import datetime
+
+    from scrapers.base import Fetcher
+    from scrapers.futgenie import list_url, parse_cards
+
+    lo, hi = args.tranche
+    rounds = max(2, args.minutes * 60 // args.interval + 1)
+    print(f"Tranche {lo}-{hi} relue toutes les {args.interval // 60} min pendant {args.minutes} min ({rounds} requêtes)\n")
+    prev, change_times = None, []
+    with Fetcher(mode="httpx", min_delay=4.0) as f:
+        for i in range(rounds):
+            if i:
+                time.sleep(args.interval)
+            now = datetime.now().strftime("%H:%M")
+            try:
+                cards = {c["player_id"]: c["price"] for c in parse_cards(f.get(list_url(lo, hi), retries=1).text)}
+            except Exception as e:  # noqa: BLE001
+                print(f"{now} · erreur : {str(e)[:100]}")
+                continue
+            if prev is None:
+                print(f"{now} · {len(cards)} cartes (référence)")
+            else:
+                changed = [(pid, prev[pid], p) for pid, p in cards.items() if pid in prev and prev[pid] != p]
+                if changed:
+                    change_times.append(time.time())
+                ex = ", ".join(f"{a:,}→{b:,}".replace(",", " ") for _, a, b in changed[:4])
+                print(f"{now} · {len(cards)} cartes · {len(changed)} prix changé(s)" + (f" ({ex})" if ex else ""))
+            prev = cards
+    print()
+    if len(change_times) >= 2:
+        gaps = [(b - a) / 60 for a, b in zip(change_times, change_times[1:])]
+        avg = sum(gaps) / len(gaps)
+        print(f"➡️  Les prix ont changé {len(change_times)} fois, en moyenne toutes les {avg:.0f} min.")
+        print("   Scanner plus souvent que ça ne sert à rien ; à peu près à ce rythme, on capte chaque mise à jour.")
+    elif change_times:
+        print("➡️  Une seule mise à jour pendant la mesure : futgenie rafraîchit lentement (≥ 15-30 min).")
+    else:
+        print(f"➡️  Aucun prix n'a changé en {args.minutes} min : futgenie met à jour moins souvent que ça.")
+
+
 def cmd_demo_seed(_):
     from core.demo import seed_demo
 
@@ -348,6 +391,11 @@ def main(argv=None):
     p = sub.add_parser("fodder", help="relève les fodders maintenant (--discord : envoie le tableau sur Discord)")
     p.add_argument("--discord", action="store_true")
     p.set_defaults(fn=cmd_fodder)
+    p = sub.add_parser("refresh-test", help="mesure la fréquence de mise à jour des prix futgenie")
+    p.add_argument("--minutes", type=int, default=30)
+    p.add_argument("--interval", type=int, default=120, help="secondes entre deux lectures")
+    p.add_argument("--tranche", type=int, nargs=2, default=[20000, 25000], metavar=("MIN", "MAX"))
+    p.set_defaults(fn=cmd_refresh_test)
     p = sub.add_parser("test-leak", help="envoie un leak de test (ou --dernier : le vrai dernier message du canal)")
     p.add_argument("--dernier", action="store_true")
     p.set_defaults(fn=cmd_test_leak)
