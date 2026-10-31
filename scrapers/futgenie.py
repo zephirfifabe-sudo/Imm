@@ -30,8 +30,16 @@ ID_PREFIX = "fgn-"  # évite toute collision avec les IDs FUT.GG déjà en base
 PRICE_RE = re.compile(r"Price\s+([\d,.]+\s*[kKmM]?)")
 CHANGE_RE = re.compile(r"([+-]?\d+(?:[.,]\d+)?)\s*%\s*\|\s*7d")
 GRADE_RE = re.compile(r"Genie Grade\s+(\d+)")
+SBC_RE = re.compile(r"SBC points\s+([\d,.]+\s*[kK]?)")
 # « Achraf Hakimi 88: Price… » ou, pour une carte spéciale, « Christopher Nkunku 82 Team of the Week: Price… »
 TITLE_RE = re.compile(r"^\s*(.+?)\s+(\d{2})(?:\s+([^:]+?))?\s*:\s*Price", re.S)
+
+
+def filter_url(f: dict, page: int = 1) -> str:
+    f = dict(f)
+    if page > 1:
+        f["page"] = page
+    return f"{BASE}/players?f=" + quote(json.dumps(f, separators=(",", ":")), safe="")
 
 
 def list_url(min_price: int, max_price: int, page: int = 1, sort: str = "grade-desc") -> str:
@@ -55,13 +63,14 @@ def parse_cards(html: str) -> list[dict]:
         if not price:
             continue
         seen.add(m.group(1))
-        cm, gm = CHANGE_RE.search(text), GRADE_RE.search(text)
+        cm, gm, sm = CHANGE_RE.search(text), GRADE_RE.search(text), SBC_RE.search(text)
         out.append({
             "player_id": ID_PREFIX + m.group(1),
             "url": BASE + a["href"],
             "price": price,
             "change_7d": float(cm.group(1).replace(",", ".")) / 100 if cm else None,
             "grade": int(gm.group(1)) if gm else None,
+            "sbc_points": parse_price(sm.group(1)) if sm else None,  # Item Score des SBC « Streamlined »
         })
     return out
 

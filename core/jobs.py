@@ -3,6 +3,8 @@
   toutes les heures :02   snapshot prix (MÉMOIRE) + alerte instantanée crash >15% / R4
                           + journal de TOUTES les décisions (moteur actif + moteur en observation)
   toutes les heures :35   évaluation théorique des décisions à 6 h / 24 h / 48 h / 7 j
+  toutes les heures :12   fodders 85-91 (moins cher par note) + alerte si une note grimpe d'un coup
+  :15 et :45              supervision : alerte Discord si plus aucun prix relevé depuis 2 h (et à la reprise)
   08:00                   watchlist du jour (150 joueurs populaires 20k-400k)
   toutes les 20 min       leaks (alerte immédiate si un joueur de la watchlist est cité)
   :20 chaque heure        SBC + Evos (toutes les 15 min entre 18h et 21h)
@@ -19,6 +21,7 @@ from __future__ import annotations
 import functools
 import json
 import traceback
+from datetime import datetime
 from datetime import time as dtime
 from datetime import timedelta
 
@@ -224,6 +227,57 @@ def _notify_pause() -> None:
         "Les prix déjà relevés sont conservés.")
 
 
+@safe_job
+def job_fodder():
+    from scrapers.fodder import fodder_status, format_rising, rising_alerts, snapshot_fodder
+
+    if not snapshot_fodder():
+        return
+    alerts = rising_alerts(fodder_status())
+    if alerts:
+        notifier.send_text(format_rising(alerts))
+
+
+def supervision_check(now=None) -> str | None:
+    """Message à envoyer si l'état des relevés de prix change (panne / partiel / reprise), sinon None."""
+    now = now or utcnow()
+    with db.get_conn() as c:
+        last = c.execute("SELECT MAX(timestamp) FROM price_snapshots WHERE source != 'demo'").fetchone()[0]
+    if last is None:
+        return None  # bot jamais lancé sur de vraies données : rien à surveiller
+    st = db.get_status()
+    snap = (st.get("last_snapshot") or {}).get("value") or {}
+    age_h = (now - datetime.fromisoformat(last)).total_seconds() / 3600
+    ok, ko = snap.get("ok", 0), snap.get("failed", 0)
+    if age_h > config.STALE_ALERT_HOURS:
+        state = "panne"
+    elif ok + ko and ok / (ok + ko) < config.STALE_MIN_OK_RATIO:
+        state = "partiel"
+    else:
+        state = "ok"
+    prev = ((st.get("supervision") or {}).get("value") or {}).get("state", "ok")
+    if state == prev:
+        return None
+    db.set_status("supervision", {"state": state, "since": iso(now)})
+    job_err = ((st.get("job:job_snapshot") or {}).get("value") or {}).get("error")
+    if state == "panne":
+        why = f"\nDernière erreur : {job_err[:200]}" if job_err else ""
+        return (f"⚠️ **Plus aucun prix relevé depuis {age_h:.0f} h** (dernier relevé : "
+                f"{to_local(datetime.fromisoformat(last)):%d/%m %H:%M}). La source (futgenie) est peut-être en panne, "
+                f"a changé son site ou bloque le serveur. Les décisions du bot sont suspendues faute de données.{why}")
+    if state == "partiel":
+        return (f"🟠 **Relevé partiel** : seulement {ok} prix sur {ok + ko} joueurs au dernier passage. "
+                f"Une partie des signaux manque de données fraîches.")
+    return "✅ **Relevés de prix revenus à la normale.**" + (f" ({ok} joueurs à jour)" if ok else "")
+
+
+@safe_job
+def job_supervision():
+    msg = supervision_check()
+    if msg:
+        notifier.send_text(msg)
+
+
 def job_heartbeat():
     db.set_status("heartbeat", {"alive": True})
 
@@ -247,6 +301,8 @@ def build_scheduler() -> BlockingScheduler:
     s.add_job(job_learn, "cron", day_of_week="mon", hour=5, minute=0, id="learn")
     s.add_job(job_knowledge, "cron", day_of_week="mon", hour=5, minute=20, id="knowledge")
     s.add_job(job_heartbeat, "interval", minutes=5, id="heartbeat")
+    s.add_job(job_supervision, "cron", minute="15,45", id="supervision")
+    s.add_job(job_fodder, "cron", minute=12, id="fodder")
     return s
 
 

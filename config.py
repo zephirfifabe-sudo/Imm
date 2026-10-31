@@ -97,6 +97,16 @@ TARGET_MIN_POINTS = 72  # relevés mini sur 7 j pour calculer une cible de reven
 OUTCOME_HORIZONS = [int(h) for h in os.getenv("OUTCOME_HORIZONS", "6,24,48,168").split(",")]
 PROBA_MIN_SAMPLES = int(os.getenv("PROBA_MIN_SAMPLES", "100"))  # résultats évalués mini avant d'afficher une fréquence
 
+# --- Tracker de fodders (moins cher par note) ---
+FODDER_RATINGS = [int(r) for r in os.getenv("FODDER_RATINGS", "85,86,87,88,89,90,91").split(",") if r.strip()]
+FODDER_ALERT_RISE = float(os.getenv("FODDER_ALERT_RISE", "0.12"))  # hausse vs médiane 7 j pour alerter
+FODDER_ALERT_RISE_6H = 0.08  # ... et hausse récente (6 h) minimale
+FODDER_ALERT_COOLDOWN_H = 12
+
+# --- Supervision : alerte Discord si plus aucun prix relevé ---
+STALE_ALERT_HOURS = float(os.getenv("STALE_ALERT_HOURS", "2"))
+STALE_MIN_OK_RATIO = 0.5  # relevé « partiel » si moins de 50 % des joueurs ont un prix
+
 # --- Anti-spam des alertes ---
 ALERT_MIN_CONFIDENCE = int(os.getenv("ALERT_MIN_CONFIDENCE", "7"))
 ALERT_MAX_PER_REPORT = int(os.getenv("ALERT_MAX_PER_REPORT", "8"))

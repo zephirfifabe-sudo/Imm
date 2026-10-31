@@ -44,6 +44,12 @@
     <div id="picks" class="picks"></div>
   </section>
 
+  <!-- Fodders -->
+  <section id="fodder-sec" class="hidden">
+    <div class="sec-head"><h2>Fodders (moins cher par note)</h2><small class="faint">points SBC FC 27 · prix observés</small></div>
+    <div id="fodder" class="fodder"></div>
+  </section>
+
   <!-- Résumé 24 h (même texte que sur Discord) -->
   <section id="summary-sec" class="hidden">
     <details id="summary" class="card summary">
@@ -344,6 +350,23 @@ async function loadKnowledge() {
     </details>`).join("");
 }
 
+function sparkPts(pts, w = 110, h = 30) {  // mini-courbe à partir de [[ts, prix], ...]
+  const saved = sparks.__tmp; sparks.__tmp = pts; const out = spark("__tmp", w, h); sparks.__tmp = saved; return out;
+}
+async function loadFodder() {
+  const r = await get("/api/fodder");
+  const rows = r.rows.filter(x => x.price);
+  $("fodder-sec").classList.toggle("hidden", !rows.length);
+  $("fodder").innerHTML = rows.map(x => `
+    <div class="card fod ${x.best_value ? "best" : ""}">
+      <div class="fod-top"><span class="fod-r">${x.rating}</span>${x.best_value ? `<span class="chip fod-best" title="meilleur prix par point SBC">⭐ top</span>` : ""}</div>
+      <div class="fod-p num">${x.price.toLocaleString("fr-FR")}</div>
+      <div class="num ${tone(x.change_24h)}" style="font-size:12.5px;font-weight:600">${pct(x.change_24h)} <span class="faint" style="font-weight:400">24 h</span></div>
+      ${sparkPts(x.spark)}
+      <div class="faint fod-meta">${x.sbc_points ? `${x.sbc_points.toLocaleString("fr-FR")} pts · ${x.per_1k_points.toLocaleString("fr-FR")}/1k pts` : "points SBC inconnus"}</div>
+    </div>`).join("");
+}
+
 async function loadLeaks() {
   const r = await get("/api/leaks?limit=8");
   $("leaks-src").textContent = `non confirmés · ${r.channels.length ? "Telegram : " + r.channels.join(", ") : "aucun canal configuré"}`;
@@ -492,7 +515,7 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 
 async function refresh() {
   $("refresh").classList.add("spin");
-  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance(), loadKnowledge(), loadLeaks()]); }
+  try { await loadStatus(); await Promise.all([loadPlayers(), loadAlerts(), loadSummary(), loadPerformance(), loadKnowledge(), loadLeaks(), loadFodder()]); }
   catch (e) { $("status-txt").textContent = "Erreur de chargement : " + e.message; }
   finally { $("refresh").classList.remove("spin"); }
 }

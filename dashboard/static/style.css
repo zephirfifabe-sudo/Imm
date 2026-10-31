@@ -255,6 +255,17 @@ section { margin-top: 28px; }
 .hero-wrap { display: flex; gap: 20px; align-items: center; }
 .hero-wrap .hero { flex: 1; flex-direction: column; align-items: flex-start; gap: 12px; }
 
+/* ---------- fodders */
+.fodder { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.fod { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.fod.best { border-color: rgba(233, 185, 73, .55); }
+.fod-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.fod-r { font-size: 20px; font-weight: 800; color: var(--accent); }
+.fod-best { background: rgba(233, 185, 73, .14); color: var(--accent); font-size: 10px; }
+.fod-p { font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.fod .spark { margin: 4px 0 0; }
+.fod-meta { font-size: 11px; }
+
 /* ---------- leaks */
 .leaks { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .leak { padding: 14px 16px; font-size: 13.5px; }

@@ -174,6 +174,13 @@ def api_leaks(limit: int = 12):
     return {"leaks": out, "channels": [u.rsplit("/", 1)[-1] for u in channels()]}
 
 
+@app.get("/api/fodder", dependencies=[Depends(auth)])
+def api_fodder():
+    from scrapers.fodder import fodder_status, load_spec
+
+    return {"rows": fodder_status(), "active": load_spec() is not None}
+
+
 @app.get("/api/performance", dependencies=[Depends(auth)])
 def api_performance(days: int = 30):
     from core.decision_journal import performance

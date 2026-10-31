@@ -113,6 +113,15 @@ CREATE TABLE IF NOT EXISTS bot_status (
     value TEXT,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS fodder_snapshots (
+    timestamp  TEXT NOT NULL,
+    rating     INTEGER NOT NULL,
+    min_price  INTEGER NOT NULL,
+    avg5       INTEGER,
+    sbc_points INTEGER,
+    n          INTEGER,
+    PRIMARY KEY (timestamp, rating)
+);
 CREATE TABLE IF NOT EXISTS schema_version (
     version    INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL,

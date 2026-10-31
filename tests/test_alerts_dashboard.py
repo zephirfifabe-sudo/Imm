@@ -160,3 +160,26 @@ def test_chart_with_few_snapshots_and_nan_profile(monkeypatch):
 
     r = TestClient(app).get("/api/player/fgn-1/chart?days=7")
     assert r.status_code == 200 and len(r.json()["real"]) == 10
+
+
+def test_supervision_alerts_on_outage_partial_and_recovery():
+    from datetime import timedelta
+
+    from core.jobs import supervision_check
+    from database import db
+    from utils.helpers import utcnow
+
+    now = utcnow().replace(minute=0, second=0, microsecond=0)
+    assert supervision_check(now) is None  # jamais de vraies données : rien à surveiller
+    db.upsert_player({"player_id": "s1", "name": "S"})
+    db.insert_snapshot("s1", 1000, now - timedelta(hours=1), source="futgenie")
+    db.set_status("last_snapshot", {"ok": 150, "failed": 8})
+    assert supervision_check(now) is None  # tout va bien, état inchangé
+    msg = supervision_check(now + timedelta(hours=3))
+    assert msg.startswith("⚠️") and "depuis 4 h" in msg
+    assert supervision_check(now + timedelta(hours=4)) is None  # pas de répétition
+    db.insert_snapshot("s1", 1000, now + timedelta(hours=5), source="futgenie")
+    db.set_status("last_snapshot", {"ok": 40, "failed": 118})
+    assert "partiel" in supervision_check(now + timedelta(hours=5)).lower()
+    db.set_status("last_snapshot", {"ok": 155, "failed": 3})
+    assert supervision_check(now + timedelta(hours=5)).startswith("✅")

@@ -300,6 +300,18 @@ def knowledge_tips(now_local) -> list[str]:
     return tips
 
 
+def fodder_lines() -> list[str]:
+    """Une ligne de prix des fodders pour le résumé quotidien."""
+    from scrapers.fodder import fodder_status
+
+    rows = [x for x in fodder_status() if x.get("price")]
+    if not rows:
+        return []
+    parts = [f"{x['rating']} {fmt_price(x['price'])}" + (f" ({x['change_24h'] * 100:+.0f}%)" if x.get("change_24h") is not None else "")
+             + (" ⭐" if x.get("best_value") else "") for x in rows]
+    return ["\n🧱 **Fodders** (⭐ = meilleur prix par point SBC) : " + " · ".join(parts)]
+
+
 def knowledge_lines(now) -> list[str]:
     """Bloc « À venir » + bilan théorie vs données, pour le résumé quotidien."""
     from knowledge.service import get_service
@@ -384,6 +396,7 @@ def daily_summary(analyzer, watchlist: list[dict]) -> str:
         lines += [f"🟢 {s.title} @ {fmt_price(s.price)} ({s.confidence}/10)" for s in buys]
         lines += [f"🔴 {s.title} @ {fmt_price(s.price)} ({s.confidence}/10)" for s in sells]
 
+    lines += fodder_lines()
     lines += knowledge_lines(to_local(now))
     lines.append("\n🧭 **Consignes pour les prochaines heures**")
     lines += [f"• {t}" for t in _consignes(to_local(now), mood)]
