@@ -26,8 +26,9 @@ def real_vs_predicted(player_id: str, days: int = 7, forecast_hours: int = 48) -
     if s.empty:
         return out
     rule = learner.rule_for(learner.load_rules(), player)
-    prof = np.array(rule.get("profile") or [0.0] * 168, dtype=float)
-    base = s.rolling(168, min_periods=24).mean().bfill()
+    prof = np.nan_to_num(np.array(rule.get("profile") or [0.0] * 168, dtype=float))
+    # moins de 24 relevés : pas encore de moyenne glissante -> moyenne des relevés disponibles
+    base = s.rolling(168, min_periods=24).mean().bfill().fillna(float(s.mean()))
     view = s[s.index >= s.index[-1] - pd.Timedelta(days=days)]
     for ts, price in view.items():
         out["real"].append({"t": ts.isoformat(), "p": round(float(price))})

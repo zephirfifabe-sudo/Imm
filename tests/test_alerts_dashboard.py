@@ -141,3 +141,22 @@ def test_sparklines_and_chart_periods():
     assert 50 <= len(pts) <= 58 and pts[-1][1] > 0  # 7 jours, 1 point / 3 h, relevés réels
     assert len(c.get("/api/player/demo-1/chart?days=1").json()["real"]) <= 25
     assert len(c.get("/api/player/demo-1/chart?days=30").json()["real"]) > 200  # tout l'historique disponible (10 j)
+
+
+def test_chart_with_few_snapshots_and_nan_profile(monkeypatch):
+    """Joueur récent (< 24 relevés) + habitude contenant des NaN : le graphique ne doit pas planter (erreur 500)."""
+    from datetime import timedelta
+
+    from alerts import charts
+    from database import db
+    from utils.helpers import utcnow
+
+    db.upsert_player({"player_id": "fgn-1", "name": "Nouveau"})
+    now = utcnow().replace(minute=0, second=0, microsecond=0)
+    for h in range(10):
+        db.insert_snapshot("fgn-1", 30000 + h * 10, now - timedelta(hours=h), source="futgenie")
+    monkeypatch.setattr(charts.learner, "rule_for", lambda *a: {"profile": [float("nan")] * 168})
+    from dashboard import app
+
+    r = TestClient(app).get("/api/player/fgn-1/chart?days=7")
+    assert r.status_code == 200 and len(r.json()["real"]) == 10
