@@ -310,9 +310,13 @@ class MarketAnalyzer:
             action, reason = "AUCUNE ACTION", "aucun prix observé"
 
         opportunity = int(round(min(1.0, abs(lean) / 0.8) * 100))
-        conf = int(np.clip(round(opportunity * q["score"] / 1000), 1, 10))
-        if action not in ("ACHAT", "VENTE"):
-            conf = min(conf, 4)  # jamais envoyé sur Discord
+        # Note /10 utilisée seulement par l'anti-spam (seuil d'envoi 7). Un ACHAT/VENTE v2 a déjà passé tous les
+        # filtres (données fraîches, force relative, stabilisation, cible et marge) : il est envoyé (7 à 9 selon
+        # l'opportunité). Les abstentions restent sous le seuil et ne partent jamais.
+        if action in ("ACHAT", "VENTE"):
+            conf = int(np.clip(7 + round(opportunity / 40), 7, 9))
+        else:
+            conf = int(np.clip(round(opportunity * q["score"] / 1000), 1, 4))
         track = self.track_record(rule, action)
         when = to_local(pd.Timestamp(observed_at).to_pydatetime()).strftime("%Hh%M") if observed_at else "?"
         if action == "ACHAT":

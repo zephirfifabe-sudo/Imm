@@ -189,3 +189,16 @@ def test_new_base_card_discovery_is_shorter():
     seed({h: 20000 for h in range(60, -1, -1)}, pid="gold-1", player=gold)  # apparue il y a 60 h (2,5 j)
     age = analyzer([*wl, gold], version="v2").card_age(gold)
     assert not age["special"] and age["limit"] == 2 and not age["discovery"]
+
+
+def test_v2_trades_reach_discord_threshold_and_abstentions_never_do(monkeypatch):
+    prices = flat_then(48, 50000, 39000)
+    prices.update({h: 39000 for h in range(6, -1, -1)})
+    seed(prices)
+    an = analyzer(seed_market(move=-0.02), habit=False, version="v2")
+    buy = an.rule4_technical(PLAYER)
+    assert buy.action == "ACHAT" and buy.confidence >= config.ALERT_MIN_CONFIDENCE
+    monkeypatch.setattr(notifier, "send_text", lambda *a, **k: True)
+    assert notifier.dispatch([buy]) == [buy]  # l'achat validé part bien sur Discord
+    wait = an.build_signal(PLAYER, "HABITUDE", None, "")
+    assert wait.action in ("AUCUNE ACTION", "SURVEILLANCE") and wait.confidence <= 4
