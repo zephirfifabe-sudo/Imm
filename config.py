@@ -134,6 +134,16 @@ ALERT_COOLDOWN_HOURS = int(os.getenv("ALERT_COOLDOWN_HOURS", "6"))
 PRICE_REPORT_HOURS = os.getenv("PRICE_REPORT_HOURS", "10,22")
 SUMMARY_HOUR = int(os.getenv("SUMMARY_HOUR", "23"))  # résumé des 24 dernières heures
 
+# --- Assistant Discord (bot qui répond aux commandes et aux questions) ---
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
+DISCORD_BOT_CHANNEL_ID = int(os.getenv("DISCORD_BOT_CHANNEL_ID", "0") or 0)  # salon des questions libres (0 = sur mention)
+# IA : API au format OpenAI (Groq par défaut, gratuit pour tester ; OpenRouter, Mistral... en changeant l'URL)
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "")  # vide = choisi automatiquement parmi les modèles disponibles
+LLM_DAILY_LIMIT = int(os.getenv("LLM_DAILY_LIMIT", "50"))  # questions IA par jour (tout le serveur)
+LLM_USER_COOLDOWN_S = int(os.getenv("LLM_USER_COOLDOWN_S", "15"))
+
 # --- Dashboard ---
 # Image de la carte : aperçu public (og:image) que futgenie déclare pour chaque fiche, chargé par le
 # NAVIGATEUR de l'utilisateur (rien n'est téléchargé ni stocké par le bot). 0 = cartes dessinées seulement.

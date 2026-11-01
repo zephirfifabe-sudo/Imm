@@ -84,6 +84,15 @@ Ces résultats sont **théoriques** (prix observés), jamais des gains réels.
 base, une sauvegarde est faite dans `data/backups/` (14 jours) ; aucun relevé n'est jamais supprimé
 (les doublons sont archivés dans `price_snapshots_duplicates`).
 
+## 🤖 Assistant Discord
+
+Service `assistant` de docker-compose (processus séparé : s'il plante, le bot principal continue).
+- Commandes : `/prix <joueur>`, `/fodder`, `/top`, `/calendrier`, `/resume`, `/question <texte>`.
+- Questions libres dans le salon `DISCORD_BOT_CHANNEL_ID` (ou en mentionnant le bot).
+- IA au format OpenAI : Groq par défaut (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` vide = choix automatique),
+  limite `LLM_DAILY_LIMIT` questions par jour. L'IA ne répond qu'avec les données du bot.
+- Sans `DISCORD_BOT_TOKEN`, le service reste en veille ; sans `LLM_API_KEY`, seules les commandes répondent.
+
 ## 🧰 Commandes
 
 | Commande | Rôle |

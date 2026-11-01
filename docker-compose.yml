@@ -1,6 +1,7 @@
 services:
   sniper:
     build: .
+    image: fc27-sniper:latest
     container_name: fc27-sniper
     restart: always
     env_file: .env
@@ -14,6 +15,26 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
+
+  # Assistant Discord (commandes + questions à l'IA). Même image, même base, processus séparé :
+  # s'il plante ou si le jeton est absent, le bot principal n'est pas affecté.
+  assistant:
+    image: fc27-sniper:latest     # même image que le bot (construite par le service sniper)
+    pull_policy: never
+    container_name: fc27-assistant
+    healthcheck:
+      disable: true               # pas de dashboard dans ce conteneur
+    restart: always
+    env_file: .env
+    environment:
+      - TZ=Europe/Paris
+    volumes:
+      - ./data:/app/data
+    command: ["python", "main.py", "discord-bot"]
+    depends_on: [sniper]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
 
   # Optionnel : 3e recours anti-Cloudflare. Activer avec :
   #   docker compose --profile flaresolverr up -d   + FLARESOLVERR_URL=http://flaresolverr:8191/v1 dans .env
