@@ -80,6 +80,10 @@ DISCORD_FODDER_WEBHOOK_URL = os.getenv("DISCORD_FODDER_WEBHOOK_URL", "")  # salo
 SIMILARITY_ALERT = 0.85
 DROP_48H_BUY = -0.15
 PUMP_24H_SELL = 0.30
+# Moteur v2 — R4 en force relative : seule la part du mouvement PROPRE au joueur compte
+R4_EXCESS_BUY = float(os.getenv("R4_EXCESS_BUY", "-0.10"))  # chute 48 h au moins 10 pts pire que le marché
+R4_EXCESS_SELL = float(os.getenv("R4_EXCESS_SELL", "0.15"))  # hausse 24 h au moins 15 pts au-dessus du marché
+R4_STABLE_3H = float(os.getenv("R4_STABLE_3H", "-0.02"))  # chute encore en cours si < -2 % sur les 3 dernières heures
 INSTANT_CRASH_ALERT = -0.15
 SATURATION_COUNT = 3
 EA_TAX = 0.05  # taxe EA sur chaque vente

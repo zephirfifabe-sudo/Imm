@@ -11,6 +11,15 @@ from database import db
 from tests.test_characterization import NOW, PLAYER, analyzer, flat_then, seed
 from utils.helpers import round_tier
 
+MARKET = [{**PLAYER, "player_id": f"mk-{i}", "name": f"Marche{i}", "position": "CB"} for i in range(6)]
+
+
+def seed_market(move: float = 0.0, hours: int = 48) -> list[dict]:
+    """6 autres joueurs suivis : marché stable (move=0) ou en baisse/hausse de `move` sur `hours` heures."""
+    for p in MARKET:
+        seed(flat_then(hours, 30000, round(30000 * (1 + move))), pid=p["player_id"], player=p)
+    return [PLAYER, *MARKET]
+
 
 def test_ea_tiers():
     assert [round_tier(p) for p in (987, 9_999, 10_049, 36_333, 52_400, 150_999)] == \
@@ -19,8 +28,8 @@ def test_ea_tiers():
 
 
 def test_v2_buy_has_justified_target_tiers_and_theoretical_wording():
-    seed(flat_then(48, 50000, 40000))  # -20 % en 48 h, 10 jours d'historique
-    s = analyzer(habit=False, version="v2").rule4_technical(PLAYER)
+    seed(flat_then(48, 50000, 40000))  # -20 % en 48 h, 10 jours d'historique, marché stable
+    s = analyzer(seed_market(), habit=False, version="v2").rule4_technical(PLAYER)
     x = s.extra
     assert s.action == "ACHAT" and x["engine"] == "v2" and x["reason"] == ""
     assert x["buy_max"] == 40000 and x["sell_min"] == round_tier(x["target_price"])  # paliers EA
@@ -34,13 +43,13 @@ def test_v2_buy_has_justified_target_tiers_and_theoretical_wording():
 
 def test_v2_margin_too_small_becomes_surveillance():
     seed(flat_then(48, 50000, 42000) | {h: 43500 for h in range(240, 49, -1)})  # moyenne proche du prix
-    s = analyzer(habit=False, version="v2").rule4_technical(PLAYER)
+    s = analyzer(seed_market(), habit=False, version="v2").rule4_technical(PLAYER)
     assert s.action == "SURVEILLANCE" and "marge nette théorique" in s.extra["reason"]
 
 
 def test_v2_sell_never_below_observed_and_no_duplicate_crash_signal():
     seed(flat_then(24, 40000, 52000))
-    an = analyzer(habit=False, version="v2")
+    an = analyzer(seed_market(), habit=False, version="v2")
     s = an.rule4_technical(PLAYER)
     assert s.action == "VENTE" and "VENDRE vers 52 000" in s.action_text.replace(" ", " ")
     assert an.instant_crashes(24) == []
@@ -116,3 +125,41 @@ def test_job_snapshot_logs_active_and_shadow_engines(monkeypatch):
         engines = sorted(r[0] for r in c.execute("SELECT engine FROM decision_log"))
     assert engines == ["v1", "v2"]
     assert all(a["action"].startswith(("ACHAT", "VENTE")) for a in db.recent_alerts())  # v2 jamais envoyé
+
+
+# --------------------------------------------------------------------------- R4 en force relative (étape 7)
+def test_r4_drop_aligned_with_market_is_not_a_buy():
+    seed(flat_then(48, 50000, 40000))  # -20 %
+    wl = seed_market(move=-0.18)  # tout le marché perd ~18 %
+    s = analyzer(wl, habit=False, version="v2").rule4_technical(PLAYER)
+    assert s.action == "SURVEILLANCE" and "alignée sur le marché" in s.extra["reason"]
+    assert round(s.extra["excess_48h"], 2) == -0.02
+
+
+def test_r4_player_specific_drop_but_still_falling_waits():
+    prices = flat_then(48, 50000, 44000)
+    prices.update({h: 44000 - (3 - h) * 2000 for h in range(3, -1, -1)})  # -14 % sur les 3 dernières heures
+    seed(prices)
+    s = analyzer(seed_market(), habit=False, version="v2").rule4_technical(PLAYER)
+    assert s.action == "SURVEILLANCE" and "chute encore en cours" in s.extra["reason"]
+
+
+def test_r4_player_specific_stabilised_drop_is_a_buy():
+    prices = flat_then(48, 50000, 39000)
+    prices.update({h: 39000 for h in range(6, -1, -1)})  # palier stable depuis 6 h
+    seed(prices)
+    s = analyzer(seed_market(move=-0.02), habit=False, version="v2").rule4_technical(PLAYER)
+    assert s.action == "ACHAT" and "contre -2 % pour le marché" in s.instant and "stabilisée" in s.instant
+
+
+def test_r4_pump_shared_by_market_is_not_hype():
+    seed(flat_then(24, 40000, 52000))  # +30 %
+    wl = seed_market(move=0.25, hours=24)
+    s = analyzer(wl, habit=False, version="v2").rule4_technical(PLAYER)
+    assert s.action == "SURVEILLANCE" and "partagée par le marché" in s.extra["reason"]
+
+
+def test_r4_unknown_market_never_trades():
+    seed(flat_then(48, 50000, 40000))
+    s = analyzer(habit=False, version="v2").rule4_technical(PLAYER)  # un seul joueur suivi
+    assert s.action == "SURVEILLANCE" and "marché inconnu" in s.extra["reason"]

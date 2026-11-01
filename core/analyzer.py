@@ -158,9 +158,9 @@ class MarketAnalyzer:
 
     # ------------------------------------------------------------------ fusion
     def build_signal(self, player: dict, rule: str, instant_score: float | None, instant_txt: str,
-                     rule_conf: float = 0.7, extra: dict | None = None) -> Signal:
+                     rule_conf: float = 0.7, extra: dict | None = None, hold_reason: str = "") -> Signal:
         if self.version == "v2":
-            return self._build_v2(player, rule, instant_score, instant_txt, rule_conf, extra)
+            return self._build_v2(player, rule, instant_score, instant_txt, rule_conf, extra, hold_reason)
         pid = str(player["player_id"])
         price = self.price_now(pid)
         hab = self.habit(player, price)
@@ -227,7 +227,8 @@ class MarketAnalyzer:
         return self._calendar
 
     def _build_v2(self, player: dict, rule: str, instant_score: float | None, instant_txt: str,
-                  rule_conf: float = 0.7, extra: dict | None = None) -> Signal:
+                  rule_conf: float = 0.7, extra: dict | None = None, hold_reason: str = "") -> Signal:
+        """`hold_reason` : une condition du déclencheur n'est pas remplie -> SURVEILLANCE au lieu d'ACHAT/VENTE."""
         pid = str(player["player_id"])
         price = self.price_now(pid)
         q = self.quality(pid)
@@ -270,6 +271,8 @@ class MarketAnalyzer:
                     action = "SURVEILLANCE"
                     reason = (f"marge nette théorique {net / buy_max * 100:+.1f} % après taxe "
                               f"(min {config.MIN_NET_MARGIN * 100:.0f} %)")
+        if hold_reason and action in ("ACHAT", "VENTE"):
+            action, reason = "SURVEILLANCE", hold_reason
         if not q["ok"]:
             action, reason = "AUCUNE ACTION", f"données insuffisantes : {q['reason']}"
         if not price:
@@ -401,6 +404,8 @@ class MarketAnalyzer:
         return False
 
     def rule4_technical(self, player: dict) -> Signal | None:
+        if self.version == "v2":
+            return self._rule4_relative(player)
         pid = str(player["player_id"])
         c48, c24 = self.change(pid, 48), self.change(pid, 24)
         if c48 is not None and c48 <= config.DROP_48H_BUY and not self.recent_competitor(player):
@@ -411,6 +416,51 @@ class MarketAnalyzer:
             txt = f"{c24 * 100:+.0f}% en 24h sur la hype : prendre les bénéfices avant le retour à la moyenne."
             return self.build_signal(player, "R4_HYPE_24H", -min(1.0, c24 / 0.45), txt, rule_conf=0.7,
                                      extra={"change_24h": c24})
+        return None
+
+    def _rule4_relative(self, player: dict) -> Signal | None:
+        """R4 v2 : chute / hausse comparée au marché suivi (force relative) + stabilisation avant tout achat.
+
+        Une chute que tout le marché subit n'est pas une affaire (piège observé sur v1 : 92 % d'achats perdants
+        à 24 h en marché baissier). On n'achète que l'écart propre au joueur, une fois la chute calmée.
+        """
+        pid = str(player["player_id"])
+        c48, c24 = self.change(pid, 48), self.change(pid, 24)
+        m48, m24 = self.market_change(48), self.market_change(24)
+        pct = lambda v: f"{v * 100:+.0f} %"  # noqa: E731
+        if c48 is not None and c48 <= config.DROP_48H_BUY and not self.recent_competitor(player):
+            extra = {"change_48h": c48, "market_48h": m48}
+            if m48 is None:
+                return self.build_signal(player, "R4_CHUTE_48H", min(1.0, abs(c48) / 0.25),
+                                         f"{pct(c48)} en 48 h.", rule_conf=0.6, extra=extra,
+                                         hold_reason="mouvement du marché inconnu (trop peu de joueurs relevés)")
+            excess = c48 - m48
+            txt = f"{pct(c48)} en 48 h contre {pct(m48)} pour le marché (écart {excess * 100:+.0f} pts)."
+            extra["excess_48h"] = excess
+            if excess > config.R4_EXCESS_BUY:
+                return self.build_signal(player, "R4_CHUTE_48H", min(1.0, abs(c48) / 0.25), txt, rule_conf=0.6,
+                                         extra=extra, hold_reason=f"chute alignée sur le marché ({pct(m48)} en 48 h) : "
+                                                                  f"pas une baisse propre au joueur")
+            c3 = self.change(pid, 3)
+            extra["change_3h"] = c3
+            hold = ""
+            if c3 is None:
+                hold = "stabilisation non vérifiable (pas de relevé il y a 3 h)"
+            elif c3 < config.R4_STABLE_3H:
+                hold = f"chute encore en cours ({pct(c3)} sur 3 h) : attendre la stabilisation"
+            else:
+                txt += f" Chute stabilisée ({pct(c3)} sur 3 h)."
+            return self.build_signal(player, "R4_CHUTE_48H", min(1.0, abs(excess) / 0.25), txt, rule_conf=0.7,
+                                     extra=extra, hold_reason=hold)
+        if c24 is not None and c24 >= config.PUMP_24H_SELL:
+            extra = {"change_24h": c24, "market_24h": m24}
+            excess = c24 - m24 if m24 is not None else None
+            txt = f"{pct(c24)} en 24 h" + (f" contre {pct(m24)} pour le marché." if m24 is not None else ".")
+            hold = "" if excess is not None and excess >= config.R4_EXCESS_SELL else \
+                ("mouvement du marché inconnu" if excess is None else
+                 f"hausse partagée par le marché ({pct(m24)} en 24 h) : pas une hype propre au joueur")
+            return self.build_signal(player, "R4_HYPE_24H", -min(1.0, c24 / 0.45), txt, rule_conf=0.7,
+                                     extra={**extra, "excess_24h": excess}, hold_reason=hold)
         return None
 
     # ------------------------------------------------------------------ R5

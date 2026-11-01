@@ -140,3 +140,10 @@ Les chiffres de performance démo ne sont **pas** interprétables : les données
 - Retour arrière : inverser les deux valeurs dans `.env`, puis `docker compose up -d --force-recreate`.
 
 **Suite prioritaire :** étape 7, R4 en force relative. Une chute n'est plus traitée comme une opportunité quand elle suit le mouvement général du marché (`market_change`) ; seul l'écart propre au joueur compte.
+
+### Étape 7 (01/11/2026) : R4 en force relative, moteur v2 uniquement
+- **ACHAT** seulement si la chute sur 48 h dépasse celle du marché suivi d'au moins 10 points (`R4_EXCESS_BUY`) **et** si elle s'est stabilisée, c'est-à-dire pas plus de −2 % sur les 3 dernières heures (`R4_STABLE_3H`).
+- Sinon → **SURVEILLANCE**, avec la raison : « chute alignée sur le marché », « chute encore en cours » ou « marché inconnu ».
+- **VENTE sur hausse** seulement si la hausse sur 24 h dépasse celle du marché d'au moins 15 points (`R4_EXCESS_SELL`).
+- La force du signal repose sur l'**écart au marché**, plus sur la variation brute.
+- v1 est inchangé (moteur de comparaison). L'effet sera mesuré dans le journal (v2 contre v1) sur les prochains jours.
