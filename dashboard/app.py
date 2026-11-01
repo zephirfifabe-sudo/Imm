@@ -131,6 +131,7 @@ def api_players(engine: str | None = None):
                 "probability": x.get("probability"), "habit_validated": x.get("habit_validated"),
                 "observed_at": x.get("observed_at"), "buy_max": x.get("buy_max"), "sell_min": x.get("sell_min"),
                 "target_price": x.get("target_price"), "net_profit": x.get("net_profit"),
+                "card_age": x.get("card_age"),
             })
         known = {r["player_id"] for r in rows}
         rows += [{"player_id": p["player_id"], "name": p["name"], "rating": p.get("rating"), "position": p.get("position"),

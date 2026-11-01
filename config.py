@@ -84,6 +84,9 @@ PUMP_24H_SELL = 0.30
 R4_EXCESS_BUY = float(os.getenv("R4_EXCESS_BUY", "-0.10"))  # chute 48 h au moins 10 pts pire que le marché
 R4_EXCESS_SELL = float(os.getenv("R4_EXCESS_SELL", "0.15"))  # hausse 24 h au moins 15 pts au-dessus du marché
 R4_STABLE_3H = float(os.getenv("R4_STABLE_3H", "-0.02"))  # chute encore en cours si < -2 % sur les 3 dernières heures
+# Nouvelles cartes : le prix « se cherche » pendant plusieurs jours (packs qui s'ouvrent) -> pas d'ACHAT/VENTE
+NEW_CARD_DAYS_SPECIAL = float(os.getenv("NEW_CARD_DAYS_SPECIAL", "4"))  # TOTW, promos du vendredi...
+NEW_CARD_DAYS_BASE = float(os.getenv("NEW_CARD_DAYS_BASE", "2"))
 INSTANT_CRASH_ALERT = -0.15
 SATURATION_COUNT = 3
 EA_TAX = 0.05  # taxe EA sur chaque vente

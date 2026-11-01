@@ -182,3 +182,20 @@ entrees:
     fiabilite: 3
     statut: hypothese
     verifie_le: 2026-10-30
+
+  - id: KB-S-012
+    cle: decouverte_prix_nouvelle_carte
+    niveau: 2
+    titre: Une nouvelle carte met plusieurs jours à trouver son prix
+    contenu: >
+      À sa sortie (TOTW le mercredi, promos le vendredi à 18h UK), une carte est rare et très demandée : son prix
+      démarre haut puis baisse pendant plusieurs jours, au fil des packs ouverts, avant de se stabiliser. Une forte
+      chute pendant cette phase est le trajet normal d'une carte neuve, pas une opportunité. Le moteur v2 ne donne
+      donc aucun ACHAT/VENTE sur une carte neuve pendant ~4 jours (spéciales) ou ~2 jours (autres).
+    version_jeu: toutes
+    sources:
+      - {url: "https://www.futwiz.com/totw", type: guide_communautaire, note: "TOTW 7 jours en packs, vendre avant la suivante"}
+      - {url: "", type: consensus_historique, note: "constat observé par le propriétaire et la communauté trading ; durée à mesurer par le journal"}
+    fiabilite: 3
+    statut: hypothese
+    verifie_le: 2026-11-01

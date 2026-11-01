@@ -32,7 +32,9 @@ from core.signals import Signal, score_to_action
 from database import db
 from scrapers.requirements_parser import META_PLAYSTYLES
 from utils.helpers import POSITION_GROUP, fmt_coins, fmt_price, position_distance_score, round_tier, to_local, utcnow
+from utils.helpers import iso
 from utils.logger import get_logger
+from utils.rarity import classify
 
 log = get_logger("analyzer")
 
@@ -68,6 +70,7 @@ class MarketAnalyzer:
         self._raw: dict[str, pd.Series] = {}
         self._market: dict[int, float | None] = {}
         self._track: dict | None = None
+        self._ages: dict | None = None
 
     # ------------------------------------------------------------------ données
     def series(self, pid: str) -> pd.Series:
@@ -218,6 +221,28 @@ class MarketAnalyzer:
         r = self._track.get((rule, action))
         return r if r and r["n"] >= config.PROBA_MIN_SAMPLES else None
 
+    def card_age(self, player: dict) -> dict | None:
+        """Âge d'une carte NEUVE (apparue alors que le bot tournait déjà) et sa phase de découverte du prix.
+
+        Une carte déjà présente au démarrage du bot n'a pas d'âge connu -> None (jamais considérée comme neuve).
+        """
+        if self._ages is None:
+            until = iso(self.now)
+            with db.get_conn() as c:
+                rows = c.execute("SELECT player_id, MIN(timestamp) FROM price_snapshots WHERE source != 'demo' "
+                                 "AND timestamp <= ? GROUP BY player_id", (until,)).fetchall()
+            first = {pid: datetime.fromisoformat(t) for pid, t in rows}
+            start = min(first.values()) if first else None
+            self._ages = {"start": start, "first": first}
+        pid = str(player["player_id"])
+        first, start = self._ages["first"].get(pid), self._ages["start"]
+        if first is None or start is None or first - start < timedelta(hours=12):
+            return None
+        special = classify(player.get("card_type")).get("special", False)
+        days = (self.now - first).total_seconds() / 86400
+        limit = config.NEW_CARD_DAYS_SPECIAL if special else config.NEW_CARD_DAYS_BASE
+        return {"days": round(days, 1), "special": special, "discovery": days < limit, "limit": limit}
+
     def calendar(self) -> list[str]:
         """Événements proches tirés de la base de connaissances : contexte affiché, n'influence pas la décision."""
         if not hasattr(self, "_calendar"):
@@ -273,6 +298,12 @@ class MarketAnalyzer:
                               f"(min {config.MIN_NET_MARGIN * 100:.0f} %)")
         if hold_reason and action in ("ACHAT", "VENTE"):
             action, reason = "SURVEILLANCE", hold_reason
+        age = self.card_age(player)
+        # carte neuve : la « découverte du prix » prime sur les autres raisons dès qu'un déclencheur existe
+        if age and age["discovery"] and (action in ("ACHAT", "VENTE") or (action == "SURVEILLANCE" and instant_score is not None)):
+            kind = "spéciale" if age["special"] else "nouvelle"
+            action, reason = "SURVEILLANCE", (f"carte {kind} sortie il y a {age['days']:.1f} j : prix encore en "
+                                              f"découverte (stabilisation attendue après ~{age['limit']:g} j, KB-S-012)")
         if not q["ok"]:
             action, reason = "AUCUNE ACTION", f"données insuffisantes : {q['reason']}"
         if not price:
@@ -300,7 +331,7 @@ class MarketAnalyzer:
             position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
             instant=instant_txt, habit=hab["text"] + ("" if habit_ok else " (habitude non validée : n'influence pas la décision)"),
             action_text=act, risk="Élevé" if q["score"] < 70 else "Moyen",
-            extra={**(extra or {}), "engine": "v2", "reason": reason, "calendar": self.calendar(), "opportunity": opportunity,
+            extra={**(extra or {}), "engine": "v2", "reason": reason, "calendar": self.calendar(), "card_age": age, "opportunity": opportunity,
                    "data_quality": q["score"], "quality": q, "probability": track, "habit_validated": habit_ok,
                    "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
                    "observed_price": int(price) if price else None, "observed_at": observed_at,

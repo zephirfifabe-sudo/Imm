@@ -163,3 +163,29 @@ def test_r4_unknown_market_never_trades():
     seed(flat_then(48, 50000, 40000))
     s = analyzer(habit=False, version="v2").rule4_technical(PLAYER)  # un seul joueur suivi
     assert s.action == "SURVEILLANCE" and "marché inconnu" in s.extra["reason"]
+
+
+# --------------------------------------------------------------------------- nouvelles cartes (découverte du prix)
+def test_new_special_card_is_in_price_discovery():
+    wl = seed_market()  # le bot tourne depuis 10 jours
+    totw = {**PLAYER, "player_id": "totw-1", "name": "Nouveau TOTW", "card_type": "Team of the Week"}
+    seed({h: 60000 - (30 - h) * 600 for h in range(30, -1, -1)}, pid="totw-1", player=totw)  # sortie il y a 30 h, chute
+    an = analyzer([*wl, totw], habit=False, version="v2")
+    age = an.card_age(totw)
+    assert age["special"] and age["discovery"] and age["days"] == 1.2 and age["limit"] == 4
+    s = an.build_signal(totw, "R4_CHUTE_48H", 0.9, "chute")
+    assert s.action == "SURVEILLANCE" and "découverte" in s.extra["reason"] and "KB-S-012" in s.extra["reason"]
+
+
+def test_card_present_since_bot_start_is_never_new():
+    wl = seed_market()
+    an = analyzer(wl, habit=False, version="v2")
+    assert an.card_age(PLAYER) is None and an.card_age(MARKET[0]) is None
+
+
+def test_new_base_card_discovery_is_shorter():
+    wl = seed_market()
+    gold = {**PLAYER, "player_id": "gold-1", "name": "Nouvel Or", "card_type": "Or rare"}
+    seed({h: 20000 for h in range(60, -1, -1)}, pid="gold-1", player=gold)  # apparue il y a 60 h (2,5 j)
+    age = analyzer([*wl, gold], version="v2").card_age(gold)
+    assert not age["special"] and age["limit"] == 2 and not age["discovery"]

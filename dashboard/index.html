@@ -182,6 +182,9 @@ function avatar(p, el) {
   if (el) { el.textContent = p.rating ?? "?"; el.style.cssText = style; return; }
   return `<div class="avatar" style="${style}">${esc(p.rating ?? "?")}</div>`;
 }
+// carte neuve en phase de découverte du prix (moteur v2) : badge « 🆕 J+2 »
+const newBadge = p => p.card_age && p.card_age.discovery
+  ? `<span class="chip new-card" title="Carte sortie il y a ${p.card_age.days} j : prix encore en découverte">🆕 J+${Math.floor(p.card_age.days)}</span>` : "";
 function chip(r) {
   if (!r) return "";
   const style = r.special ? `background:${r.color}24;color:${r.color}` : `color:${r.color};box-shadow:inset 0 0 0 1px ${r.color}44`;
@@ -300,7 +303,7 @@ function renderRows() {
     <button class="trow" data-id="${esc(p.player_id)}">
       <div class="player col-player">${avatar(p)}
         <div class="meta"><div class="n">${esc(p.name)}</div>
-          <div class="sub">${chip(p.rarity)}<span>${esc(p.position ?? "")}</span>
+          <div class="sub">${chip(p.rarity)}${newBadge(p)}<span>${esc(p.position ?? "")}</span>
             <span class="scan" title="Dernier prix relevé"><i style="background:${scanDot(p.scanned_at)}"></i>${ago(p.scanned_at)}</span></div></div>
       </div>
       <div class="price-cell"><div class="p num">${k(p.price)}</div>
@@ -313,7 +316,7 @@ function renderRows() {
     </button>`).join("") || `<div class="empty">Aucun joueur ne correspond.</div>`;
   $("grid").innerHTML = list.map(p => `
     <button class="fut-item" data-id="${esc(p.player_id)}">${futCard(p)}
-      <div class="fi-price num">${k(p.price)} <span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span></div>
+      ${newBadge(p)}<div class="fi-price num">${k(p.price)} <span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span></div>
       ${spark(p.player_id, 120, 26)}
       <div>${signal(p.action)}</div>
     </button>`).join("") || `<div class="empty">Aucun joueur ne correspond.</div>`;
