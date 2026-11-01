@@ -110,3 +110,33 @@ Les chiffres de performance démo ne sont **pas** interprétables : les données
    - tracker des fodders (après vérification de ce que futgenie permet) ;
    - supervision (« plus de prix depuis 2 h »).
 3. Ensuite, **comparer v1 et v2 sur les résultats réels du journal**, et décider de la bascule `BRAIN_VERSION=v2`.
+
+---
+
+## Mise à jour du 01/11/2026 : bascule vers le moteur v2
+
+**Données réelles du VPS après 2,4 jours** (17 675 relevés, 163 joueurs suivis, aucun doublon) :
+
+| Décision | Horizon | n | Favorables | Variation médiane |
+|---|---|---|---|---|
+| v1 ACHAT | 24 h | 984 | **8 %** | −4,0 % |
+| v1 VENTE | 24 h | 428 | 89 % | −7,9 % |
+| v1 AUCUNE ACTION | 24 h | 1 954 | 100 % | −6,6 % |
+| v2 SURVEILLANCE | 24 h | 157 | 99 % | −4,9 % |
+| v2 AUCUNE ACTION | 24 h | 3 209 | 99 % (24 occasions manquées) | −6,1 % |
+
+**Lecture des résultats :**
+- Le marché était en baisse générale (début de saison, promo Ultimate Scream).
+- La règle R4 de v1 (−15 % en 48 h → ACHAT) s'est déclenchée sur des chutes **générales**, et non propres aux joueurs. 92 % de ses achats auraient été perdants à 24 h, et elle a produit environ 210 alertes d'achat en 2,4 jours.
+- v2 s'est abstenu, à juste titre dans 99 % des cas.
+
+**Limites connues :**
+- La période est courte et ne couvre qu'un seul régime de marché.
+- Les observations ne sont pas indépendantes : un même joueur est compté à chaque relevé.
+- v2 n'a encore **aucun achat évalué**.
+
+**Décision (validée par le propriétaire) :**
+- `BRAIN_VERSION=v2` (actif) et `BRAIN_SHADOW=v1` (observation).
+- Retour arrière : inverser les deux valeurs dans `.env`, puis `docker compose up -d --force-recreate`.
+
+**Suite prioritaire :** étape 7, R4 en force relative. Une chute n'est plus traitée comme une opportunité quand elle suit le mouvement général du marché (`market_change`) ; seul l'écart propre au joueur compte.

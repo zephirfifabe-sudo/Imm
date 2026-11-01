@@ -20,6 +20,9 @@ def tmp_data(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "market_history.db")
     monkeypatch.setattr(config, "WATCHLIST_PATH", tmp_path / "watchlist.json")
     monkeypatch.setattr(config, "RULES_PATH", tmp_path / "market_rules.json")
+    # les tests historiques décrivent le moteur v1 ; les tests v2 passent version="v2" explicitement
+    monkeypatch.setattr(config, "BRAIN_VERSION", "v1")
+    monkeypatch.setattr(config, "BRAIN_SHADOW", "v2")
     db.init_db()
     yield tmp_path
 

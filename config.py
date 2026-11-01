@@ -92,8 +92,10 @@ SNAPSHOT_EVERY_MIN = int(os.getenv("SNAPSHOT_EVERY_MIN", "15"))
 
 # --- Moteur de décision ---
 # v1 = moteur historique (référence, retour arrière) ; v2 = moteur fiabilisé (qualité des données, abstention).
-BRAIN_VERSION = os.getenv("BRAIN_VERSION", "v1")  # moteur qui envoie les alertes et remplit le dashboard
-BRAIN_SHADOW = os.getenv("BRAIN_SHADOW", "v2")  # moteur évalué en observation (journalisé, jamais envoyé) ; "" = aucun
+# Bascule v1 -> v2 le 01/11/2026 après 2,4 jours de journal : achats v1 favorables à 24 h dans 8 % des cas
+# (n=984, marché en baisse), abstentions v2 justifiées à 99 %. v1 reste évalué en observation.
+BRAIN_VERSION = os.getenv("BRAIN_VERSION", "v2")  # moteur qui envoie les alertes et remplit le dashboard
+BRAIN_SHADOW = os.getenv("BRAIN_SHADOW", "v1")  # moteur évalué en observation (journalisé, jamais envoyé) ; "" = aucun
 MAX_PRICE_AGE_H = float(os.getenv("MAX_PRICE_AGE_H", "2.5"))  # au-delà : prix trop ancien -> AUCUNE ACTION
 MIN_POINTS_48H = int(os.getenv("MIN_POINTS_48H", "24"))  # relevés réels mini sur 48 h
 REAL_POINT_TOLERANCE_H = 1.5  # écart max entre l'heure visée et un relevé réel (pas d'interpolation)
