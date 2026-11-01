@@ -228,3 +228,8 @@ def test_snapshot_every_15_minutes_and_hourly_journal(monkeypatch):
         monkeypatch.setattr(jobs, "utcnow", lambda m=minute: datetime(2026, 10, 31, 9, m, tzinfo=timezone.utc))
         jobs.job_snapshot()
     assert len(logged) == 1  # journal seulement au relevé de début d'heure
+
+
+def test_watchlist_refresh_after_totw_and_promo_releases():
+    trig = {j.id: str(j.trigger) for j in build_scheduler().get_jobs()}["watchlist_release"]
+    assert "day_of_week='wed,fri'" in trig and "hour='19'" in trig and "minute='30'" in trig

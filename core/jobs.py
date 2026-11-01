@@ -7,7 +7,8 @@
   15:00                   tableau des fodders sur Discord (FODDER_REPORT_HOUR)
   mardi + dimanche 10:05  prix moyens des fodders sur 7 jours (FODDER_AVG_DAYS / FODDER_AVG_HOUR)
   :15 et :45              supervision : alerte Discord si plus aucun prix relevé depuis 2 h (et à la reprise)
-  08:00                   watchlist du jour (150 joueurs populaires 20k-400k)
+  08:00                   watchlist du jour (joueurs les plus méta par tranche de prix)
+  mer + ven 19:30         ajout des cartes qui viennent de sortir (TOTW, promo) à la liste suivie
   toutes les 20 min       leaks (alerte immédiate si un joueur de la watchlist est cité)
   :20 chaque heure        SBC + Evos (toutes les 15 min entre 18h et 21h)
   18:45                   rapport PRÉ-19H (leaks + ventes à sécuriser)
@@ -120,6 +121,19 @@ def job_watchlist():
     bands = parse_bands(config.WATCHLIST_BANDS)
     notifier.send_text(f"📋 Watchlist du jour : {len(wl)} joueurs entre "
                        f"{bands[0][0] // 1000}k et {bands[-1][1] // 1000}k.")
+
+
+@safe_job
+def job_watchlist_release():
+    """Mercredi (TOTW) et vendredi (promo) 19h30 : ajoute les cartes qui viennent de sortir à la liste suivie,
+    pour enregistrer leur prix dès les premières heures (apprentissage de la « courbe de vie » des TOTW)."""
+    from scrapers.watchlist import build_watchlist, load_watchlist
+
+    before = {p["player_id"] for p in load_watchlist()}
+    wl = build_watchlist()
+    new = [p for p in wl if p["player_id"] not in before]
+    if new:
+        log.info("Sorties du jour ajoutées à la liste suivie : %s", ", ".join(p.get("name", "?") for p in new[:15]))
 
 
 def in_19h_window(now_local=None) -> bool:
@@ -310,6 +324,7 @@ def build_scheduler() -> BlockingScheduler:
     s.add_job(job_snapshot, "cron", minute=",".join(str(m + 2) for m in range(0, 60, every)), id="snapshot")
     s.add_job(job_outcomes, "cron", minute=35, id="outcomes")
     s.add_job(job_watchlist, "cron", hour=8, minute=0, id="watchlist")
+    s.add_job(job_watchlist_release, "cron", day_of_week="wed,fri", hour=19, minute=30, id="watchlist_release")
     s.add_job(job_leaks, "cron", minute="*/20", id="leaks")
     s.add_job(job_sbc_evo, "cron", minute=20, hour="0-17,21-23", id="sbc_evo")
     s.add_job(job_sbc_evo, "cron", minute="*/15", hour="18-20", id="sbc_evo_19h")

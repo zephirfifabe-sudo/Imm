@@ -147,3 +147,15 @@ Les chiffres de performance démo ne sont **pas** interprétables : les données
 - **VENTE sur hausse** seulement si la hausse sur 24 h dépasse celle du marché d'au moins 15 points (`R4_EXCESS_SELL`).
 - La force du signal repose sur l'**écart au marché**, plus sur la variation brute.
 - v1 est inchangé (moteur de comparaison). L'effet sera mesuré dans le journal (v2 contre v1) sur les prochains jours.
+
+### Nouvelles cartes (01/11/2026) : phase de découverte du prix, puis apprentissage de la courbe TOTW (à venir)
+**Fait :**
+- Une carte apparue alors que le bot tournait déjà a un âge connu. Pas d'ACHAT/VENTE pendant 4 j (spéciales) ou 2 j (autres) : KB-S-012, badge « 🆕 J+N ».
+- **Collecte** : la liste suivie est mise à jour le mercredi et le vendredi à 19h30, pour enregistrer les TOTW et les promos dès leurs premières heures.
+
+**À faire, une fois au moins 3 TOTW observées (environ 3 semaines) :**
+1. Pour chaque carte TOTW, prix relatif au premier relevé, en fonction des heures écoulées depuis la sortie (mercredi 18h UK).
+2. Courbe médiane par TOTW, puis sur toutes les TOTW → **point bas habituel** (meilleur moment d'achat) et **moment de stabilisation** (pente proche de 0).
+3. Enregistrement dans `data/knowledge_observed.json` (connaissance acquise) avec n et dispersion. La phase de découverte des TOTW se termine alors au moment appris, au lieu des 4 j fixes.
+4. Signal « fenêtre d'achat TOTW apprise », d'abord en SURVEILLANCE et évalué par le journal, puis en ACHAT si les résultats sont favorables.
+5. Même méthode pour les promos du vendredi, par type de promo.
