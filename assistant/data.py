@@ -59,8 +59,9 @@ def player_card(player: dict) -> dict:
         "min_7d": x.get("min_7d"), "max_7d": x.get("max_7d"), "action": s.action if s else "?",
         "reason": x.get("reason") or (s.instant if s else ""), "action_text": s.action_text if s else "",
         "explain": x.get("explain"), "observed_at": x.get("observed_at"), "card_age": x.get("card_age"),
-        "player_id": str(player["player_id"]), "opportunity": x.get("opportunity"),
-        "opportunity_side": x.get("opportunity_side"),
+        "player_id": str(player["player_id"]), "buy_max": x.get("buy_max"), "sell_min": x.get("sell_min"),
+        "net_profit": x.get("net_profit"), "net_pct": x.get("net_pct"), "buy_trigger": x.get("buy_trigger"),
+        "risk_level": x.get("risk_level"), "risk_why": x.get("risk_why"), "probability": x.get("probability"),
     }
 
 
@@ -76,9 +77,17 @@ def player_text(c: dict) -> str:
     if c.get("card_age") and c["card_age"].get("discovery"):
         lines.append(f"🆕 Carte sortie il y a {c['card_age']['days']} j : prix encore en découverte")
     lines.append(f"Décision du bot : **{c['action']}**" + (f" — {c['reason']}" if c.get("reason") else ""))
-    if c.get("opportunity") is not None:
-        lines.append(f"Force du signal : {c['opportunity']}/100" + (f" côté {c['opportunity_side']}" if c.get("opportunity_side") else "")
-                     + " (ce n'est pas un feu vert : seul ACHAT en est un)")
+    if c["action"] == "ACHAT" and c.get("net_profit") is not None:
+        lines.append(f"Achète ≤ {fmt_coins(c['buy_max'])} → revends ≥ {fmt_coins(c['sell_min'])} : "
+                     f"💰 {c['net_profit']:+,} net après taxe ({pct(c.get('net_pct'))}, théorique)".replace(",", " "))
+    elif c.get("buy_trigger"):
+        lines.append(f"👀 Achat si ≤ {fmt_coins(c['buy_trigger'])} (aujourd'hui {fmt_coins(c['price'])})")
+    if c.get("risk_level"):
+        from core.signals import reliability_text, risk_text
+
+        lines.append(risk_text(c))
+        if c["action"] in ("ACHAT", "VENTE"):
+            lines.append(reliability_text(c))
     if c.get("explain"):
         lines.append(f"Contexte : {c['explain'].replace('**', '')}")
     return "\n".join(lines)
@@ -87,18 +96,26 @@ def player_text(c: dict) -> str:
 def top_text(n: int = 6) -> str:
     _, sigs, _ = scan()
     trades = sorted([s for s in sigs if s.action.startswith(("ACHAT", "VENTE"))], key=lambda s: -s.confidence)
-    watch = sorted([s for s in sigs if s.action == "SURVEILLANCE"], key=lambda s: -(s.extra or {}).get("opportunity", 0))
+    watch = sorted([s for s in sigs if s.action == "SURVEILLANCE"], key=_closeness)
     lines = ["🎯 **Opportunités du moment** (moteur " + config.BRAIN_VERSION + ")"]
     if trades:
         lines += [f"• {'🟢' if s.action.startswith('ACHAT') else '🔴'} **{s.player_name} {s.rating or ''}** "
-                  f"{fmt_price(s.price)} — {s.action_text}" for s in trades[:n]]
+                  f"{fmt_price(s.price)} — {s.action_text} · risque {((s.extra or {}).get('risk_level') or '?').lower()}"
+                  for s in trades[:n]]
     else:
         lines.append("Aucun ACHAT/VENTE validé pour l'instant (c'est voulu : rien d'assez fiable).")
     if watch:
         lines.append("\n👀 **À surveiller**")
-        lines += [f"• {s.player_name} {s.rating or ''} {fmt_price(s.price)} — {(s.extra or {}).get('reason', '')}"
-                  for s in watch[:n]]
+        lines += [f"• {s.player_name} {s.rating or ''} {fmt_price(s.price)} — "
+                  + (f"**achat si ≤ {fmt_price(s.extra['buy_trigger'])}**" if (s.extra or {}).get("buy_trigger")
+                     else (s.extra or {}).get("reason", "")) for s in watch[:n]]
     return "\n".join(lines)
+
+
+def _closeness(s) -> float:
+    """Cartes en surveillance les plus proches de leur prix d'achat d'abord (écart en %)."""
+    t = (s.extra or {}).get("buy_trigger")
+    return (s.price / t - 1) if t and s.price else 9.0
 
 
 def calendar_text(days: int = 30) -> str:
@@ -148,13 +165,14 @@ def llm_context(question: str) -> str:
     if fod:
         parts.append("Fodders (moins cher par note) : " + " · ".join(fod))
     trades = [s for s in sigs if s.action.startswith(("ACHAT", "VENTE"))][:8]
-    watch = sorted([s for s in sigs if s.action == "SURVEILLANCE"],
-                   key=lambda s: -(s.extra or {}).get("opportunity", 0))[:8]
+    watch = sorted([s for s in sigs if s.action == "SURVEILLANCE"], key=_closeness)[:8]
     for title, lst in (("Décisions ACHAT/VENTE actuelles", trades), ("Cartes en surveillance", watch)):
         if lst:
             parts.append(title + " :\n" + "\n".join(
                 f"- {s.player_name} {s.rating or ''} ({s.card_type or '?'}) {fmt_coins(s.price)}, 24 h {pct(s.change_24h)} : "
-                f"{s.action} — {(s.extra or {}).get('reason') or s.instant}" for s in lst))
+                f"{s.action} — {(s.extra or {}).get('reason') or s.instant}"
+                + (f" ; achat si ≤ {fmt_coins(s.extra['buy_trigger'])}" if (s.extra or {}).get("buy_trigger") else "")
+                + f" ; risque {(s.extra or {}).get('risk_level') or '?'}" for s in lst))
     for p in _players_in(question):
         parts.append("Fiche demandée :\n" + player_text(player_card(p)).replace("**", ""))
     return "\n\n".join(parts)

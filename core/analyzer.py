@@ -320,6 +320,12 @@ class MarketAnalyzer:
         opportunity = int(round(min(1.0, abs(lean) / 0.8) * 100))
         # le score mesure la FORCE du signal, dans un sens ou dans l'autre : on indique donc le sens
         side = None if opportunity == 0 else ("achat" if lean > 0 else "vente")
+        # ce qu'on affiche à la place du score : gain visé, risque expliqué, prix qui déclencherait l'achat
+        ctx = self.context(pid, extra)
+        risk_level, risk_why = self._risk(q, ctx, age)
+        buy_trigger = None
+        if action == "SURVEILLANCE" and side == "achat" and price and not (age and age["discovery"]):
+            buy_trigger = self._buy_trigger(pid, price, extra or {})
         # Note /10 utilisée seulement par l'anti-spam (seuil d'envoi 7). Un ACHAT/VENTE v2 a déjà passé tous les
         # filtres (données fraîches, force relative, stabilisation, cible et marge) : il est envoyé (7 à 9 selon
         # l'opportunité). Les abstentions restent sous le seuil et ne partent jamais.
@@ -344,15 +350,53 @@ class MarketAnalyzer:
             player_name=player.get("name", ""), rating=player.get("rating"), card_type=player.get("card_type"),
             position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
             instant=instant_txt, habit=hab["text"] + ("" if habit_ok else " (habitude non validée : n'influence pas la décision)"),
-            action_text=act, risk="Élevé" if q["score"] < 70 else "Moyen",
+            action_text=act, risk=risk_level.capitalize(),
             extra={**(extra or {}), "engine": "v2", "reason": reason, "calendar": self.calendar(), "card_age": age, "opportunity": opportunity, "opportunity_side": side,
                    "data_quality": q["score"], "quality": q, "probability": track, "habit_validated": habit_ok,
                    "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
                    "observed_price": int(price) if price else None, "observed_at": observed_at,
                    "buy_max": buy_max, "target_price": round(target) if target else None, "sell_min": sell_min,
                    "executable_price": None, "net_profit": round(net) if net is not None else None,
-                   **self.context(pid, extra)},
+                   "net_pct": round(net / buy_max, 4) if net is not None and buy_max else None,
+                   "risk_level": risk_level, "risk_why": risk_why, "buy_trigger": buy_trigger, **ctx},
         )
+
+    @staticmethod
+    def _risk(q: dict, ctx: dict, age: dict | None) -> tuple[str, list[str]]:
+        """Risque en 3 niveaux (FAIBLE / MOYEN / ÉLEVÉ), toujours avec ses raisons."""
+        pts, why = 0, []
+        t = ctx.get("trend_7d")
+        if t is not None and t <= -0.15:
+            pts += 2
+            why.append(f"tendance baissière sur 7 jours ({t * 100:+.0f} %), ça peut continuer")
+        elif t is not None and t <= -0.08:
+            pts += 1
+            why.append(f"tendance 7 jours en baisse ({t * 100:+.0f} %)")
+        if q["score"] < 70:
+            pts += 1
+            why.append(f"données incomplètes (qualité {q['score']}/100)")
+        if age and age["discovery"]:
+            pts += 2
+            why.append("carte neuve : prix pas encore stabilisé")
+        return ("FAIBLE" if pts == 0 else "MOYEN" if pts <= 2 else "ÉLEVÉ"), why
+
+    def _buy_trigger(self, pid: str, price: float, extra: dict) -> int | None:
+        """Prix sous lequel une carte en SURVEILLANCE deviendrait un ACHAT (marge nette et écart au marché).
+
+        None si le prix n'est pas ce qui bloque (ex. chute pas encore stabilisée) ou si on ne peut pas le calculer.
+        """
+        cands = []
+        st = db.price_stats(pid, days=7, now=self.now)
+        if st.get("avg") and (st.get("n") or 0) >= config.TARGET_MIN_POINTS:
+            sell = round_tier(float(st["avg"]), "down")
+            cands.append(sell * (1 - config.EA_TAX) / (1 + config.MIN_NET_MARGIN))
+        c48, m48 = extra.get("change_48h"), extra.get("market_48h")
+        if c48 is not None and m48 is not None and c48 > -1:
+            cands.append(price / (1 + c48) * (1 + m48 + config.R4_EXCESS_BUY))
+        if not cands:
+            return None
+        trig = round_tier(min(cands), "down")
+        return int(trig) if 0 < trig < price else None
 
     # ------------------------------------------------------------------ R1
     def rule1_competition(self, new_card: dict) -> list[Signal]:

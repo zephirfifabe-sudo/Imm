@@ -22,6 +22,10 @@ def explain_move(change_24h: float | None, market_24h: float | None, trend_7d: f
         if abs(market_24h) >= 0.03 and same_way and abs(gap) < 0.04:
             parts.append(f"Mouvement **général du marché** ({_pct(market_24h)} sur {window} en moyenne) : "
                          f"pas propre au joueur")
+        elif window == "48h" and 0.04 <= abs(gap) < 0.10:
+            # même seuil que le déclencheur R4 (écart ≥ 10 pts) : sinon l'explication contredirait la décision
+            parts.append(f"{'Baisse' if gap < 0 else 'Hausse'} un peu plus forte que le marché ({_pct(change_24h)} "
+                         f"contre {_pct(market_24h)} sur 48h), pas assez pour être propre au joueur")
         elif abs(gap) >= 0.04:
             word = "baisse" if gap < 0 else "hausse"
             parts.append(f"{word.capitalize()} **propre au joueur** ({_pct(change_24h)} contre "

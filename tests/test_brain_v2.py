@@ -37,14 +37,19 @@ def test_v2_buy_has_justified_target_tiers_and_theoretical_wording():
     assert x["net_profit"] == round(x["sell_min"] * 0.95 - 40000) and x["executable_price"] is None
     assert x["probability"] is None and x["data_quality"] == 100
     txt = format_alert(s)
-    assert "théorique, non garanti" in txt and "Probabilité de réussite : non disponible" in txt
-    assert "Force du signal" in txt and "Qualité des données 100/100" in txt and "Confiance" not in txt
+    assert "théorique, non garanti" in txt and "Fiabilité : pas encore de bilan" in txt
+    assert "Achète ≤ 40\u202f000" in txt and "Gain visé" in txt and "Risque : " in txt
+    assert "/100" not in txt and "Confiance" not in txt  # plus de score abstrait
+    assert x["risk_level"] in ("FAIBLE", "MOYEN", "ÉLEVÉ") and x["net_pct"] == round(x["net_profit"] / 40000, 4)
 
 
 def test_v2_margin_too_small_becomes_surveillance():
     seed(flat_then(48, 50000, 42000) | {h: 43500 for h in range(240, 49, -1)})  # moyenne proche du prix
     s = analyzer(seed_market(), habit=False, version="v2").rule4_technical(PLAYER)
     assert s.action == "SURVEILLANCE" and "marge nette théorique" in s.extra["reason"]
+    trig = s.extra["buy_trigger"]  # prix sous lequel ce serait un achat : marge nette ≥ 4 % vers la moyenne 7 j
+    assert trig and trig < s.price and round_tier(s.extra["avg_7d"], "down") * 0.95 - trig >= 0.04 * trig
+    assert "Achat si ≤" in format_alert(s)
 
 
 def test_v2_sell_never_below_observed_and_no_duplicate_crash_signal():
@@ -212,3 +217,12 @@ def test_context_uses_trigger_window_no_contradiction():
     assert "général" in explain_move(-0.08, -0.05, -0.24)
     txt = explain_move(-0.28, -0.11, -0.24, window="48h")
     assert "propre au joueur" in txt and "48h" in txt and "général" not in txt
+
+
+def test_context_48h_does_not_call_small_gap_player_specific():
+    """-20 % contre -15 % sur 48 h : R4 dit « alignée sur le marché » (écart < 10 pts), le contexte ne doit pas
+    dire « propre au joueur »."""
+    from core.context import explain_move
+
+    txt = explain_move(-0.20, -0.15, None, window="48h")
+    assert "propre au joueur" not in txt.replace("pas assez pour être propre au joueur", "") and "un peu plus forte" in txt

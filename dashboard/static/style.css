@@ -25,7 +25,7 @@ body {
 }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 .num { font-variant-numeric: tabular-nums; }
-.up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--muted); }
+.up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--muted); } .warn { color: var(--warn); }
 .muted { color: var(--muted); } .faint { color: var(--faint); }
 .hidden { display: none !important; }
 

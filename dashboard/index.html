@@ -234,13 +234,25 @@ function spark(pid, w = 96, h = 28) {
 const meter = c => c == null ? `<span class="faint">–</span>`
   : `<span class="meter"><span class="bar"><b style="width:${c*10}%"></b></span><span class="num">${c}/10</span></span>`;
 const isV2 = p => p.engine === "v2";
-// v2 : opportunité (/100) et qualité des données (/100) séparées ; v1 : confiance /10
-// l'opportunité mesure la force du signal dans un sens OU dans l'autre : on affiche le sens
-const side = p => p.opportunity_side === "achat" ? `<span class="up">↑ achat</span>` : p.opportunity_side === "vente" ? `<span class="down">↓ vente</span>` : "";
-const scoreCell = p => !isV2(p) ? meter(p.confidence) : p.opportunity == null ? `<span class="faint">–</span>`
-  : `<span class="meter" title="Force du signal (0-100), dans le sens indiqué. Ce n'est pas un feu vert : seul ACHAT en est un."><span class="bar"><b style="width:${p.opportunity}%"></b></span><span class="num">${p.opportunity}</span></span>
-     <div class="faint num" style="font-size:11px;margin-top:2px">${side(p)} · données ${p.data_quality ?? "–"}/100</div>`;
-const scoreOf = p => isV2(p) ? (p.opportunity ?? 0) / 10 : (p.confidence ?? 0);
+// v2 : pas de score abstrait. On montre ce qui compte : gain visé (ACHAT), prix qui déclencherait l'achat
+// (SURVEILLANCE) et le risque en 3 niveaux, avec ses raisons au survol.
+const RISK = {"FAIBLE": "up", "MOYEN": "warn", "ÉLEVÉ": "down"};
+const riskTag = p => p.risk_level ? `<span class="${RISK[p.risk_level] || "faint"}" title="${esc((p.risk_why || []).join(" ; ") || "aucun risque particulier repéré")}">risque ${p.risk_level.toLowerCase()}</span>` : "";
+const coins = v => v == null ? "–" : Math.round(v).toLocaleString("fr-FR");
+const scoreCell = p => {
+  if (!isV2(p)) return meter(p.confidence);
+  let main = `<span class="faint">–</span>`;
+  if (isBuy(p.action) && p.net_profit != null)
+    main = `<b class="num up">+${coins(p.net_profit)}</b> <span class="faint num">(${pct(p.net_pct)})</span>`;
+  else if (isSell(p.action)) main = `<b class="down">vendre</b>`;
+  else if (p.buy_trigger) main = `<span class="num">achat si ≤ <b>${coins(p.buy_trigger)}</b></span>`;
+  else if (p.action === "SURVEILLANCE") main = `<span class="faint">à surveiller</span>`;
+  return `${main}<div class="num" style="font-size:11px;margin-top:2px">${riskTag(p)}</div>`;
+};
+// tri : gains visés d'abord, puis les cartes les plus proches de leur prix d'achat
+const scoreOf = p => !isV2(p) ? (p.confidence ?? 0)
+  : isBuy(p.action) ? 100 + (p.net_pct ?? 0) * 100 : isSell(p.action) ? 90
+  : p.buy_trigger && p.price ? 50 - (p.price / p.buy_trigger - 1) * 100 : p.action === "SURVEILLANCE" ? 0 : -1;
 
 async function get(url) { const r = await fetch(url, {credentials: "same-origin"}); if (!r.ok) throw new Error(r.status); return r.json(); }
 
@@ -329,7 +341,7 @@ function renderRows() {
 
 async function loadPlayers() {
   [players, sparks] = await Promise.all([get("/api/players" + (engine ? `?engine=${engine}` : "")), get("/api/sparklines")]);
-  $("th-score").textContent = engine === "v2" ? "Opportunité" : "Confiance";
+  $("th-score").textContent = engine === "v2" ? "Gain visé / risque" : "Confiance";
   renderKpis(); renderPicks(); renderRows();
 }
 
@@ -430,7 +442,7 @@ async function openPlayer(id) {
   $("p-price").textContent = k(p.price);
   $("p-chg").innerHTML = `<span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span> <span class="faint" style="font-weight:400">sur 24 h</span>`;
   $("p-signal").innerHTML = signal(p.action) + (isV2(p)
-    ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">force du signal ${p.opportunity ?? "–"}/100 ${side(p)} · données ${p.data_quality ?? "–"}/100</div>`
+    ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">${riskTag(p)}${p.data_quality != null && p.data_quality < 70 ? ` · ⚠️ données incomplètes` : ""}</div>`
     : p.confidence != null ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">confiance ${p.confidence}/10</div>` : "");
   const stat = (l, v, cls = "") => `<div><div class="l">${l}</div><div class="v num ${cls}">${v}</div></div>`;
   $("p-stats").innerHTML = [
@@ -442,12 +454,14 @@ async function openPlayer(id) {
       stat("Revente théorique", p.sell_min ? p.sell_min.toLocaleString("fr-FR") : "–"),
       stat("Net théorique / carte", p.net_profit != null ? p.net_profit.toLocaleString("fr-FR") : "–", tone(p.net_profit)),
       stat("Prix exécutable", "inconnu"),
-      stat("Probabilité", p.probability ? `${Math.round(p.probability.rate * 100)} % (n=${p.probability.n})` : "non disponible")] : [])].join("");
+      stat("Achat si ≤", p.buy_trigger ? coins(p.buy_trigger) : "–"),
+      stat("Fiabilité (bilan réel)", p.probability ? `${Math.round(p.probability.rate * 100)} % gagnants (${p.probability.n} cas)` : "pas encore de bilan")] : [])].join("");
   const ins = (t, body, cls = "") => body ? `<div class="insight ${cls}"><div class="t">${t}</div>${body}</div>` : "";
   const side = isBuy(p.action) ? "buy" : isSell(p.action) ? "sell" : "";
   $("p-insights").innerHTML = [
     ins("Conseil", p.action_text && `<span class="x">${esc(p.action_text)}</span>`, "action " + side),
     ins("Pourquoi cette décision", isV2(p) && p.reason && esc(p.reason)),
+    ins("Risque", isV2(p) && p.risk_level && `<b>${esc(p.risk_level)}</b>${(p.risk_why || []).length ? " — " + esc(p.risk_why.join(" ; ")) : " — rien de particulier repéré"}`),
     ins("Pourquoi ça bouge", p.explain && bold(p.explain)),
     ins("Signal du moment", p.instant && esc(p.instant)),
     ins("Habitude du marché", p.habit && esc(p.habit))].join("");
