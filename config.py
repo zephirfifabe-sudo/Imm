@@ -144,8 +144,10 @@ LLM_MODEL = os.getenv("LLM_MODEL", "")  # vide = choisi automatiquement parmi le
 LLM_DAILY_LIMIT = int(os.getenv("LLM_DAILY_LIMIT", "50"))  # questions IA par jour (tout le serveur)
 LLM_USER_COOLDOWN_S = int(os.getenv("LLM_USER_COOLDOWN_S", "15"))
 # Recherche web (leaks, annonces, prédictions) : modèle du fournisseur qui sait chercher sur internet.
-# Groq : « groq/compound » ; vide = pas de recherche web.
-LLM_WEB_MODEL = os.getenv("LLM_WEB_MODEL", "groq/compound")
+# Groq : « openai/gpt-oss-120b » + outil intégré « browser_search » (groq/compound n'existe plus sur les clés
+# gratuites, constaté le 02/11/2026). LLM_WEB_TOOL vide = modèle qui cherche tout seul. LLM_WEB_MODEL vide = désactivé.
+LLM_WEB_MODEL = os.getenv("LLM_WEB_MODEL", "openai/gpt-oss-120b")
+LLM_WEB_TOOL = os.getenv("LLM_WEB_TOOL", "browser_search")
 
 # --- Dashboard ---
 # Image de la carte : aperçu public (og:image) que futgenie déclare pour chaque fiche, chargé par le

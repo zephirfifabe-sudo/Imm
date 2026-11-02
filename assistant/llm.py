@@ -108,7 +108,8 @@ def ask(question: str, context: str, client: httpx.Client | None = None, web: bo
     c = client or httpx.Client(timeout=90)
     try:
         if web:
-            out = _complete(c, config.LLM_WEB_MODEL, SYSTEM + WEB_EXTRA, question, context)
+            tools = [{"type": config.LLM_WEB_TOOL}] if config.LLM_WEB_TOOL else None
+            out = _complete(c, config.LLM_WEB_MODEL, SYSTEM + WEB_EXTRA, question, context, tools)
             if out is not None:
                 return ("🌐 " + out)[:1900]
             log.warning("Recherche web indisponible (%s) : réponse avec les données du bot", config.LLM_WEB_MODEL)
@@ -131,17 +132,21 @@ def ask(question: str, context: str, client: httpx.Client | None = None, web: bo
             c.close()
 
 
-def _post(c: httpx.Client, model_id: str, system: str, question: str, context: str) -> httpx.Response:
-    body = {"model": model_id, "temperature": 0.3, "max_tokens": 700,
+def _post(c: httpx.Client, model_id: str, system: str, question: str, context: str,
+          tools: list | None = None) -> httpx.Response:
+    body = {"model": model_id, "temperature": 0.3, "max_tokens": 1200 if tools else 700,
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": f"DONNÉES DU BOT :\n{context}\n\nQUESTION : {question}"}]}
+    if tools:
+        body["tools"] = tools  # outil intégré côté fournisseur (recherche web), exécuté par lui
     return c.post(f"{config.LLM_BASE_URL.rstrip('/')}/chat/completions", headers=_headers(), json=body)
 
 
-def _complete(c: httpx.Client, model_id: str, system: str, question: str, context: str) -> str | None:
+def _complete(c: httpx.Client, model_id: str, system: str, question: str, context: str,
+              tools: list | None = None) -> str | None:
     """Réponse du modèle, ou None s'il n'est pas utilisable (modèle absent, payant, quota...)."""
     try:
-        r = _post(c, model_id, system, question, context)
+        r = _post(c, model_id, system, question, context, tools)
         if r.status_code != 200:
             log.warning("Modèle %s refusé par le fournisseur : HTTP %s %s", model_id, r.status_code, r.text[:200])
             return None
