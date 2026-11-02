@@ -143,6 +143,7 @@ def _complete(c: httpx.Client, model_id: str, system: str, question: str, contex
     try:
         r = _post(c, model_id, system, question, context)
         if r.status_code != 200:
+            log.warning("Modèle %s refusé par le fournisseur : HTTP %s %s", model_id, r.status_code, r.text[:200])
             return None
         return r.json()["choices"][0]["message"]["content"].strip() or None
     except (httpx.HTTPError, KeyError, IndexError, ValueError):
