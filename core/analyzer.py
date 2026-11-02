@@ -36,6 +36,12 @@ from utils.helpers import iso
 from utils.logger import get_logger
 from utils.rarity import classify
 
+def _fgn_num(pid: str) -> int | None:
+    """Numéro futgenie d'une carte (« fgn-1032528 » -> 1032528), None pour une autre source."""
+    p = str(pid)
+    return int(p[4:]) if p.startswith("fgn-") and p[4:].isdigit() else None
+
+
 log = get_logger("analyzer")
 
 
@@ -230,9 +236,14 @@ class MarketAnalyzer:
         return r if r and r["n"] >= config.PROBA_MIN_SAMPLES else None
 
     def card_age(self, player: dict) -> dict | None:
-        """Âge d'une carte NEUVE (apparue alors que le bot tournait déjà) et sa phase de découverte du prix.
+        """Âge d'une carte NEUVE (sortie alors que le bot tournait déjà) et sa phase de découverte du prix.
 
-        Une carte déjà présente au démarrage du bot n'a pas d'âge connu -> None (jamais considérée comme neuve).
+        Le bot ne voit une carte qu'à partir du moment où elle entre dans sa tranche de prix (20k-250k) : une
+        vieille carte qui baisse de 270k à 240k « apparaît » sans être neuve. Une carte n'est donc neuve que si :
+          1. elle n'était pas déjà suivie au démarrage du bot ;
+          2. c'est une carte spéciale (TOTW, promo...) : les cartes de base existent depuis la sortie du jeu ;
+          3. son numéro futgenie est plus grand que celui de toutes les cartes déjà connues 12 h avant
+             (futgenie numérote les cartes dans l'ordre d'ajout : un numéro ancien = une carte ancienne).
         """
         if self._ages is None:
             until = iso(self.now)
@@ -241,14 +252,22 @@ class MarketAnalyzer:
                                  "AND timestamp <= ? GROUP BY player_id", (until,)).fetchall()
             first = {pid: datetime.fromisoformat(t) for pid, t in rows}
             start = min(first.values()) if first else None
-            self._ages = {"start": start, "first": first}
+            num = sorted((f, n) for pid, f in first.items() if (n := _fgn_num(pid)) is not None)
+            self._ages = {"start": start, "first": first, "num": num}
         pid = str(player["player_id"])
         first, start = self._ages["first"].get(pid), self._ages["start"]
         if first is None or start is None or first - start < timedelta(hours=12):
             return None
         special = classify(player.get("card_type")).get("special", False)
+        if not special:
+            return None
+        n = _fgn_num(pid)
+        if n is not None:
+            older = [m for f, m in self._ages["num"] if f <= first - timedelta(hours=12)]
+            if older and n <= max(older):
+                return None  # carte ancienne entrée dans la tranche par une variation de prix
         days = (self.now - first).total_seconds() / 86400
-        limit = config.NEW_CARD_DAYS_SPECIAL if special else config.NEW_CARD_DAYS_BASE
+        limit = config.NEW_CARD_DAYS_SPECIAL
         return {"days": round(days, 1), "special": special, "discovery": days < limit, "limit": limit}
 
     def calendar(self) -> list[str]:

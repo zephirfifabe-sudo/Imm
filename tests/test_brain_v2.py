@@ -188,12 +188,28 @@ def test_card_present_since_bot_start_is_never_new():
     assert an.card_age(PLAYER) is None and an.card_age(MARKET[0]) is None
 
 
-def test_new_base_card_discovery_is_shorter():
+def test_base_card_entering_price_band_is_never_new():
+    """Une carte de base (ex. Bonmatí or non rare) existe depuis la sortie du jeu, même si le bot la découvre tard."""
     wl = seed_market()
-    gold = {**PLAYER, "player_id": "gold-1", "name": "Nouvel Or", "card_type": "Or rare"}
-    seed({h: 20000 for h in range(60, -1, -1)}, pid="gold-1", player=gold)  # apparue il y a 60 h (2,5 j)
-    age = analyzer([*wl, gold], version="v2").card_age(gold)
-    assert not age["special"] and age["limit"] == 2 and not age["discovery"]
+    gold = {**PLAYER, "player_id": "gold-1", "name": "Or tombé dans la tranche", "card_type": "Or non rare"}
+    seed({h: 249000 for h in range(30, -1, -1)}, pid="gold-1", player=gold)
+    assert analyzer([*wl, gold], version="v2").card_age(gold) is None
+
+
+def test_old_special_card_falling_into_band_is_not_new_but_real_release_is():
+    """Cas réel du 02/11 : vieilles cartes spéciales (numéro futgenie ancien) entrées dans la tranche 20k-250k en
+    baissant -> pas neuves. Une carte sortie après tout ce que le bot connaissait (numéro plus grand) -> neuve."""
+    known = {**PLAYER, "player_id": "fgn-1032400", "name": "Promo déjà suivie", "card_type": "Ultimate Scream"}
+    seed({h: 90000 for h in range(240, -1, -1)}, pid=known["player_id"], player=known)
+    wl = [*seed_market(), known]
+    old = {**PLAYER, "player_id": "fgn-1030455", "name": "Cucurella", "card_type": "Destined for Glory"}
+    new = {**PLAYER, "player_id": "fgn-1032528", "name": "Nouvelle promo", "card_type": "Ultimate Scream"}
+    for c in (old, new):
+        seed({h: 150000 for h in range(30, -1, -1)}, pid=c["player_id"], player=c)
+    an = analyzer([*wl, old, new], habit=False, version="v2")
+    assert an.card_age(old) is None
+    age = an.card_age(new)
+    assert age and age["discovery"] and age["limit"] == 4
 
 
 def test_v2_trades_reach_discord_threshold_and_abstentions_never_do(monkeypatch):
