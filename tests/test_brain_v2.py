@@ -38,7 +38,7 @@ def test_v2_buy_has_justified_target_tiers_and_theoretical_wording():
     assert x["probability"] is None and x["data_quality"] == 100
     txt = format_alert(s)
     assert "théorique, non garanti" in txt and "Probabilité de réussite : non disponible" in txt
-    assert "Opportunité" in txt and "Qualité des données 100/100" in txt and "Confiance" not in txt
+    assert "Force du signal" in txt and "Qualité des données 100/100" in txt and "Confiance" not in txt
 
 
 def test_v2_margin_too_small_becomes_surveillance():
@@ -202,3 +202,13 @@ def test_v2_trades_reach_discord_threshold_and_abstentions_never_do(monkeypatch)
     assert notifier.dispatch([buy]) == [buy]  # l'achat validé part bien sur Discord
     wait = an.build_signal(PLAYER, "HABITUDE", None, "")
     assert wait.action in ("AUCUNE ACTION", "SURVEILLANCE") and wait.confidence <= 4
+
+
+def test_context_uses_trigger_window_no_contradiction():
+    """Cas réel (Jill Scott) : -8 % / 24 h comme le marché, mais -28 % / 48 h contre -11 % : l'explication
+    doit dire « propre au joueur » sur 48 h, pas « mouvement général du marché »."""
+    from core.context import explain_move
+
+    assert "général" in explain_move(-0.08, -0.05, -0.24)
+    txt = explain_move(-0.28, -0.11, -0.24, window="48h")
+    assert "propre au joueur" in txt and "48h" in txt and "général" not in txt

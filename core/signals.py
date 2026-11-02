@@ -93,7 +93,7 @@ def format_alert(s: Signal) -> str:
 
 def format_alert_v2(s: Signal, emoji: str, x: dict) -> str:
     """Alerte v2 : opportunité et qualité des données séparées, prix observé daté, base de chaque affirmation."""
-    lines = [f"{emoji} [{s.action}] - Opportunité {x.get('opportunity', 0)}/100{' (côté ' + x['opportunity_side'] + ')' if x.get('opportunity_side') else ''} · Qualité des données {x.get('data_quality', 0)}/100"]
+    lines = [f"{emoji} [{s.action}] - Force du signal {x.get('opportunity', 0)}/100{' (côté ' + x['opportunity_side'] + ')' if x.get('opportunity_side') else ''} · Qualité des données {x.get('data_quality', 0)}/100"]
     if s.player_name:
         lines.append(f"Joueur : {s.title}")
     if s.price:

@@ -140,8 +140,11 @@ class MarketAnalyzer:
             self._market[hours] = float(np.median(vals)) if len(vals) >= 5 else None
         return self._market[hours]
 
-    def context(self, pid: str) -> dict:
-        """Prix moyen/min/max 7j, tendance 7j et explication du mouvement en clair."""
+    def context(self, pid: str, extra: dict | None = None) -> dict:
+        """Prix moyen/min/max 7j, tendance 7j et explication du mouvement en clair.
+
+        Si le déclencheur porte sur 48 h (R4), l'explication compare aussi sur 48 h : sinon elle peut contredire
+        le déclencheur (ex. « mouvement général » sur 24 h alors que la chute sur 48 h est propre au joueur)."""
         st = db.price_stats(pid, days=7, now=self.now)
         trend = self.change(pid, 168)
         if trend is None:
@@ -149,7 +152,12 @@ class MarketAnalyzer:
         price = self.price_now(pid)
         vs_avg = (price / st["avg"] - 1) if price and st.get("avg") else None
         return {"avg_7d": st.get("avg"), "min_7d": st.get("min"), "max_7d": st.get("max"), "vs_avg": vs_avg,
-                "trend_7d": trend, "explain": explain_move(self.change(pid, 24), self.market_change(24), trend)}
+                "trend_7d": trend, "explain": self._explain(pid, trend, extra or {})}
+
+    def _explain(self, pid: str, trend: float | None, extra: dict) -> str:
+        if extra.get("change_48h") is not None and extra.get("market_48h") is not None:
+            return explain_move(extra["change_48h"], extra["market_48h"], trend, window="48h")
+        return explain_move(self.change(pid, 24), self.market_change(24), trend)
 
     def habit(self, player: dict, price: float | None = None) -> dict:
         pid = str(player["player_id"])
@@ -343,7 +351,7 @@ class MarketAnalyzer:
                    "observed_price": int(price) if price else None, "observed_at": observed_at,
                    "buy_max": buy_max, "target_price": round(target) if target else None, "sell_min": sell_min,
                    "executable_price": None, "net_profit": round(net) if net is not None else None,
-                   **self.context(pid)},
+                   **self.context(pid, extra)},
         )
 
     # ------------------------------------------------------------------ R1

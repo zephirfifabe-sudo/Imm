@@ -11,7 +11,8 @@ def _pct(v: float) -> str:
     return f"{v * 100:+.0f} %"
 
 
-def explain_move(change_24h: float | None, market_24h: float | None, trend_7d: float | None) -> str:
+def explain_move(change_24h: float | None, market_24h: float | None, trend_7d: float | None, window: str = "24h") -> str:
+    """`window` : période comparée (24h par défaut, 48h quand le déclencheur porte sur 48 h)."""
     if change_24h is None:
         return ""
     parts = []
@@ -19,12 +20,12 @@ def explain_move(change_24h: float | None, market_24h: float | None, trend_7d: f
         gap = change_24h - market_24h
         same_way = change_24h * market_24h > 0
         if abs(market_24h) >= 0.03 and same_way and abs(gap) < 0.04:
-            parts.append(f"Mouvement **général du marché** ({_pct(market_24h)} sur 24h en moyenne) : "
+            parts.append(f"Mouvement **général du marché** ({_pct(market_24h)} sur {window} en moyenne) : "
                          f"pas propre au joueur")
         elif abs(gap) >= 0.04:
             word = "baisse" if gap < 0 else "hausse"
             parts.append(f"{word.capitalize()} **propre au joueur** ({_pct(change_24h)} contre "
-                         f"{_pct(market_24h)} pour le marché)")
+                         f"{_pct(market_24h)} pour le marché sur {window})")
         elif abs(change_24h) >= 0.03:
             parts.append(f"Marché calme ({_pct(market_24h)}), le joueur suit à peu près")
     if trend_7d is not None:
