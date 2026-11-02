@@ -143,6 +143,9 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
 LLM_MODEL = os.getenv("LLM_MODEL", "")  # vide = choisi automatiquement parmi les modèles disponibles
 LLM_DAILY_LIMIT = int(os.getenv("LLM_DAILY_LIMIT", "50"))  # questions IA par jour (tout le serveur)
 LLM_USER_COOLDOWN_S = int(os.getenv("LLM_USER_COOLDOWN_S", "15"))
+# Recherche web (leaks, annonces, prédictions) : modèle du fournisseur qui sait chercher sur internet.
+# Groq : « groq/compound » ; vide = pas de recherche web.
+LLM_WEB_MODEL = os.getenv("LLM_WEB_MODEL", "groq/compound")
 
 # --- Dashboard ---
 # Image de la carte : aperçu public (og:image) que futgenie déclare pour chaque fiche, chargé par le

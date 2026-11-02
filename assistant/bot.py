@@ -81,6 +81,12 @@ def build_client(read_messages: bool = True):
         await interaction.response.defer(thinking=True)
         await reply(interaction, await answer(str(interaction.user.id), texte))
 
+    @tree.command(name="recherche", description="Question avec recherche sur internet (leaks, annonces, actualité)")
+    @app_commands.describe(texte="Ta question (ex : quels sont les derniers leaks de la TOTW ?)")
+    async def recherche(interaction: discord.Interaction, texte: str):
+        await interaction.response.defer(thinking=True)
+        await reply(interaction, await answer(str(interaction.user.id), texte, web=True))
+
     @client.event
     async def on_ready():
         await tree.sync()
@@ -103,7 +109,7 @@ def build_client(read_messages: bool = True):
     return client
 
 
-async def answer(user_id: str, question: str) -> str:
+async def answer(user_id: str, question: str, web: bool = False) -> str:
     if not llm.enabled():
         return ("🤖 L'IA n'est pas encore branchée (LLM_API_KEY absent). En attendant : /prix, /fodder, /top, "
                 "/calendrier, /resume.")
@@ -113,7 +119,7 @@ async def answer(user_id: str, question: str) -> str:
         return str(e)
     t0 = time.time()
     context = await asyncio.to_thread(data.llm_context, question)
-    out = await asyncio.to_thread(llm.ask, question, context)
+    out = await asyncio.to_thread(llm.ask, question, context, None, web or llm.needs_web(question))
     log.info("Question IA traitée en %.1f s", time.time() - t0)
     return out
 

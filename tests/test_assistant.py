@@ -104,3 +104,46 @@ def test_discord_client_builds():
 
     client = build_client()
     assert client.intents.message_content
+
+
+def _web_provider(web_ok: bool):
+    seen = []
+
+    def handler(req: httpx.Request):
+        if req.url.path.endswith("/models"):
+            return httpx.Response(200, json={"data": [{"id": "llama-3.3-70b-versatile"}]})
+        body = json.loads(req.content)
+        seen.append(body["model"])
+        if body["model"] == "groq/compound" and not web_ok:
+            return httpx.Response(404, json={"error": {"message": "model not found"}})
+        txt = "FUT Sheriff annonce Olise 92 (non confirmé)." if body["model"] == "groq/compound" else "Réponse données."
+        return httpx.Response(200, json={"choices": [{"message": {"content": txt}}]})
+
+    return httpx.Client(transport=httpx.MockTransport(handler)), seen
+
+
+def test_web_search_used_and_sources_rules(monkeypatch):
+    monkeypatch.setattr(config, "LLM_API_KEY", "k")
+    monkeypatch.setattr(config, "LLM_WEB_MODEL", "groq/compound")
+    client, seen = _web_provider(web_ok=True)
+    out = llm.ask("Quels sont les derniers leaks ?", "ctx", client=client, web=True)
+    assert out.startswith("🌐") and "non confirmé" in out and seen == ["groq/compound"]
+
+
+def test_web_search_unavailable_falls_back_to_bot_data(monkeypatch):
+    monkeypatch.setattr(config, "LLM_API_KEY", "k")
+    monkeypatch.setattr(config, "LLM_MODEL", "")
+    monkeypatch.setattr(config, "LLM_WEB_MODEL", "groq/compound")
+    client, seen = _web_provider(web_ok=False)
+    out = llm.ask("Les leaks de la TOTW ?", "ctx", client=client, web=True)
+    assert "recherche web indisponible" in out and "Réponse données." in out
+    assert seen == ["groq/compound", "llama-3.3-70b-versatile"]
+
+
+def test_needs_web_detection(monkeypatch):
+    monkeypatch.setattr(config, "LLM_WEB_MODEL", "groq/compound")
+    assert llm.needs_web("Quels sont les derniers leaks de FUT Sheriff ?")
+    assert llm.needs_web("Y aura-t-il un changement quand GTA va sortir ?")
+    assert not llm.needs_web("Je vends Barcola maintenant ?")
+    monkeypatch.setattr(config, "LLM_WEB_MODEL", "")
+    assert not llm.needs_web("les leaks ?")

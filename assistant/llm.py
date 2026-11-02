@@ -29,6 +29,23 @@ Si elles ne suffisent pas, dis-le simplement au lieu d'inventer.
 - Ne promets jamais de gain. Tu donnes un avis, la décision appartient au joueur. Le bot n'achète jamais rien.
 - Ne parle pas de toi comme d'une IA de telle ou telle entreprise ; tu es l'assistant du bot."""
 
+WEB_EXTRA = """
+Tu peux faire une recherche web pour cette question (leaks, annonces, actualité). Dans ce cas :
+- cite brièvement tes sources (nom du site ou du compte) ;
+- présente tout leak ou toute prédiction comme NON CONFIRMÉ tant qu'EA ne l'a pas annoncé ;
+- n'invente aucun nom, note ou date que tu n'as pas trouvé."""
+
+# questions qui demandent des infos absentes des données du bot (actualité, leaks, annonces)
+WEB_HINTS = ("leak", "fuite", "prédi", "predi", "rumeur", "annonc", "news", "actu", "twitter", " x ", "sheriff",
+             "futsheriff", "asy", "dernier", "nouvelle promo", "prochaine promo", "qui sera", "qui va", "sortie de",
+             "gta", "patch", "mise à jour d'ea", "roadmap", "aujourd'hui sur", "officiel")
+
+
+def needs_web(question: str) -> bool:
+    q = f" {question.lower()} "
+    return bool(config.LLM_WEB_MODEL) and any(h in q for h in WEB_HINTS)
+
+
 PREFERRED = ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-70b-versatile", "qwen/qwen3-32b",
              "openai/gpt-oss-20b", "llama-3.1-8b-instant"]
 _MODEL: dict = {}
@@ -82,24 +99,51 @@ def check_limits(user_id: str, now: float | None = None) -> None:
     _LAST_ASK[user_id] = now
 
 
-def ask(question: str, context: str, client: httpx.Client | None = None) -> str:
-    """Envoie la question et le contexte ; renvoie la réponse (ou un message d'erreur lisible)."""
-    c = client or httpx.Client(timeout=60)
+def ask(question: str, context: str, client: httpx.Client | None = None, web: bool = False) -> str:
+    """Envoie la question et le contexte ; renvoie la réponse (ou un message d'erreur lisible).
+
+    `web=True` : utilise le modèle qui sait chercher sur internet ; s'il est indisponible (non inclus dans
+    l'offre, supprimé...), répond quand même avec les seules données du bot en le signalant.
+    """
+    c = client or httpx.Client(timeout=90)
     try:
-        body = {"model": model(c), "temperature": 0.3, "max_tokens": 700,
-                "messages": [{"role": "system", "content": SYSTEM},
-                             {"role": "user", "content": f"DONNÉES DU BOT :\n{context}\n\nQUESTION : {question}"}]}
-        r = c.post(f"{config.LLM_BASE_URL.rstrip('/')}/chat/completions", headers=_headers(), json=body)
+        if web:
+            out = _complete(c, config.LLM_WEB_MODEL, SYSTEM + WEB_EXTRA, question, context)
+            if out is not None:
+                return ("🌐 " + out)[:1900]
+            log.warning("Recherche web indisponible (%s) : réponse avec les données du bot", config.LLM_WEB_MODEL)
+            note = "_(recherche web indisponible : réponse basée uniquement sur les données du bot)_\n"
+        else:
+            note = ""
+        r = _post(c, model(c), SYSTEM, question, context)
         if r.status_code == 429:
             return "🛑 Le fournisseur d'IA limite les requêtes pour le moment (quota gratuit). Réessaie dans un moment."
         if r.status_code in (401, 403):
             return "🔑 Clé IA refusée : vérifie LLM_API_KEY dans le .env du serveur."
         r.raise_for_status()
         text = r.json()["choices"][0]["message"]["content"].strip()
-        return text[:1900]
+        return (note + text)[:1900]
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as e:
         log.error("IA en erreur : %s", e)
         return "⚠️ L'IA ne répond pas pour le moment. Réessaie plus tard."
     finally:
         if client is None:
             c.close()
+
+
+def _post(c: httpx.Client, model_id: str, system: str, question: str, context: str) -> httpx.Response:
+    body = {"model": model_id, "temperature": 0.3, "max_tokens": 700,
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": f"DONNÉES DU BOT :\n{context}\n\nQUESTION : {question}"}]}
+    return c.post(f"{config.LLM_BASE_URL.rstrip('/')}/chat/completions", headers=_headers(), json=body)
+
+
+def _complete(c: httpx.Client, model_id: str, system: str, question: str, context: str) -> str | None:
+    """Réponse du modèle, ou None s'il n'est pas utilisable (modèle absent, payant, quota...)."""
+    try:
+        r = _post(c, model_id, system, question, context)
+        if r.status_code != 200:
+            return None
+        return r.json()["choices"][0]["message"]["content"].strip() or None
+    except (httpx.HTTPError, KeyError, IndexError, ValueError):
+        return None
