@@ -310,6 +310,8 @@ class MarketAnalyzer:
             action, reason = "AUCUNE ACTION", "aucun prix observé"
 
         opportunity = int(round(min(1.0, abs(lean) / 0.8) * 100))
+        # le score mesure la FORCE du signal, dans un sens ou dans l'autre : on indique donc le sens
+        side = None if opportunity == 0 else ("achat" if lean > 0 else "vente")
         # Note /10 utilisée seulement par l'anti-spam (seuil d'envoi 7). Un ACHAT/VENTE v2 a déjà passé tous les
         # filtres (données fraîches, force relative, stabilisation, cible et marge) : il est envoyé (7 à 9 selon
         # l'opportunité). Les abstentions restent sous le seuil et ne partent jamais.
@@ -335,7 +337,7 @@ class MarketAnalyzer:
             position=player.get("position"), price=int(price) if price else None, change_24h=self.change(pid, 24),
             instant=instant_txt, habit=hab["text"] + ("" if habit_ok else " (habitude non validée : n'influence pas la décision)"),
             action_text=act, risk="Élevé" if q["score"] < 70 else "Moyen",
-            extra={**(extra or {}), "engine": "v2", "reason": reason, "calendar": self.calendar(), "card_age": age, "opportunity": opportunity,
+            extra={**(extra or {}), "engine": "v2", "reason": reason, "calendar": self.calendar(), "card_age": age, "opportunity": opportunity, "opportunity_side": side,
                    "data_quality": q["score"], "quality": q, "probability": track, "habit_validated": habit_ok,
                    "habit_deviation": hab["deviation"], "habit_score": round(hs, 3),
                    "observed_price": int(price) if price else None, "observed_at": observed_at,

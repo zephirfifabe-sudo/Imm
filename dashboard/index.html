@@ -235,9 +235,11 @@ const meter = c => c == null ? `<span class="faint">–</span>`
   : `<span class="meter"><span class="bar"><b style="width:${c*10}%"></b></span><span class="num">${c}/10</span></span>`;
 const isV2 = p => p.engine === "v2";
 // v2 : opportunité (/100) et qualité des données (/100) séparées ; v1 : confiance /10
+// l'opportunité mesure la force du signal dans un sens OU dans l'autre : on affiche le sens
+const side = p => p.opportunity_side === "achat" ? `<span class="up">↑ achat</span>` : p.opportunity_side === "vente" ? `<span class="down">↓ vente</span>` : "";
 const scoreCell = p => !isV2(p) ? meter(p.confidence) : p.opportunity == null ? `<span class="faint">–</span>`
-  : `<span class="meter"><span class="bar"><b style="width:${p.opportunity}%"></b></span><span class="num">${p.opportunity}</span></span>
-     <div class="faint num" style="font-size:11px;margin-top:2px">données ${p.data_quality ?? "–"}/100</div>`;
+  : `<span class="meter" title="Force du signal (0-100), dans le sens indiqué. Ce n'est pas un feu vert : seul ACHAT en est un."><span class="bar"><b style="width:${p.opportunity}%"></b></span><span class="num">${p.opportunity}</span></span>
+     <div class="faint num" style="font-size:11px;margin-top:2px">${side(p)} · données ${p.data_quality ?? "–"}/100</div>`;
 const scoreOf = p => isV2(p) ? (p.opportunity ?? 0) / 10 : (p.confidence ?? 0);
 
 async function get(url) { const r = await fetch(url, {credentials: "same-origin"}); if (!r.ok) throw new Error(r.status); return r.json(); }
@@ -428,7 +430,7 @@ async function openPlayer(id) {
   $("p-price").textContent = k(p.price);
   $("p-chg").innerHTML = `<span class="${tone(p.change_24h)}">${pct(p.change_24h)}</span> <span class="faint" style="font-weight:400">sur 24 h</span>`;
   $("p-signal").innerHTML = signal(p.action) + (isV2(p)
-    ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">opportunité ${p.opportunity ?? "–"}/100 · données ${p.data_quality ?? "–"}/100</div>`
+    ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">force du signal ${p.opportunity ?? "–"}/100 ${side(p)} · données ${p.data_quality ?? "–"}/100</div>`
     : p.confidence != null ? `<div class="faint num" style="font-size:12px;text-align:right;margin-top:6px">confiance ${p.confidence}/10</div>` : "");
   const stat = (l, v, cls = "") => `<div><div class="l">${l}</div><div class="v num ${cls}">${v}</div></div>`;
   $("p-stats").innerHTML = [

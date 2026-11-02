@@ -127,7 +127,7 @@ def api_players(engine: str | None = None):
                 "scanned_at": scans.get(s.player_id), "engine": engine, "image": card_image(s.player_id),
                 **{k: (an.by_id.get(s.player_id) or {}).get(k) for k in ("club", "league", "nation")},
                 # moteur v2 : décision expliquée et prix explicites
-                "reason": x.get("reason"), "opportunity": x.get("opportunity"), "data_quality": x.get("data_quality"),
+                "reason": x.get("reason"), "opportunity": x.get("opportunity"), "opportunity_side": x.get("opportunity_side"), "data_quality": x.get("data_quality"),
                 "probability": x.get("probability"), "habit_validated": x.get("habit_validated"),
                 "observed_at": x.get("observed_at"), "buy_max": x.get("buy_max"), "sell_min": x.get("sell_min"),
                 "target_price": x.get("target_price"), "net_profit": x.get("net_profit"),

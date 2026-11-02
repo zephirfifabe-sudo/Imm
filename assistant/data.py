@@ -59,7 +59,8 @@ def player_card(player: dict) -> dict:
         "min_7d": x.get("min_7d"), "max_7d": x.get("max_7d"), "action": s.action if s else "?",
         "reason": x.get("reason") or (s.instant if s else ""), "action_text": s.action_text if s else "",
         "explain": x.get("explain"), "observed_at": x.get("observed_at"), "card_age": x.get("card_age"),
-        "player_id": str(player["player_id"]),
+        "player_id": str(player["player_id"]), "opportunity": x.get("opportunity"),
+        "opportunity_side": x.get("opportunity_side"),
     }
 
 
@@ -75,6 +76,9 @@ def player_text(c: dict) -> str:
     if c.get("card_age") and c["card_age"].get("discovery"):
         lines.append(f"🆕 Carte sortie il y a {c['card_age']['days']} j : prix encore en découverte")
     lines.append(f"Décision du bot : **{c['action']}**" + (f" — {c['reason']}" if c.get("reason") else ""))
+    if c.get("opportunity") is not None:
+        lines.append(f"Force du signal : {c['opportunity']}/100" + (f" côté {c['opportunity_side']}" if c.get("opportunity_side") else "")
+                     + " (ce n'est pas un feu vert : seul ACHAT en est un)")
     if c.get("explain"):
         lines.append(f"Contexte : {c['explain'].replace('**', '')}")
     return "\n".join(lines)
