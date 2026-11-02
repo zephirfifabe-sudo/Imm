@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import config
 from database import db
-from scrapers.base import FetchError, Fetcher
+from scrapers.base import Fetcher, FetchError
 from scrapers.futbin import FutbinScraper
 from scrapers.futgg import FutGGScraper
 from utils.helpers import utcnow
@@ -89,21 +89,33 @@ def _snapshot_futgenie(players: list[dict]) -> dict:
     per_hour = 60 / step  # budgets de fiches répartis sur l'heure (même charge horaire qu'avant pour les fiches)
     fg = FutGenie()
     try:
-        prices = fg.current_prices(players, parse_bands(config.WATCHLIST_BANDS), max_fiches=max(5, round(40 / per_hour)))
+        max_fiches = max(5, round(40 / per_hour))
+        if config.WATCHLIST_MODE == "all":
+            last = {pid: r["price"] for pid, r in db.latest_prices().items()}
+            last.update({str(p["player_id"]): p["price"] for p in players if p.get("price") and str(p["player_id"]) not in last})
+            prices = fg.scan_ranges(players, last, max_fiches=max_fiches)
+        else:
+            prices = fg.current_prices(players, parse_bands(config.WATCHLIST_BANDS), max_fiches=max_fiches)
         fg.fill_missing(players, limit=max(3, round(20 / per_hour)))  # rattrapage progressif des fiches manquantes
     finally:
         fg.close()
-    ok, ko = 0, []
+    ok, ko, skipped = 0, [], 0
+    later = getattr(fg, "skipped", set()) or set()  # rotation : relus au prochain tour, ni relevé ni échec
     with db.get_conn() as c:
         for p in players:
             price = prices.get(str(p["player_id"]))
             if not price:
-                ko.append(p.get("name"))
+                if str(p["player_id"]) in later:
+                    skipped += 1
+                else:
+                    ko.append(p.get("name"))
                 continue
             db.insert_snapshot(p["player_id"], price, ts, source="futgenie", conn=c,
                                trend_7d=getattr(fg, "trends", {}).get(str(p["player_id"])))
             ok += 1
-    summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20], "source": "futgenie"}
+    summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20], "source": "futgenie",
+               "skipped": skipped, **(getattr(fg, "scan_stats", None) or {})}
     db.set_status("last_snapshot", summary)
-    log.info("Snapshot horaire futgenie : %d OK / %d KO", ok, len(ko))
+    log.info("Snapshot horaire futgenie : %d OK / %d KO%s", ok, len(ko),
+             f" / {skipped} relus au prochain tour (rotation)" if skipped else "")
     return summary

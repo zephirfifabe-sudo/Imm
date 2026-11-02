@@ -34,6 +34,17 @@ WATCHLIST_BANDS = os.getenv(
     "WATCHLIST_BANDS",
     "20000-25000:40,25001-30000:40,30001-35000:35,35001-42000:40,42001-50000:40,50001-60000:35,60001-75000:40,75001-90000:35,90001-110000:30,110001-140000:30,140001-180000:25,180001-250000:20",
 )
+# Watchlist : "all" = TOUTES les cartes vendables listées par futgenie entre WATCHLIST_MIN et WATCHLIST_MAX
+# (recherche découpée automatiquement : futgenie ne montre qu'environ 10 cartes par recherche) ; "bands" = ancien
+# mode à quotas (WATCHLIST_BANDS).
+WATCHLIST_MODE = os.getenv("WATCHLIST_MODE", "all")
+WATCHLIST_MIN = int(os.getenv("WATCHLIST_MIN", "20000"))
+WATCHLIST_MAX = int(os.getenv("WATCHLIST_MAX", "250000"))
+FG_LIST_CAP = int(os.getenv("FG_LIST_CAP", "10"))  # cartes max renvoyées par une recherche futgenie (observé 02/11)
+FG_MIN_WIDTH = int(os.getenv("FG_MIN_WIDTH", "200"))  # on ne découpe pas une tranche plus fine que ça
+FG_DISCOVERY_MAX_REQUESTS = int(os.getenv("FG_DISCOVERY_MAX_REQUESTS", "500"))  # recherche complète (~35 min max, 1 fois/jour)
+FG_REQUEST_S = float(os.getenv("FG_REQUEST_S", "4.5"))
+FG_SCAN_MAX_REQUESTS = int(os.getenv("FG_SCAN_MAX_REQUESTS", "0"))  # 0 = auto (60 % de l'intervalle de scan)  # durée moyenne d'une requête (pause de politesse comprise)
 # Source des prix : "futgenie" (prix exacts, accès autorisé par robots.txt) ou "futgg" (tranches)
 PRICE_SOURCE = os.getenv("PRICE_SOURCE", "futgenie")
 EVO_CHEAP_MAX = int(os.getenv("EVO_CHEAP_MAX", "20000"))

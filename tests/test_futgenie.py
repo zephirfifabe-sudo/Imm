@@ -94,3 +94,83 @@ def test_parse_fiche_long_name_and_promo():
         "Achraf Hakimi", long_name)
     p = futgenie.parse_fiche(html, "fgn-1030497", "u")
     assert (p["name"], p["rating"], p["card_type"]) == (long_name, 85, "Destined for Glory")
+
+
+# --------------------------------------------------------------------------- mode « toutes les cartes »
+class CatalogFetcher:
+    """futgenie réel (02/11) : une recherche ne renvoie que les 10 meilleures cartes de la tranche, page 2 vide."""
+
+    def __init__(self, prices: dict[int, int], fail_after: int | None = None):
+        self.prices, self.calls, self.fail_after = prices, [], fail_after
+
+    def get(self, url, retries=0):
+        import json
+
+        from scrapers.base import FetchError
+
+        self.calls.append(url)
+        if self.fail_after is not None and len(self.calls) > self.fail_after:
+            raise FetchError("site en pause")
+        f = json.loads(unquote(url.split("f=")[1]))
+        if f.get("page", 1) > 1:
+            return FetchResult(url, 200, page([]), "httpx")
+        inside = sorted((i for i, p in self.prices.items() if f["minPrice"] <= p <= f["maxPrice"]), key=lambda i: -i)[:10]
+        return FetchResult(url, 200, page([{"id": i, "k": "x", "p": f"{self.prices[i]:,}", "chg": "1.0"} for i in inside]),
+                           "httpx")
+
+    def close(self):
+        pass
+
+
+def catalog(n=137, lo=20000, hi=250000):
+    import random
+
+    rnd = random.Random(7)
+    return {1_000_000 + i: rnd.randrange(lo, hi, 50) for i in range(n)}
+
+
+def test_discover_finds_every_card_despite_10_card_limit():
+    prices = catalog()
+    fg = futgenie.FutGenie(CatalogFetcher(prices))
+    ranges, cards, stats = fg.discover(20000, 250000)
+    assert {c["player_id"] for c in cards} == {f"fgn-{i}" for i in prices}  # TOUTES les cartes, pas 10
+    assert stats["complete"] and stats["saturated"] == 0
+    assert ranges[0][0] == 20000 and ranges[-1][1] == 250000
+    assert all(a[1] + 1 == b[0] for a, b in zip(ranges, ranges[1:]))  # tranches contiguës, sans trou
+    assert stats["requests"] < len(prices)  # bien moins d'une requête par carte
+
+
+def test_scan_reads_all_ranges_and_resplits_a_range_that_filled_up():
+    from database import db
+
+    prices = catalog(60)
+    fg = futgenie.FutGenie(CatalogFetcher(prices))
+    players = fg.build_all(20000, 250000, max_new=0)
+    assert len(players) == 60
+    before = len(db.get_status()["fg_ranges"]["value"]["ranges"])
+    last = {p["player_id"]: p["price"] for p in players}
+    for i in range(15):  # 15 nouvelles cartes arrivent dans la même zone de prix
+        prices[1_000_060 + i] = 120_000 + i * 300
+    got = fg.scan_ranges(players, last, max_fiches=0, budget=200)
+    assert all(p["player_id"] in got for p in players) and fg.skipped == set()  # aucune carte suivie perdue
+    assert {f"fgn-{1_000_060 + i}" for i in range(15)} <= set(got)  # tranche recoupée : toutes les nouvelles vues
+    assert len(db.get_status()["fg_ranges"]["value"]["ranges"]) > before  # nouveau découpage mémorisé
+
+
+def test_rotation_when_too_many_ranges_and_network_failure_is_not_hidden():
+    from database import db
+
+    prices = catalog()
+    fg = futgenie.FutGenie(CatalogFetcher(prices))
+    players = fg.build_all(20000, 250000, max_new=0)
+    total = len(db.get_status()["fg_ranges"]["value"]["ranges"])
+    last = {p["player_id"]: p["price"] for p in players}
+    seen = set()
+    for _ in range(-(-total // 5)):  # budget 5 tranches par scan : en quelques tours tout est relu
+        got = futgenie.FutGenie(CatalogFetcher(prices)).scan_ranges(players, last, max_fiches=0, budget=5)
+        seen |= set(got)
+    assert seen == {p["player_id"] for p in players}
+    # site en panne : les joueurs prévus ce tour-ci ne sont PAS classés « relus plus tard » (l'échec reste visible)
+    fg3 = futgenie.FutGenie(CatalogFetcher(prices, fail_after=0))
+    got = fg3.scan_ranges(players, last, max_fiches=0, budget=total)
+    assert got == {} and fg3.skipped == set()

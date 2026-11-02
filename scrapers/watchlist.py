@@ -73,7 +73,10 @@ def _build_futgenie() -> list[dict]:
 
     fg = FutGenie()
     try:
-        players = fg.build_watchlist(parse_bands(config.WATCHLIST_BANDS))
+        if config.WATCHLIST_MODE == "all":  # toutes les cartes vendables de la fourchette, sans quota
+            players = fg.build_all(config.WATCHLIST_MIN, config.WATCHLIST_MAX)
+        else:
+            players = fg.build_watchlist(parse_bands(config.WATCHLIST_BANDS))
     finally:
         fg.close()
     if not players:

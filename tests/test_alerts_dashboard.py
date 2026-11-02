@@ -204,6 +204,9 @@ def test_snapshot_every_15_minutes_and_hourly_journal(monkeypatch):
             FG.max_fiches = max_fiches
             return {p["player_id"]: 1000 for p in players}
 
+        def scan_ranges(self, players, last, max_fiches=40):
+            return self.current_prices(players, None, max_fiches)
+
         def fill_missing(self, players, limit=20):
             FG.limit = limit
 
