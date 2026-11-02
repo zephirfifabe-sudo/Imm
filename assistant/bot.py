@@ -21,12 +21,12 @@ def chunks(text: str, size: int = 1900) -> list[str]:
     return split_message(text, size) or [""]
 
 
-def build_client():
+def build_client(read_messages: bool = True):
     import discord
     from discord import app_commands
 
     intents = discord.Intents.default()
-    intents.message_content = True  # lire les questions dans le salon dédié
+    intents.message_content = read_messages  # lire les questions dans le salon dédié (option à activer sur le portail)
     client = discord.Client(intents=intents)
     tree = app_commands.CommandTree(client)
 
@@ -123,4 +123,12 @@ def run() -> None:
         log.warning("DISCORD_BOT_TOKEN absent : assistant Discord désactivé (mise en veille).")
         while True:  # le service reste « vivant » sans redémarrer en boucle
             time.sleep(3600)
-    build_client().run(config.DISCORD_BOT_TOKEN, log_handler=None)
+    import discord
+
+    try:
+        build_client().run(config.DISCORD_BOT_TOKEN, log_handler=None)
+    except discord.errors.PrivilegedIntentsRequired:
+        # « Message Content Intent » non activé sur le portail Discord : mode réduit plutôt qu'un plantage en boucle
+        log.warning("Message Content Intent non activé sur le portail Discord : mode réduit (commandes /, /question "
+                    "et mentions du bot). Activez-le dans Bot > Privileged Gateway Intents pour le salon de questions.")
+        build_client(read_messages=False).run(config.DISCORD_BOT_TOKEN, log_handler=None)
