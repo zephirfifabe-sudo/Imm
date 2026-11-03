@@ -27,21 +27,21 @@ def item(i, name, rating, ps, pc=None, rarity="Rare", special=False, sbc=False, 
 
 
 class FakeAPI:
-    """Pages de 2 cartes ; le site filtre sur SON prix (ici le PC), d'où la fourchette élargie côté bot."""
+    """Comme le vrai site (03/11) : pagination ignorée, 2 cartes max par réponse ici (50 en vrai), total exact,
+    filtre sur SON prix (ici le PC), d'où la fourchette élargie côté bot."""
 
-    def __init__(self, items, fail=False):
-        self.items, self.fail, self.calls = items, fail, []
+    def __init__(self, items, fail=False, cap=2):
+        self.items, self.fail, self.calls, self.cap = items, fail, [], cap
 
     def get(self, url, expect="html", retries=0):
         self.calls.append(url)
         if self.fail:
             raise FetchError("futreveal en panne")
         q = parse_qs(urlparse(url).query)
-        lo, hi, page = int(q["price_from"][0]), int(q["price_to"][0]), int(q["page"][0])
-        inside = [x for x in self.items if lo <= x["price"]["PC"] <= hi]
-        chunk = inside[(page - 1) * 2: page * 2]
-        return FetchResult(url, 200, json.dumps({"items": chunk, "total": len(inside),
-                                                 "has_more": page * 2 < len(inside)}), "httpx")
+        lo, hi = int(q["price_from"][0]), int(q["price_to"][0])
+        inside = sorted((x for x in self.items if lo <= x["price"]["PC"] <= hi), key=lambda x: -x["rating"])
+        return FetchResult(url, 200, json.dumps({"items": inside[:self.cap], "total": len(inside),
+                                                 "has_more": len(inside) > self.cap}), "httpx")
 
     def close(self):
         pass
@@ -74,6 +74,18 @@ def test_cards_paginates_and_filters_on_ps_price(monkeypatch):
     names = {c["name"] for c in fr.cards(20_000, 300_000)}
     assert names == {"Hakimi", "Doué", "Nouveau TOTW"}  # SBC et < 20k (PS) exclues, Doué gardée malgré PC 19k
     assert len(api.calls) >= 2 and "price_from=12000" in api.calls[0]  # fourchette élargie (x0,6 / x1,6)
+    assert "page=" not in api.calls[0] and fr.incomplete == 0  # découpage par prix, rien de manquant
+
+
+def test_split_by_price_gets_every_card_despite_50_card_cap(monkeypatch):
+    import random
+
+    rnd = random.Random(3)
+    many = [item(i, f"J{i}", 80 + i % 10, rnd.randrange(20_000, 300_000, 250)) for i in range(137)]
+    use(monkeypatch, FakeAPI(many, cap=50))
+    fr = futreveal.FutReveal()
+    got = fr.cards(20_000, 300_000)
+    assert len(got) == 137 and fr.incomplete == 0 and fr.requests <= 12
 
 
 def test_existing_players_keep_their_id_and_history():

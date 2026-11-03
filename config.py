@@ -51,7 +51,7 @@ PRICE_SOURCE = os.getenv("PRICE_SOURCE", "futreveal")  # futreveal (principal) |
 FUTREVEAL_API = os.getenv("FUTREVEAL_API", "https://api.futreveal.com")
 FUTREVEAL_PLATFORM = os.getenv("FUTREVEAL_PLATFORM", "PS")  # PS | XB | PC
 FUTREVEAL_MIN_DELAY = float(os.getenv("FUTREVEAL_MIN_DELAY", "3"))  # secondes entre deux requêtes
-FUTREVEAL_MAX_PAGES = int(os.getenv("FUTREVEAL_MAX_PAGES", "15"))
+FUTREVEAL_MAX_REQUESTS = int(os.getenv("FUTREVEAL_MAX_REQUESTS", "40"))  # par passage (découpage par prix)
 FUTREVEAL_MAX_PRICE_AGE_MIN = int(os.getenv("FUTREVEAL_MAX_PRICE_AGE_MIN", "90"))  # prix plus vieux = ignoré
 FUTREVEAL_MIN_OK_RATIO = float(os.getenv("FUTREVEAL_MIN_OK_RATIO", "0.6"))  # sinon relevé via futgenie
 EVO_CHEAP_MAX = int(os.getenv("EVO_CHEAP_MAX", "20000"))

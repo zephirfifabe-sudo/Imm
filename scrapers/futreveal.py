@@ -1,10 +1,10 @@
 """Source futreveal.com — API JSON publique du site (aucun compte, robots.txt sans restriction, pas de Cloudflare).
 
-GET https://api.futreveal.com/cards?page=N&price_from=..&price_to=..  -> {"items": [...50 cartes], "total", "has_more"}
+GET https://api.futreveal.com/cards?price_from=..&price_to=..&order_by=rating&sort_dir=DESC -> {"items": [<=50], "total"}
 Chaque carte : ea_id, rating, is_special / is_sbc / is_objective, created_at (= date de SORTIE de la carte),
 price {"PS", "XB", "PC", "updated_at", "is_extinct_ps", ...} et des objets player / rarity / club / league / nation.
 
-Observé le 03/11 : 20 473 cartes FC 27, 185 entre 20k et 300k (4 pages). Le filtre de prix du site ne précise pas la
+Observé le 03/11 : 20 473 cartes FC 27, 185 entre 20k et 300k ; 50 cartes max par réponse, pagination ignorée. Le filtre de prix du site ne précise pas la
 plateforme : on demande une fourchette élargie et on filtre nous-mêmes sur le prix PlayStation.
 
 Les joueurs déjà suivis via futgenie gardent leur identifiant (« fgn-… ») et donc tout leur historique : une carte
@@ -100,37 +100,57 @@ class FutReveal:
         if self._own:
             self.f.close()
 
-    def page(self, n: int, lo: int, hi: int) -> dict:
-        url = f"{config.FUTREVEAL_API.rstrip('/')}/cards?" + urlencode({"page": n, "price_from": lo, "price_to": hi})
+    def search(self, lo: int, hi: int) -> dict:
+        """Une recherche par fourchette de prix (le site renvoie au plus ~50 cartes, et le total exact)."""
+        url = f"{config.FUTREVEAL_API.rstrip('/')}/cards?" + urlencode(
+            {"price_from": lo, "price_to": hi, "order_by": "rating", "sort_dir": "DESC"})
         res = self.f.get(url, expect="json", retries=1)
         if res.status != 200:
-            raise FetchError(f"futreveal page {n} : HTTP {res.status}")
+            raise FetchError(f"futreveal {lo}-{hi} : HTTP {res.status}")
         try:
             data = res.json()
         except ValueError as e:
-            raise FetchError(f"futreveal page {n} : réponse non JSON") from e
+            raise FetchError(f"futreveal {lo}-{hi} : réponse non JSON") from e
         if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-            raise FetchError(f"futreveal page {n} : format inattendu")
+            raise FetchError(f"futreveal {lo}-{hi} : format inattendu")
         return data
 
     def cards(self, lo: int | None = None, hi: int | None = None) -> list[dict]:
-        """Toutes les cartes VENDABLES dont le prix PS est entre lo et hi (fourchette du site élargie)."""
+        """Toutes les cartes VENDABLES dont le prix PS est entre lo et hi.
+
+        L'API ignore la pagination (observé le 03/11 : page 2 = page 1) mais donne le total : une fourchette dont
+        le total dépasse ce qui est renvoyé est coupée en deux, jusqu'à tout recevoir. La fourchette demandée est
+        élargie (x0,6 / x1,6) car le filtre du site ne porte pas forcément sur le prix PS.
+        """
         lo = lo or config.WATCHLIST_MIN
         hi = hi or config.WATCHLIST_MAX
-        out, seen = [], set()
-        for n in range(1, config.FUTREVEAL_MAX_PAGES + 1):
-            data = self.page(n, int(lo * 0.6), int(hi * 1.6))
-            for item in data["items"]:
+        out, seen = {}, set()
+        stack, req, incomplete = [(int(lo * 0.6), int(hi * 1.6))], 0, 0
+        while stack:
+            a, b = stack.pop()
+            if req >= config.FUTREVEAL_MAX_REQUESTS:
+                incomplete += 1
+                continue
+            data = self.search(a, b)
+            req += 1
+            items = data["items"]
+            for item in items:
                 c = parse_card(item)
                 if c and c["fr_id"] not in seen:
                     seen.add(c["fr_id"])
-                    out.append(c)
-            if not data.get("has_more") or not data["items"]:
-                break
-        self.raw_count = len(out)
-        kept = [c for c in out if c["tradeable"] and c["price"] and lo <= c["price"] <= hi]
-        log.info("futreveal : %d cartes lues (%d page(s)), %d vendables entre %s et %s sur %s", len(out), n,
-                 len(kept), lo, hi, config.FUTREVEAL_PLATFORM)
+                    out[c["fr_id"]] = c
+            total = data.get("total")
+            if isinstance(total, int) and total > len(items):
+                if b - a >= 200:
+                    mid = (a + b) // 2
+                    stack += [(mid + 1, b), (a, mid)]
+                else:
+                    incomplete += 1  # trop de cartes au même prix : on garde ce qu'on a
+        self.raw_count, self.requests, self.incomplete = len(out), req, incomplete
+        kept = [c for c in out.values() if c["tradeable"] and c["price"] and lo <= c["price"] <= hi]
+        log.info("futreveal : %d cartes lues en %d requêtes%s, %d vendables entre %s et %s sur %s", len(out), req,
+                 f" ({incomplete} tranche(s) incomplète(s))" if incomplete else "", len(kept), lo, hi,
+                 config.FUTREVEAL_PLATFORM)
         return kept
 
 
@@ -241,7 +261,8 @@ def dry_run() -> str:
     kept = sum(1 for c in out if not str(c["player_id"]).startswith(ID_PREFIX))
     fresh = sum(1 for c in out if price_is_fresh(c, now))
     recent = sum(1 for c in out if (d := _date(c["released_at"])) and now - d < timedelta(days=4))
-    lines = [(f"futreveal : {getattr(fr, 'raw_count', '?')} cartes lues, {len(out)} vendables entre "
+    lines = [(f"futreveal : {getattr(fr, 'raw_count', '?')} cartes lues en {getattr(fr, 'requests', '?')} requêtes, "
+              f"{len(out)} vendables entre "
               f"{config.WATCHLIST_MIN} et {config.WATCHLIST_MAX} (prix {config.FUTREVEAL_PLATFORM})"),
              f"  déjà suivies (historique conservé) : {kept} · nouvelles : {len(out) - kept} · prix frais : {fresh}",
              f"  cartes sorties il y a moins de 4 jours : {recent}",
