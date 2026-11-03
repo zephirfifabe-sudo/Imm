@@ -53,7 +53,7 @@ def use(monkeypatch, api):
 
 ITEMS = [
     item(1, "Hakimi", 88, 99_500),
-    item(2, "Doué", 83, 35_000, pc=19_000),  # PC sous 20k mais PS dans la fourchette : doit être gardée
+    item(2, "Doué", 83, 21_000, pc=17_500),  # PC sous 20k mais PS dans la fourchette : doit être gardée
     item(3, "Cheap", 80, 15_000),  # hors fourchette PS
     item(4, "SBC Guy", 86, 50_000, sbc=True),  # non vendable
     item(5, "Nouveau TOTW", 87, 120_000, rarity="Team of the Week", special=True, created_days=1),
@@ -73,7 +73,7 @@ def test_cards_paginates_and_filters_on_ps_price(monkeypatch):
     fr = futreveal.FutReveal()
     names = {c["name"] for c in fr.cards(20_000, 300_000)}
     assert names == {"Hakimi", "Doué", "Nouveau TOTW"}  # SBC et < 20k (PS) exclues, Doué gardée malgré PC 19k
-    assert len(api.calls) >= 2 and "price_from=12000" in api.calls[0]  # fourchette élargie (x0,6 / x1,6)
+    assert len(api.calls) >= 2 and "price_from=16000" in api.calls[0]  # fourchette élargie (x0,8 / x1,25)
     assert "page=" not in api.calls[0] and fr.incomplete == 0  # découpage par prix, rien de manquant
 
 
@@ -174,3 +174,23 @@ def test_promo_without_is_special_flag_still_matches():
     known = [{"player_id": "fgn-1031000", "name": "Jorrel Hato", "rating": 85, "card_type": "Future Stars",
               "price": 204_000}]
     assert futreveal.assign_ids([c], known, save=False)[0]["player_id"] == "fgn-1031000"
+
+
+def test_one_failing_range_is_skipped_not_the_whole_scan(monkeypatch):
+    """Cas réel du 03/11 : HTTP 500 sur une seule tranche (12000-15656) -> le reste du scan continue."""
+    import random
+
+    rnd = random.Random(5)
+    many = [item(i, f"J{i}", 85, rnd.randrange(20_000, 300_000, 250)) for i in range(120)]
+
+    class Flaky(FakeAPI):
+        def get(self, url, expect="html", retries=0):
+            if len(self.calls) == 3:  # 4e requête : erreur serveur ponctuelle
+                self.calls.append(url)
+                raise FetchError("httpx 500")
+            return super().get(url, expect, retries)
+
+    use(monkeypatch, Flaky(many, cap=50))
+    fr = futreveal.FutReveal()
+    got = fr.cards(20_000, 300_000)
+    assert fr.incomplete >= 1 and 0 < len(got) < 120  # scan terminé malgré la tranche en erreur

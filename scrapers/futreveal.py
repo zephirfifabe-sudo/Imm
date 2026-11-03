@@ -151,18 +151,29 @@ class FutReveal:
 
         L'API ignore la pagination (observé le 03/11 : page 2 = page 1) mais donne le total : une fourchette dont
         le total dépasse ce qui est renvoyé est coupée en deux, jusqu'à tout recevoir. La fourchette demandée est
-        élargie (x0,6 / x1,6) car le filtre du site ne porte pas forcément sur le prix PS.
+        élargie (x0,8 / x1,25 : écart PC/PS observé ~15 %) car le filtre du site ne porte pas forcément sur le prix PS.
+        Une tranche en erreur (HTTP 500 ponctuel) est sautée ; 3 erreurs d'affilée -> FetchError (repli futgenie).
         """
         lo = lo or config.WATCHLIST_MIN
         hi = hi or config.WATCHLIST_MAX
         out, seen = {}, set()
-        stack, req, incomplete = [(int(lo * 0.6), int(hi * 1.6))], 0, 0
+        stack, req, incomplete, errors = [(int(lo * 0.8), int(hi * 1.25))], 0, 0, 0
         while stack:
             a, b = stack.pop()
             if req >= config.FUTREVEAL_MAX_REQUESTS:
                 incomplete += 1
                 continue
-            data = self.search(a, b)
+            try:
+                data = self.search(a, b)
+            except FetchError as e:
+                req += 1
+                errors += 1
+                if errors >= 3 or not out:  # site en panne (ou rien reçu du tout) : on laisse le repli agir
+                    raise
+                log.warning("futreveal %s-%s sautée : %s", a, b, str(e)[:120])
+                incomplete += 1
+                continue
+            errors = 0
             req += 1
             items = data["items"]
             for item in items:
