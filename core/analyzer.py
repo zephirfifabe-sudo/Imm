@@ -19,7 +19,7 @@ Deux moteurs (config.BRAIN_VERSION) :
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -35,6 +35,16 @@ from utils.helpers import POSITION_GROUP, fmt_coins, fmt_price, position_distanc
 from utils.helpers import iso
 from utils.logger import get_logger
 from utils.rarity import classify
+
+def _release_date(v) -> datetime | None:
+    if not v:
+        return None
+    try:
+        d = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
 
 def _fgn_num(pid: str) -> int | None:
     """Numéro futgenie d'une carte (« fgn-1032528 » -> 1032528), None pour une autre source."""
@@ -254,6 +264,14 @@ class MarketAnalyzer:
             start = min(first.values()) if first else None
             num = sorted((f, n) for pid, f in first.items() if (n := _fgn_num(pid)) is not None)
             self._ages = {"start": start, "first": first, "num": num}
+        rel = _release_date(player.get("released_at"))
+        if rel is not None:  # vraie date de sortie fournie par la source (futreveal) : elle fait foi
+            special = classify(player.get("card_type")).get("special", False)
+            days = (self.now - rel).total_seconds() / 86400
+            limit = config.NEW_CARD_DAYS_SPECIAL if special else config.NEW_CARD_DAYS_BASE
+            if days < 0 or days >= max(limit, 7):
+                return None
+            return {"days": round(days, 1), "special": special, "discovery": days < limit, "limit": limit}
         pid = str(player["player_id"])
         first, start = self._ages["first"].get(pid), self._ages["start"]
         if first is None or start is None or first - start < timedelta(hours=12):

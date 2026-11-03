@@ -15,6 +15,8 @@ log = get_logger("watchlist")
 
 
 def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -> list[dict]:
+    if config.PRICE_SOURCE == "futreveal":
+        return _build_futreveal()
     if config.PRICE_SOURCE == "futgenie":
         return _build_futgenie()
     own = fetcher is None
@@ -67,6 +69,27 @@ def build_watchlist(fetcher: Fetcher | None = None, max_candidates: int = 260) -
             fetcher.close()
 
 
+def _build_futreveal() -> list[dict]:
+    """Toutes les cartes vendables futreveal de la fourchette ; repli sur futgenie si le site répond mal."""
+    from scrapers import futreveal
+    from scrapers.base import FetchError
+
+    try:
+        players = futreveal.build_watchlist()
+    except FetchError as e:
+        log.error("futreveal indisponible (%s) -> watchlist via futgenie", str(e)[:150])
+        return _build_futgenie()
+    if len(players) < 30:  # réponse anormale : on ne remplace pas une bonne watchlist par une liste vide
+        log.error("futreveal : seulement %d cartes -> watchlist via futgenie", len(players))
+        return _build_futgenie()
+    players.sort(key=lambda p: p.get("price") or 0)
+    save_watchlist(players)
+    new = sum(1 for p in players if str(p["player_id"]).startswith(futreveal.ID_PREFIX))
+    log.info("Watchlist futreveal : %d joueurs (%d déjà suivis avec leur historique, %d nouveaux)",
+             len(players), len(players) - new, new)
+    return players
+
+
 def _build_futgenie() -> list[dict]:
     from scrapers.futgenie import FutGenie
     from scrapers.price_buckets import parse_bands
@@ -117,7 +140,7 @@ def save_watchlist(players: list[dict]) -> None:
         "price_range": [config.PRICE_MIN, config.PRICE_MAX],
         "players": [
             {k: p.get(k) for k in ("player_id", "name", "rating", "position", "league", "nation", "club",
-                                   "card_type", "price", "url", "popularity_rank")}
+                                   "card_type", "price", "url", "popularity_rank", "released_at", "fr_id")}
             for p in players
         ],
     }

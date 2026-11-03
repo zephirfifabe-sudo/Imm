@@ -484,6 +484,12 @@ def get_source_id(player_id: str, source: str) -> str | None:
     return r[0] if r else None
 
 
+def source_ids(source: str) -> dict[str, str]:
+    """{identifiant externe: player_id} pour une source."""
+    with get_conn() as c:
+        return {r[1]: r[0] for r in c.execute("SELECT player_id, external_id FROM source_map WHERE source=?", (source,))}
+
+
 def set_source_id(player_id: str, source: str, external_id: str) -> None:
     with get_conn() as c:
         c.execute("INSERT OR REPLACE INTO source_map VALUES (?,?,?)", (str(player_id), source, str(external_id)))

@@ -34,6 +34,12 @@ def cmd_watchlist(_):
     print(f"{len(wl)} joueurs dans la watchlist")
 
 
+def cmd_futreveal_test(_):
+    from scrapers.futreveal import dry_run
+
+    print(dry_run())
+
+
 def cmd_snapshot(_):
     from scrapers.price_provider import snapshot_watchlist
     from scrapers.watchlist import load_watchlist
@@ -383,7 +389,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="FC27 SNIPER ANALYST V4 FINAL")
     sub = ap.add_subparsers(dest="cmd")
     for name, fn in [("run", cmd_run), ("diagnose", cmd_diagnose), ("inspect", cmd_inspect), ("price-test", cmd_price_test), ("latest-test", cmd_latest_test), ("price-report", cmd_price_report), ("futmind-test", cmd_futmind_test), ("futgenie-test", cmd_futgenie_test), ("fiches", cmd_fiches), ("resume", cmd_resume), ("baseline", cmd_baseline), ("knowledge", cmd_knowledge), ("knowledge-verify", cmd_knowledge_verify), ("discord-bot", cmd_discord_bot), ("backfill", cmd_backfill), ("test-alert", cmd_test_alert),
-                     ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("snapshot", cmd_snapshot),
+                     ("init", lambda a: print("BDD OK")), ("watchlist", cmd_watchlist), ("futreveal-test", cmd_futreveal_test), ("snapshot", cmd_snapshot),
                      ("logger", cmd_logger), ("latest", cmd_latest), ("evos", cmd_evos), ("sbc", cmd_sbc),
                      ("leaks", cmd_leaks), ("demo-seed", cmd_demo_seed), ("demo-reset", cmd_demo_reset)]:
         sub.add_parser(name).set_defaults(fn=fn)

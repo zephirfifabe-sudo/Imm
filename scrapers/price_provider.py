@@ -38,6 +38,8 @@ class PriceProvider:
 
 def snapshot_watchlist(players: list[dict], fetcher: Fetcher | None = None) -> dict:
     """Enregistre le prix actuel de chaque joueur de la watchlist (job horaire 24/7)."""
+    if config.PRICE_SOURCE == "futreveal":
+        return _snapshot_futreveal(players)
     if config.PRICE_SOURCE == "futgenie":
         return _snapshot_futgenie(players)
     own = fetcher is None
@@ -75,6 +77,39 @@ def snapshot_watchlist(players: list[dict], fetcher: Fetcher | None = None) -> d
     summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20]}
     db.set_status("last_snapshot", summary)
     log.info("Snapshot horaire : %d OK / %d KO", ok, len(ko))
+    return summary
+
+
+def _snapshot_futreveal(players: list[dict]) -> dict:
+    """Relevé via futreveal (4-6 requêtes pour toute la fourchette). Repli complet sur futgenie si le site ne répond
+    pas ou si trop peu de joueurs suivis y sont trouvés avec un prix frais (watchlist pas encore reconstruite...)."""
+    from scrapers import futreveal
+
+    now = utcnow()
+    step = max(1, min(60, config.SNAPSHOT_EVERY_MIN))
+    ts = now.replace(minute=now.minute // step * step, second=0, microsecond=0)
+    try:
+        prices, stats = futreveal.current_prices(players)
+    except FetchError as e:
+        log.warning("futreveal KO (%s) -> relevé via futgenie", str(e)[:150])
+        return _snapshot_futgenie(players)
+    if players and len(prices) / len(players) < config.FUTREVEAL_MIN_OK_RATIO:
+        log.warning("futreveal : %d/%d joueurs avec un prix frais -> relevé via futgenie", len(prices), len(players))
+        return _snapshot_futgenie(players)
+    ok, ko = 0, []
+    with db.get_conn() as c:
+        for p in players:
+            price = prices.get(str(p["player_id"]))
+            if not price:
+                ko.append(p.get("name"))
+                continue
+            db.insert_snapshot(p["player_id"], price, ts, source="futreveal", conn=c)
+            ok += 1
+    summary = {"timestamp": ts.isoformat(), "ok": ok, "failed": len(ko), "failed_names": ko[:20],
+               "source": "futreveal", **stats}
+    db.set_status("last_snapshot", summary)
+    log.info("Snapshot futreveal : %d OK / %d KO (%d extinct, %d prix trop anciens)", ok, len(ko),
+             stats.get("extinct", 0), stats.get("stale", 0))
     return summary
 
 

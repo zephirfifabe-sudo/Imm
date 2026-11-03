@@ -39,14 +39,21 @@ WATCHLIST_BANDS = os.getenv(
 # mode à quotas (WATCHLIST_BANDS).
 WATCHLIST_MODE = os.getenv("WATCHLIST_MODE", "all")
 WATCHLIST_MIN = int(os.getenv("WATCHLIST_MIN", "20000"))
-WATCHLIST_MAX = int(os.getenv("WATCHLIST_MAX", "250000"))
+WATCHLIST_MAX = int(os.getenv("WATCHLIST_MAX", "300000"))
 FG_LIST_CAP = int(os.getenv("FG_LIST_CAP", "10"))  # cartes max renvoyées par une recherche futgenie (observé 02/11)
 FG_MIN_WIDTH = int(os.getenv("FG_MIN_WIDTH", "200"))  # on ne découpe pas une tranche plus fine que ça
 FG_DISCOVERY_MAX_REQUESTS = int(os.getenv("FG_DISCOVERY_MAX_REQUESTS", "500"))  # recherche complète (~35 min max, 1 fois/jour)
 FG_REQUEST_S = float(os.getenv("FG_REQUEST_S", "4.5"))
 FG_SCAN_MAX_REQUESTS = int(os.getenv("FG_SCAN_MAX_REQUESTS", "0"))  # 0 = auto (60 % de l'intervalle de scan)  # durée moyenne d'une requête (pause de politesse comprise)
 # Source des prix : "futgenie" (prix exacts, accès autorisé par robots.txt) ou "futgg" (tranches)
-PRICE_SOURCE = os.getenv("PRICE_SOURCE", "futgenie")
+PRICE_SOURCE = os.getenv("PRICE_SOURCE", "futreveal")  # futreveal (principal) | futgenie | futgg
+# futreveal.com : API JSON publique (liste complète, prix PS/XB/PC, date de sortie). Repli automatique sur futgenie.
+FUTREVEAL_API = os.getenv("FUTREVEAL_API", "https://api.futreveal.com")
+FUTREVEAL_PLATFORM = os.getenv("FUTREVEAL_PLATFORM", "PS")  # PS | XB | PC
+FUTREVEAL_MIN_DELAY = float(os.getenv("FUTREVEAL_MIN_DELAY", "3"))  # secondes entre deux requêtes
+FUTREVEAL_MAX_PAGES = int(os.getenv("FUTREVEAL_MAX_PAGES", "15"))
+FUTREVEAL_MAX_PRICE_AGE_MIN = int(os.getenv("FUTREVEAL_MAX_PRICE_AGE_MIN", "90"))  # prix plus vieux = ignoré
+FUTREVEAL_MIN_OK_RATIO = float(os.getenv("FUTREVEAL_MIN_OK_RATIO", "0.6"))  # sinon relevé via futgenie
 EVO_CHEAP_MAX = int(os.getenv("EVO_CHEAP_MAX", "20000"))
 
 # --- Sources (surchargeables si FUT.GG change ses URLs) ---

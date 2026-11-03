@@ -236,7 +236,8 @@ def _notify_pause() -> None:
 
     from scrapers.base import blocked_until
 
-    base = "https://www.futgenie.gg" if config.PRICE_SOURCE == "futgenie" else config.FUTGG_BASE
+    base = {"futreveal": config.FUTREVEAL_API, "futgenie": "https://www.futgenie.gg"}.get(config.PRICE_SOURCE,
+                                                                                         config.FUTGG_BASE)
     until = blocked_until(urlparse(base).netloc)
     if not until or (db.get_status().get("pause_notified") or {}).get("value") == until:
         return

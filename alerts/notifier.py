@@ -216,7 +216,8 @@ def price_report(watchlist: list[dict], chunk_chars: int = 1850) -> list[str]:
                 "d24": _pct(cur, db.price_at(pid, now - timedelta(hours=24), conn=c)),
                 "avg": st.get("avg"), "vs": _pct(cur, st.get("avg")),
             })
-    source = "futgenie, prix exacts" if config.PRICE_SOURCE == "futgenie" else "FUT.GG ±3 %"
+    source = {"futreveal": f"futreveal, prix {config.FUTREVEAL_PLATFORM}", "futgenie": "futgenie, prix exacts"}.get(
+        config.PRICE_SOURCE, "FUT.GG ±3 %")
     header = f"💰 PRIX — {_now_label()} · {len(rows)} joueurs ({source})"
     if not rows:
         return [header + "\nAucun prix relevé pour l'instant."]
