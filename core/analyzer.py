@@ -126,16 +126,18 @@ class MarketAnalyzer:
         if s.empty:
             return {"score": 0, "ok": False, "age_h": None, "n_48h": 0, "n_7d": 0, "reason": "aucun relevé"}
         age = (now_l - s.index[-1]).total_seconds() / 3600
-        n48 = int((s.index > now_l - pd.Timedelta(hours=48)).sum())
+        last48 = s.index[s.index > now_l - pd.Timedelta(hours=48)]
+        n48 = len(last48)
+        h48 = int(last48.floor("h").nunique())  # heures couvertes : indépendant du rythme des relevés (5/15/60 min)
         n7 = int((s.index > now_l - pd.Timedelta(days=7)).sum())
         fresh = float(np.clip(1 - (age - 1.5) / 22.5, 0, 1))
-        score = int(round(100 * (0.5 * fresh + 0.5 * min(1.0, n48 / 48))))
+        score = int(round(100 * (0.5 * fresh + 0.5 * min(1.0, h48 / 48))))
         reason = ""
         if age > config.MAX_PRICE_AGE_H:
             reason = f"dernier prix relevé il y a {age:.0f} h (max {config.MAX_PRICE_AGE_H:g} h)"
-        elif n48 < config.MIN_POINTS_48H:
-            reason = f"seulement {n48} relevés sur 48 h (min {config.MIN_POINTS_48H})"
-        return {"score": score, "ok": not reason, "age_h": round(age, 1), "n_48h": n48, "n_7d": n7,
+        elif h48 < config.MIN_POINTS_48H:
+            reason = f"seulement {h48} heures couvertes sur 48 h (min {config.MIN_POINTS_48H})"
+        return {"score": score, "ok": not reason, "age_h": round(age, 1), "n_48h": n48, "h_48h": h48, "n_7d": n7,
                 "observed_at": s.index[-1].isoformat(), "reason": reason}
 
     def change(self, pid: str, hours: int) -> float | None:
@@ -328,7 +330,7 @@ class MarketAnalyzer:
         if price and action == "ACHAT":
             st = db.price_stats(pid, days=7, now=self.now)
             rec = rule_d.get("avg_recovery_value")
-            if instant_score is not None and st.get("avg") and (st.get("n") or 0) >= config.TARGET_MIN_POINTS:
+            if instant_score is not None and st.get("avg") and (st.get("hours") or 0) >= config.TARGET_MIN_HOURS:
                 target = float(st["avg"])  # retour vers la moyenne 7 j (prix observés)
             elif habit_ok and rec and st.get("max"):
                 target = min(price * (1 + float(np.clip(rec, 0, 0.35))), float(st["max"]))
@@ -424,7 +426,7 @@ class MarketAnalyzer:
         """
         cands = []
         st = db.price_stats(pid, days=7, now=self.now)
-        if st.get("avg") and (st.get("n") or 0) >= config.TARGET_MIN_POINTS:
+        if st.get("avg") and (st.get("hours") or 0) >= config.TARGET_MIN_HOURS:
             sell = round_tier(float(st["avg"]), "down")
             cands.append(sell * (1 - config.EA_TAX) / (1 + config.MIN_NET_MARGIN))
         c48, m48 = extra.get("change_48h"), extra.get("market_48h")

@@ -1,6 +1,6 @@
 """Scheduler complet (heure de Paris).
 
-  toutes les 15 min :02   snapshot prix (MÉMOIRE) + alerte instantanée crash >15% / R4 (SNAPSHOT_EVERY_MIN)
+  toutes les 5 min  :02   snapshot prix (MÉMOIRE) + alerte instantanée crash >15% / R4 (SNAPSHOT_EVERY_MIN)
                           + journal de TOUTES les décisions (moteur actif + moteur en observation)
   toutes les heures :35   évaluation théorique des décisions à 6 h / 24 h / 48 h / 7 j
   toutes les heures :12   fodders 85-91 (moins cher par note) + alerte si une note grimpe d'un coup

@@ -242,3 +242,15 @@ def test_context_48h_does_not_call_small_gap_player_specific():
 
     txt = explain_move(-0.20, -0.15, None, window="48h")
     assert "propre au joueur" not in txt.replace("pas assez pour être propre au joueur", "") and "un peu plus forte" in txt
+
+
+def test_history_requirements_count_hours_not_points():
+    """Passage aux relevés toutes les 5 min : 30 relevés en 2 h et demie ne valent pas « 24 h de données »."""
+    from datetime import timedelta as td
+
+    for m in range(0, 150, 5):  # 30 relevés (17h35 -> 20h00), mais seulement 4 heures couvertes
+        db.insert_snapshot(PLAYER["player_id"], 50000, NOW - td(minutes=m), source="futreveal")
+    an = analyzer([PLAYER], habit=False, version="v2")
+    q = an.quality(PLAYER["player_id"])
+    assert q["n_48h"] == 30 and q["h_48h"] == 4 and not q["ok"] and "heures couvertes" in q["reason"]
+    assert db.price_stats(PLAYER["player_id"], now=NOW)["hours"] == 4

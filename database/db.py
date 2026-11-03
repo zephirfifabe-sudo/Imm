@@ -324,15 +324,17 @@ def price_stats(player_id: str, days: int = 7, conn: sqlite3.Connection | None =
     """
     now = now or utcnow()
     since, until = iso(now - timedelta(days=days)), iso(now)
-    q = ("SELECT AVG(price), MIN(price), MAX(price), COUNT(*) FROM price_snapshots "
+    # « hours » = heures couvertes (indépendant du rythme des relevés : 5, 15 ou 60 min)
+    q = ("SELECT AVG(price), MIN(price), MAX(price), COUNT(*), COUNT(DISTINCT substr(timestamp, 1, 13)) "
+         "FROM price_snapshots "
          "WHERE player_id=? AND timestamp>=? AND timestamp<=?")
     qt = ("SELECT trend_7d FROM price_snapshots WHERE player_id=? AND trend_7d IS NOT NULL AND timestamp<=? "
           "ORDER BY timestamp DESC LIMIT 1")
 
     def run(c):
-        avg, lo, hi, n = c.execute(q, (str(player_id), since, until)).fetchone()
+        avg, lo, hi, n, hours = c.execute(q, (str(player_id), since, until)).fetchone()
         t = c.execute(qt, (str(player_id), until)).fetchone()
-        return {"avg": round(avg) if avg else None, "min": lo, "max": hi, "n": n, "trend_7d": t[0] if t else None}
+        return {"avg": round(avg) if avg else None, "min": lo, "max": hi, "n": n, "hours": hours, "trend_7d": t[0] if t else None}
 
     if conn is not None:
         return run(conn)
