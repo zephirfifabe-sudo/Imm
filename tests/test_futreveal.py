@@ -163,3 +163,14 @@ def test_only_recently_tracked_players_are_candidates():
     db.insert_snapshot("fgn-952630", 127_000, utcnow() - timedelta(minutes=20), source="futgenie")
     known = futreveal.known_players()
     assert set(known) == {"fgn-952630"} and known["fgn-952630"]["price"] == 127_000
+
+
+def test_promo_without_is_special_flag_still_matches():
+    """Cas réel du 03/11 : Jorrel Hato Future Stars, is_special=false chez futreveal -> doit rester spéciale et être
+    rattachée au joueur futgenie Future Stars au même prix."""
+    hato = item(9, "Jorrel Hato", 85, 203_000, rarity="Future Stars", special=False)
+    c = futreveal.parse_card(hato)
+    assert c["special"] and c["card_type"] == "Future Stars"
+    known = [{"player_id": "fgn-1031000", "name": "Jorrel Hato", "rating": 85, "card_type": "Future Stars",
+              "price": 204_000}]
+    assert futreveal.assign_ids([c], known, save=False)[0]["player_id"] == "fgn-1031000"

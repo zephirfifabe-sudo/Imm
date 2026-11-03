@@ -95,9 +95,12 @@ def parse_card(item: dict, platform: str | None = None) -> dict | None:
         return None
     rarity_raw = _text(item.get("rarity"))
     card_type = rarity_label(rarity_raw) if rarity_raw else None
-    special = bool(item.get("is_special") or item.get("is_icon") or item.get("is_hero"))
+    # spéciale d'après le NOM de la version (Future Stars, Héros...) : l'indicateur is_special de futreveal reste
+    # à faux sur beaucoup de promos (observé le 03/11), il ne sert que de complément
+    special = bool((classify(card_type) or {}).get("special")
+                   or item.get("is_special") or item.get("is_icon") or item.get("is_hero"))
     if special and not (classify(card_type) or {}).get("special"):
-        card_type = rarity_raw or "Spéciale"  # spéciale pour futreveal, même si le nom de rareté est inconnu chez nous
+        card_type = rarity_raw or "Spéciale"
     price = pr.get(platform)
     return {
         "fr_id": str(item["id"]), "ea_id": item.get("ea_id"), "name": name, "rating": item.get("rating"),
