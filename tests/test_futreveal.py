@@ -139,3 +139,27 @@ def test_dry_run_writes_nothing(monkeypatch):
     txt = futreveal.dry_run()
     assert "3 vendables" in txt and "moins de 4 jours : 1" in txt and "Nouveau TOTW" in txt
     assert db.source_ids("futreveal") == {}  # aucun rattachement enregistré pendant un test
+
+
+def test_matching_uses_all_names_and_guards_against_false_matches():
+    rodri = item(7, "Rodri", 90, 37_000)
+    rodri["player"] = {"common_name": "Rodri", "first_name": "Rodrigo", "last_name": "Hernández Cascante"}
+    rodri["primary_position"] = {"short_name": "RDM"}
+    other = item(8, "Hernández", 84, 37_500)  # même nom de famille, autre note : ne doit pas voler Rodri
+    known = [{"player_id": "fgn-1", "name": "Rodrigo Hernández Cascante", "rating": 90, "card_type": "Or rare",
+              "price": 36_000},
+             {"player_id": "fgn-2", "name": "Theo Hernández", "rating": 84, "card_type": "Or rare", "price": 60_000}]
+    cards = [futreveal.parse_card(rodri), futreveal.parse_card(other)]
+    assert cards[0]["position"] == "CDM"  # poste de terrain RDM -> poste de carte
+    out = {c["name"]: c["player_id"] for c in futreveal.assign_ids(cards, known, save=False)}
+    assert out["Rodri"] == "fgn-1"  # nom d'usage / nom complet reliés par les mots en commun
+    assert out["Hernández"] == "fr-50000008"  # même note mais prix trop éloigné (60k vs 37,5k) : pas rattaché
+
+
+def test_only_recently_tracked_players_are_candidates():
+    db.upsert_player({"player_id": "251854", "name": "Pedri", "rating": 90})  # vieille fiche fut.gg
+    db.insert_snapshot("251854", 190_000, utcnow() - timedelta(days=5), source="futgg")
+    db.upsert_player({"player_id": "fgn-952630", "name": "Jude Bellingham", "rating": 90})
+    db.insert_snapshot("fgn-952630", 127_000, utcnow() - timedelta(minutes=20), source="futgenie")
+    known = futreveal.known_players()
+    assert set(known) == {"fgn-952630"} and known["fgn-952630"]["price"] == 127_000

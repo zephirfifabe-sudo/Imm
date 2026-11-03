@@ -50,6 +50,33 @@ def _text(obj, keys=("common_name", "name", "display_name", "short_name", "label
     return full or None
 
 
+# postes « de terrain » de futreveal -> postes de carte utilisés par le bot
+POSITION_MAP = {"RDM": "CDM", "LDM": "CDM", "RCM": "CM", "LCM": "CM", "RAM": "CAM", "LAM": "CAM", "RCB": "CB",
+                "LCB": "CB", "RS": "ST", "LS": "ST", "RF": "CF", "LF": "CF", "SW": "CB"}
+
+
+def _position(obj) -> str | None:
+    pos = _text(obj, ("short_name", "abbreviation", "code", "name"))
+    return POSITION_MAP.get(pos.upper(), pos.upper()) if pos else None
+
+
+def _aliases(player) -> set[str]:
+    """Tous les noms connus d'un joueur futreveal (nom d'usage, prénom, nom, nom complet)."""
+    if isinstance(player, str):
+        return {player}
+    if not isinstance(player, dict):
+        return set()
+    out = {str(v) for k, v in player.items() if "name" in k.lower() and isinstance(v, str) and v.strip()}
+    first, last = player.get("first_name") or player.get("firstname"), player.get("last_name") or player.get("lastname")
+    if first and last:
+        out.add(f"{first} {last}")
+    return out
+
+
+def _tokens(names) -> set[str]:
+    return {t for n in names for t in _norm(n).replace("-", " ").split() if len(t) >= 3}
+
+
 def _date(s) -> datetime | None:
     try:
         return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
@@ -74,7 +101,8 @@ def parse_card(item: dict, platform: str | None = None) -> dict | None:
     price = pr.get(platform)
     return {
         "fr_id": str(item["id"]), "ea_id": item.get("ea_id"), "name": name, "rating": item.get("rating"),
-        "position": _text(item.get("primary_position"), ("short_name", "abbreviation", "code", "name")),
+        "position": _position(item.get("primary_position")),
+        "aliases": sorted(_aliases(item.get("player")) | {name}),
         "club": _text(item.get("club")), "league": _text(item.get("league")), "nation": _text(item.get("nation")),
         "card_type": card_type, "special": special,
         "tradeable": not (item.get("is_sbc") or item.get("is_objective")),
@@ -156,26 +184,28 @@ class FutReveal:
 
 # --------------------------------------------------------------------------- rattachement aux joueurs déjà suivis
 def assign_ids(cards: list[dict], known: list[dict], save: bool = True) -> list[dict]:
-    """Donne à chaque carte son identifiant bot : celui déjà mémorisé, sinon un joueur futgenie correspondant
-    (même nom, même note, prix à ±25 %), sinon « fr-<ea_id> »."""
+    """Donne à chaque carte son identifiant bot : celui déjà mémorisé, sinon un joueur déjà suivi correspondant,
+    sinon « fr-<ea_id> ».
+
+    Correspondance : un mot du nom en commun (futgenie donne le nom complet « Rodrigo Hernández Cascante »,
+    futreveal le nom d'usage « Rodri » + prénom/nom), MÊME note, même type de carte (spéciale ou non) et prix à
+    ±20 %. Le joueur garde alors son identifiant et tout son historique.
+    """
     mapped = db.source_ids(SOURCE)  # fr_id -> player_id
     taken = set(mapped.values())
-    by_key: dict[tuple, list[dict]] = {}
+    pool: dict[int, list[tuple[dict, set[str]]]] = {}
     for p in known:
         if str(p.get("player_id", "")).startswith(ID_PREFIX) or not p.get("name") or not p.get("rating"):
             continue
-        by_key.setdefault((_norm(p["name"]), int(p["rating"])), []).append(p)
-        last = _norm(p["name"]).split()[-1:]
-        if last:
-            by_key.setdefault(("~" + last[0], int(p["rating"])), []).append(p)
+        pool.setdefault(int(p["rating"]), []).append((p, _tokens([p["name"]])))
     out = []
-    for c in cards:
+    # les cartes les plus chères d'abord : ce sont celles dont le prix discrimine le mieux
+    for c in sorted(cards, key=lambda c: -(c.get("price") or 0)):
         pid = mapped.get(c["fr_id"])
-        if not pid and c.get("rating"):
-            n = _norm(c["name"])
-            cands = by_key.get((n, int(c["rating"]))) or by_key.get(("~" + (n.split() or [""])[-1], int(c["rating"])), [])
-            cands = [p for p in cands if str(p["player_id"]) not in taken and p.get("price") and c.get("price")
-                     and abs(p["price"] / c["price"] - 1) <= 0.25
+        if not pid and c.get("rating") and c.get("price"):
+            toks = _tokens(c.get("aliases") or [c["name"]])
+            cands = [p for p, pt in pool.get(int(c["rating"]), []) if str(p["player_id"]) not in taken and pt & toks
+                     and p.get("price") and abs(p["price"] / c["price"] - 1) <= 0.20
                      and bool((classify(p.get("card_type")) or {}).get("special")) == bool(c["special"])]
             if cands:
                 pid = str(min(cands, key=lambda p: abs(p["price"] / c["price"] - 1))["player_id"])
@@ -189,16 +219,20 @@ def assign_ids(cards: list[dict], known: list[dict], save: bool = True) -> list[
     return out
 
 
-def known_players() -> dict[str, dict]:
-    """Joueurs déjà connus du bot, avec leur dernier prix relevé (sert au rattachement)."""
+def known_players(days: int = 3) -> dict[str, dict]:
+    """Joueurs suivis récemment (relevé de moins de `days` jours), avec leur dernier prix : seuls candidats au
+    rattachement (pas les vieilles fiches des anciennes sources)."""
     from scrapers.watchlist import load_watchlist
 
-    known = {str(p["player_id"]): p for p in db.get_players()}
-    for p in load_watchlist():  # watchlist actuelle (pour le rattachement)
-        known.setdefault(str(p["player_id"]), {}).update({k: v for k, v in p.items() if v is not None})
-    for pid, snap in db.latest_prices().items():  # dernier prix relevé = le plus fiable pour comparer
-        if pid in known and snap.get("price"):
-            known[pid]["price"] = snap["price"]
+    since = utcnow() - timedelta(days=days)
+    recent = {pid: s for pid, s in db.latest_prices().items()
+              if s.get("price") and (_date(s.get("timestamp")) or since) > since}
+    known = {str(p["player_id"]): p for p in db.get_players(list(recent))}
+    for p in load_watchlist():
+        if str(p["player_id"]) in recent:
+            known.setdefault(str(p["player_id"]), {}).update({k: v for k, v in p.items() if v is not None})
+    for pid, p in known.items():
+        p["price"] = recent[pid]["price"]
     return known
 
 
