@@ -4,7 +4,8 @@ Logiciel de coaching qui **lit uniquement la vidéo** (carte de capture HDMI en 
 virtuelle OBS). Il n'accède jamais à la console, au réseau du jeu ni à la manette, et n'envoie aucune
 commande. Les règles de tournoi ou d'EA restent à ta charge.
 
-Source de vérité tactique : `knowledge/paastek.pdf` → `knowledge/rules.yaml` (49 règles, 11 fiches).
+Source de vérité tactique : `knowledge/paastek.pdf` (fiches 1 à 11) + `knowledge/fiches/fiche12_pressing_a_deux.pdf`
+(fiche 12, séance défense) → `knowledge/rules.yaml` (54 règles, 12 fiches).
 Le coach n'affichera **que** des conseils de ce fichier, en citant leur fiche.
 
 ## État des phases
@@ -33,6 +34,7 @@ config/
   ocr_zones.json       zones OCR (chrono, score, nom sélectionné, pause, mi-temps)
 knowledge/
   paastek.pdf          le carnet de coaching (11 fiches)
+  fiches/              fiches ajoutées (fiche 12 : le pressing à deux), en HTML et PDF
   rules.yaml           règles extraites : id, fiche, contexte, déclencheur, conseil, bouton, priorité, source
 fccoach/
   core/                config typée, logs, matériel (accélérateur + cadence adaptative), état partagé

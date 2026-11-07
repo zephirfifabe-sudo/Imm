@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Fiche 12 — Le pressing à deux</title>
+<style>
+  @page { size: A4; margin: 0; }
+  :root { --ink:#121412; --cream:#f2efe7; --lime:#c8f031; --muted:#5d605a; --line:#d8d4c8; --red:#e0473b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Inter", "DejaVu Sans", sans-serif; color:var(--ink); background:#888; }
+  .page { width:210mm; height:297mm; background:var(--cream); position:relative; overflow:hidden; margin:0 auto 10mm; page-break-after:always; }
+  .page:last-child { page-break-after:auto; margin-bottom:0; }
+  .hero { background:var(--ink); color:#f2efe7; padding:16mm 15mm 30mm; position:relative; }
+  .kicker { font-size:8pt; letter-spacing:.22em; color:var(--lime); font-weight:700; text-transform:uppercase; }
+  h1 { font-family:"Inter Display","Inter",sans-serif; font-weight:900; font-size:44pt; line-height:.92; margin:7mm 0 0; letter-spacing:-.02em; }
+  h1 span { color:var(--lime); display:block; }
+  .lead { font-size:10pt; color:#cfccc2; max-width:105mm; margin-top:6mm; line-height:1.45; }
+  .pitch { position:absolute; right:15mm; top:14mm; width:52mm; height:72mm; border:1px solid #4a4d48; border-radius:3px; }
+  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:5mm; margin:-20mm 15mm 0; position:relative; }
+  .card { background:var(--cream); border:1.5px solid var(--ink); padding:4mm 4mm 5mm; box-shadow:2mm 2mm 0 var(--lime); min-height:42mm; }
+  .card .n { font-weight:900; font-size:24pt; line-height:1; }
+  .card h3 { font-size:10.5pt; margin:2.5mm 0 1.5mm; font-weight:800; text-transform:uppercase; letter-spacing:-.01em; }
+  .card p { font-size:8.2pt; color:var(--muted); margin:0; line-height:1.4; }
+  .sec { margin:9mm 15mm 0; }
+  .sec-h { display:flex; align-items:baseline; gap:4mm; border-bottom:1.5px solid var(--ink); padding-bottom:2mm; }
+  .sec-h .num { font-family:"Inter Display",sans-serif; font-weight:900; font-size:24pt; color:transparent; -webkit-text-stroke:1.2px var(--ink); line-height:1; }
+  .sec-h h2 { font-weight:900; font-size:16pt; margin:0; letter-spacing:-.02em; text-transform:uppercase; }
+  .sec-h .tag { margin-left:auto; font-size:7pt; letter-spacing:.2em; color:var(--muted); text-transform:uppercase; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; column-gap:10mm; }
+  .item { padding:2.6mm 0 2.4mm; border-bottom:1px solid var(--line); }
+  .item b { display:block; font-size:9pt; margin-bottom:.8mm; }
+  .item span { font-size:8.1pt; color:#2c2e2b; line-height:1.4; }
+  .x { color:var(--red); font-weight:900; margin-right:1.5mm; }
+  .btn { display:inline-block; border:1.3px solid var(--ink); border-radius:2mm; padding:0 1.4mm; font-size:7.5pt; font-weight:800; line-height:4.2mm; vertical-align:middle; background:#fff; }
+  .dark { background:var(--ink); color:#f2efe7; padding:5mm 15mm 5mm; margin-top:6mm; }
+  .dark .sec-h { border-color:#f2efe7; }
+  .dark .sec-h .num { -webkit-text-stroke-color:#f2efe7; }
+  .dark .sec-h .tag { color:#9a9d96; }
+  .btnrow { display:grid; grid-template-columns:22mm 1fr 22mm 1fr; column-gap:4mm; font-size:8.2pt; }
+  .btnrow > div { padding:1.8mm 0; border-bottom:1px solid #33362f; }
+  .chip { display:inline-block; border-radius:1.5mm; padding:.4mm 1.6mm; font-weight:800; font-size:7.5pt; background:var(--lime); color:var(--ink); }
+  .chip.w { background:#f2efe7; } .chip.r { background:var(--red); color:#fff; }
+  .label { color:var(--lime); font-weight:800; font-size:7.5pt; letter-spacing:.06em; }
+  .boxes { display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; margin-top:4mm; }
+  .box { border:1.5px solid var(--ink); padding:3mm 4mm; min-height:22mm; }
+  .box.hl { background:var(--lime); }
+  .box h4 { font-family:"Inter Display",sans-serif; font-weight:900; font-size:17pt; margin:0 0 1.5mm; letter-spacing:-.03em; line-height:1; }
+  .box p { font-size:8pt; margin:0; line-height:1.4; color:#2c2e2b; }
+  .quote { background:var(--lime); margin-top:0; padding:4.5mm 15mm; display:flex; gap:6mm; align-items:center; }
+  .quote .chev { font-weight:900; font-size:30pt; line-height:1; }
+  .quote p { margin:0; font-weight:800; font-size:13pt; line-height:1.25; letter-spacing:-.01em; }
+  .quote small { display:block; margin-top:1.5mm; font-size:7pt; letter-spacing:.2em; font-weight:700; }
+  .recall { background:var(--ink); color:#f2efe7; margin:3mm 15mm 0; padding:4.5mm 7mm; display:flex; align-items:center; gap:8mm; }
+  .recall .k { color:var(--lime); font-size:7pt; letter-spacing:.2em; font-weight:800; line-height:1.5; }
+  .recall .big { font-family:"Inter Display",sans-serif; font-weight:900; font-size:18pt; letter-spacing:-.02em; }
+  .recall .big i { color:var(--lime); font-style:normal; }
+  .foot { position:absolute; left:15mm; right:15mm; bottom:6mm; display:flex; justify-content:space-between; font-size:7pt; letter-spacing:.2em; color:var(--muted); font-weight:700; }
+  .diag { background:#123d2a; border-radius:2px; padding:3mm 3mm 3.5mm; color:#f2efe7; }
+  .diag svg { width:100%; height:19mm; display:block; }
+  .diag h5 { margin:2mm 0 1mm; font-size:8pt; font-weight:800; text-transform:uppercase; }
+  .diag p { margin:0; font-size:7.2pt; color:#d5d3cb; line-height:1.35; }
+</style>
+</head>
+<body>
+
+<!-- ========================= PAGE 1 ========================= -->
+<section class="page">
+  <div class="hero">
+    <div class="kicker">Coaching Paastek · EA FC 27 · Fiche 12</div>
+    <h1>ANALYSE<span>LE PRESSING<br>À DEUX.</span></h1>
+    <p class="lead">Match commenté manette en main, uniquement en défense : fermer l'axe, presser à deux avec R1,
+    et caler le piège du hors-jeu au bon moment.</p>
+    <svg class="pitch" viewBox="0 0 104 144">
+      <rect x="2" y="2" width="100" height="140" fill="none" stroke="#4a4d48" stroke-width="1"/>
+      <line x1="2" y1="72" x2="102" y2="72" stroke="#4a4d48"/>
+      <circle cx="52" cy="72" r="12" fill="none" stroke="#4a4d48"/>
+      <rect x="27" y="2" width="50" height="18" fill="none" stroke="#4a4d48"/>
+      <rect x="27" y="124" width="50" height="18" fill="none" stroke="#4a4d48"/>
+      <!-- bloc concentré dans l'axe -->
+      <rect x="30" y="76" width="44" height="34" fill="#c8f031" fill-opacity=".12" stroke="#c8f031" stroke-dasharray="3 2"/>
+      <circle cx="42" cy="88" r="3.2" fill="#c8f031"/><circle cx="52" cy="84" r="3.2" fill="#c8f031"/><circle cx="62" cy="88" r="3.2" fill="#c8f031"/>
+      <circle cx="18" cy="112" r="3.2" fill="#c8f031"/><circle cx="40" cy="116" r="3.2" fill="#c8f031"/><circle cx="64" cy="116" r="3.2" fill="#c8f031"/><circle cx="86" cy="112" r="3.2" fill="#c8f031"/>
+      <circle cx="52" cy="136" r="3.2" fill="#c8f031"/>
+      <!-- porteur adverse sur le côté, cadré -->
+      <circle cx="88" cy="70" r="3.2" fill="#e0473b"/>
+      <line x1="84" y1="112" x2="88" y2="76" stroke="#c8f031" stroke-dasharray="2 2"/>
+    </svg>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="n">1</div><h3>Ferme l'axe</h3>
+      <p>Trois milieux dans une petite zone, sur les lignes de passe dangereuses. Sur le côté, on cadre : il va revenir dans l'axe.</p></div>
+    <div class="card"><div class="n">2</div><h3>Presse à deux</h3>
+      <p><span class="btn">R1</span> : tu fermes une ligne de passe pendant que ton coéquipier cadre le porteur. Deux choses en même temps.</p></div>
+    <div class="card"><div class="n">3</div><h3>Piège du hors-jeu</h3>
+      <p>Quand il est de dos ou fait une passe en arrière, et sur les kickoffs. Jamais sur une passe latérale.</p></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><span class="num">01</span><h2>Défendre en bloc</h2><span class="tag">Le placement</span></div>
+    <div class="grid2">
+      <div>
+        <div class="item"><b>Surcharge l'axe</b><span>Ta ligne de 4, et tes trois milieux concentrés dans l'axe. C'est vraiment la zone importante à couvrir.</span></div>
+        <div class="item"><b>Le MC central d'abord</b><span>C'est le joueur le plus important à positionner. Ferme en priorité son MOC et son 10 : ce sont les plus dangereux.</span></div>
+        <div class="item"><b>Placement = ballons récupérés</b><span>Milieux bien placés sur les lignes de passe : tu récupères une tonne de ballons sans même presser.</span></div>
+        <div class="item"><b>Densité partout</b><span>Évite le 1 contre 1 au maximum. Avec assez de joueurs dans la zone, le jeu défend pour toi.</span></div>
+        <div class="item"><b>Ne le laisse pas jouer</b><span>Ne pas se jeter ne veut pas dire attendre : reste à bonne distance, rapproche-toi, sinon il fait des gauche-droite en boucle.</span></div>
+      </div>
+      <div>
+        <div class="item"><b><span class="x">✕</span>Se jeter sur le côté</b><span>Sur le côté, on cadre seulement. Il reviendra dans l'axe avec une passe intérieure : sois prêt à ce moment-là.</span></div>
+        <div class="item"><b>Les jetables défendent aussi</b><span>Un BU peut défendre sur le côté : tes milieux restent en place. Tant que tu peux défendre avec tes attaquants, fais-le.</span></div>
+        <div class="item"><b>Ligne des attaquants cassée</b><span>Dès qu'il a passé tes attaquants, oublie-les : défends avec tes milieux, sans tergiverser.</span></div>
+        <div class="item"><b>Pas d'ailier ? Latéral à l'intérieur</b><span>Ferme le trou DC–latéral et crée un surnombre. Contre son ailier, tu peux sortir ton latéral : personne dans son dos.</span></div>
+        <div class="item"><b>Perte de balle : ramène</b><span>Repositionne-toi, ne presse pas. Ramène ton 6 avec <span class="btn">R1</span><span class="btn">R1</span> pour que tes joueurs suivent les appels.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>ANALYSE LE PRESSING À DEUX · PAASTEK</span><span>01 / 02</span></div>
+</section>
+
+<!-- ========================= PAGE 2 ========================= -->
+<section class="page">
+  <div class="sec" style="margin-top:8mm">
+    <div class="sec-h"><span class="num">02</span><h2>Le pressing à deux</h2><span class="tag">R1 · la flèche verte</span></div>
+    <div class="boxes" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="diag">
+        <svg viewBox="0 0 120 80"><rect x="1" y="1" width="118" height="78" fill="none" stroke="#2d6a4c"/>
+          <circle cx="60" cy="18" r="4" fill="#e0473b"/><circle cx="30" cy="22" r="4" fill="#e0473b"/>
+          <circle cx="60" cy="46" r="4" fill="#c8f031"/><line x1="56" y1="44" x2="34" y2="25" stroke="#c8f031" stroke-width="1.6"/>
+          <circle cx="86" cy="40" r="4" fill="#9fd36b"/><path d="M84 36 L64 21" stroke="#9fd36b" stroke-dasharray="3 2" stroke-width="1.4"/>
+          <text x="90" y="52" fill="#c8f031" font-size="8" font-weight="700">R1</text><text x="62" y="60" fill="#fff" font-size="7">TOI</text></svg>
+        <h5>Deux choses en même temps</h5><p>Tu fermes la passe sur son BU ; avec <b>R1</b>, le coéquipier le plus proche vient cadrer le porteur.</p>
+      </div>
+      <div class="diag">
+        <svg viewBox="0 0 120 80"><rect x="1" y="1" width="118" height="78" fill="none" stroke="#2d6a4c"/>
+          <circle cx="60" cy="40" r="4" fill="#e0473b"/>
+          <circle cx="60" cy="16" r="4" fill="#9fd36b"/><line x1="60" y1="20" x2="60" y2="33" stroke="#9fd36b" stroke-dasharray="3 2"/>
+          <circle cx="60" cy="64" r="4" fill="#c8f031"/><line x1="60" y1="60" x2="60" y2="47" stroke="#c8f031"/>
+          <text x="66" y="18" fill="#fff" font-size="7">DC (R1)</text><text x="66" y="67" fill="#fff" font-size="7">MILIEU</text></svg>
+        <h5>Le sandwich</h5><p>R1 sur le DC et tu ramènes ton milieu : tout droit, il se mange le DC ; en arrière, il se mange ton milieu.</p>
+      </div>
+      <div class="diag">
+        <svg viewBox="0 0 120 80"><rect x="1" y="1" width="118" height="78" fill="none" stroke="#2d6a4c"/>
+          <circle cx="60" cy="30" r="4" fill="#e0473b"/>
+          <circle cx="44" cy="52" r="4" fill="#9fd36b"/><circle cx="76" cy="52" r="4" fill="#9fd36b"/>
+          <line x1="46" y1="49" x2="57" y2="34" stroke="#9fd36b" stroke-dasharray="3 2"/><line x1="74" y1="49" x2="63" y2="34" stroke="#9fd36b" stroke-dasharray="3 2"/>
+          <text x="20" y="72" fill="#e0473b" font-size="8" font-weight="700">2 DC SUR 1 = TROU</text></svg>
+        <h5>Mauvais joueur ? Lâche</h5><p>Si R1 fait sortir ton 2e DC, lâche tout de suite : sinon ses joueurs jouent autour de tes deux DC.</p>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:2mm">
+      <div>
+        <div class="item"><b>Le joueur le plus proche</b><span>R1 attire le joueur le plus proche du ballon, 95 % du temps. C'est contrôlé par le jeu : parfois ce n'est pas le bon.</span></div>
+        <div class="item"><b><span class="x">✕</span>R1 tout le temps</b><span>Appuyer bêtement en boucle dézone énormément de joueurs. Il faut surveiller le porteur ET la flèche verte.</span></div>
+      </div>
+      <div>
+        <div class="item"><b>Suivre l'appel + R1</b><span>Tu sticks le joueur qui suit l'appel, et en même temps R1 : un milieu bouche le porteur, il ne progresse pas librement.</span></div>
+        <div class="item"><b>Petit à petit, l'étau</b><span>Ramène un joueur, R1, ramène un autre joueur, R1 : il se sent pressé, n'a plus de solution et fait l'erreur.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:6mm">
+    <div class="sec-h"><span class="num">03</span><h2>Les trois temps</h2><span class="tag">Milieu → DC → milieu</span></div>
+    <div class="boxes">
+      <div class="box hl"><h4>1. Milieux</h4><p>Je ferme, je ramène du monde dans l'axe, je ne le laisse pas jouer.</p></div>
+      <div class="box"><h4>2. DC</h4><p>Il touche son BU : <span class="btn">L1</span> direct sur le DC le plus proche. <span class="btn">L2</span>, je me rapproche, je ne me jette pas.</p></div>
+      <div class="box"><h4>3. Milieux</h4><p>Il temporise ou plus de danger : je reprends mon milieu, je passe à 3 contre 2. Se jeter avec son DC ne sert à rien.</p></div>
+    </div>
+  </div>
+
+  <div class="dark">
+    <div class="sec-h"><span class="num">04</span><h2 style="color:#f2efe7">Piège du hors-jeu et boutons</h2><span class="tag">Les bons timings</span></div>
+    <div class="btnrow">
+      <div><span class="chip">PIÈGE HJ</span></div><div><b>Il regarde vers sa cage</b> : de dos, ou passe en arrière. Il ne peut pas te punir pendant que ta ligne remonte.</div>
+      <div><span class="chip r">PIÈGE HJ</span></div><div><b>Jamais sur une passe latérale</b> ni quand il est face au jeu : punition directe.</div>
+      <div><span class="chip">KICKOFF</span></div><div><b>Piège du hors-jeu systématique.</b> Tes lignes se resserrent, tes joueurs ne sont plus passifs.</div>
+      <div><span class="chip w">L2</span></div><div><b>1 contre 1</b> : je ne bouge pas trop, je ne commite pas de côté, je l'invite tout droit.</div>
+      <div><span class="chip w">✕</span></div><div><b>Défense avancée / bruiser</b> : seulement à l'épaule de l'adversaire.</div>
+      <div><span class="chip w">○</span></div><div><b>Il arrive de face</b> : uniquement rond pour récupérer. Jamais croix.</div>
+      <div><span class="chip w">CORNER</span></div><div><b>Corner à deux</b> : attends que tous tes joueurs soient replacés avant d'être agressif.</div>
+      <div><span class="chip w">CONTRE</span></div><div><b>Contre sur corner</b> : très dangereux, ramène juste du monde.</div>
+    </div>
+  </div>
+
+  <div class="quote"><span class="chev">«</span><div><p>Le pressing à deux, ça permet de faire deux choses en même temps, et c'est ça qui est trop fort.</p><small>PAASTEK · SUR LA DÉFENSE</small></div></div>
+  <div class="recall"><div class="k">À RELIRE AVANT<br>CHAQUE MATCH</div><div class="big">FERME L'AXE<i>.</i> R1 À DEUX<i>.</i> PIÈGE DE DOS<i>.</i></div></div>
+  <div class="foot"><span>ANALYSE LE PRESSING À DEUX · PAASTEK</span><span>02 / 02</span></div>
+</section>
+</body>
+</html>

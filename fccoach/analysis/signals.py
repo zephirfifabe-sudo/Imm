@@ -90,6 +90,7 @@ def compute_signals(w: World, ev: EventDetector, form_me: FormationTracker, form
     s["loss_zone"] = ev.last_loss.data.get("loss_zone") if ev.last_loss and s["ball_lost"] else None
     s["seconds_since_recovery"] = (w.t - ev.last_recovery.t) if my_poss and ev.last_recovery else FAR
     s["seconds_since_opp_corner"] = (w.t - ev.last_opp_corner_t) if ev.last_opp_corner_t is not None else FAR
+    s["seconds_since_my_corner"] = (w.t - ev.last_my_corner_t) if ev.last_my_corner_t is not None else FAR
     s["passes_without_progress"] = ev.passes_without_progress if my_poss else 0
     if not w.pitch_ok or w.ball is None:
         return s
@@ -250,7 +251,8 @@ def _defence(s: dict[str, Any], w: World, oc: PlayerState | None, me: list[Playe
     lp = ev.last_pass_start
     s["opp_back_pass_started"] = bool(lp and lp.team == "opp" and w.t - lp.t <= 0.6 and lp.data.get("backward"))
     keys = ("my_cursor_not_goal_side", "my_cursor_rushing_carrier", "my_cursor_pressing_carrier",
-            "my_cursor_beaten_s", "my_midfield_off_lanes", "opp_carrier_behind_my_midfield", "opp_heavy_touch")
+            "my_cursor_beaten_s", "my_midfield_off_lanes", "opp_carrier_behind_my_midfield", "opp_heavy_touch",
+            "opp_carrier_role", "opp_carrier_free_m", "opp_carrier_speed_low", "my_mid_near_opp_carrier_m")
     if oc is None:
         for k in keys:
             s[k] = None
@@ -279,6 +281,11 @@ def _defence(s: dict[str, Any], w: World, oc: PlayerState | None, me: list[Playe
     s["opp_carrier_behind_my_midfield"] = (oc.x < mid_line) if mid_line is not None else None
     own = ev.owner_since
     s["opp_heavy_touch"] = bool(w.ball and w.t - own <= 0.7 and oc.dist(*w.ball) > 2.5)
+    # Fiche 12 : porteur libre (personne pour le cadrer), porteur qui temporise, milieu à portée
+    s["opp_carrier_role"] = oc.role
+    s["opp_carrier_free_m"] = nearest(me, oc.x, oc.y)[1] if me else None
+    s["opp_carrier_speed_low"] = oc.speed < 2.0
+    s["my_mid_near_opp_carrier_m"] = min((m.dist(oc.x, oc.y) for m in my_mid if m is not sel), default=None)
     _ = defs
 
 

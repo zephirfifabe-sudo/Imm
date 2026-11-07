@@ -1,6 +1,7 @@
 # =============================================================================
 # knowledge/rules.yaml — SOURCE DE VÉRITÉ TACTIQUE
-# Conversion de knowledge/paastek.pdf (Carnet du coaching Paastek, 11 fiches).
+# Conversion de knowledge/paastek.pdf (Carnet du coaching Paastek, 11 fiches)
+# + fiche 12 (knowledge/fiches/fiche12_pressing_a_deux.pdf, séance défense).
 #
 # Règle absolue du coach : AUCUN conseil hors de ce fichier. Si aucune règle
 # ne correspond à la situation, rien n'est affiché.
@@ -20,7 +21,7 @@
 #   bouton      suggestion de bouton (optionnel). Les boutons sont INVISIBLES
 #               à l'image : le logiciel suggère, il ne prétend jamais avoir vu.
 #   priorite    1 (haute) à 3 (basse)
-#   source      numéro de fiche (1 à 11)
+#   source      numéro de fiche (1 à 12)
 # =============================================================================
 
 version: 1
@@ -38,6 +39,7 @@ fiches:
   9: "La perte de balle"
   10: "Lire l'adversaire"
   11: "Le R1 qui rappelle"
+  12: "Le pressing à deux"
 
 rules:
 
@@ -755,6 +757,80 @@ rules:
     priorite: 2
     source: 2
 
+  # ---------------------------------------------------------------------------
+  # FICHE 12 — LE PRESSING À DEUX (knowledge/fiches/fiche12_pressing_a_deux.pdf)
+  # ---------------------------------------------------------------------------
+
+  - id: cote_cadre_juste
+    fiche: "Le pressing à deux"
+    contexte: defense
+    declencheur:
+      description: "Porteur adverse sur le côté et mon joueur sélectionné fonce sur lui."
+      condition: "not my_possession and ball_zone == 'wing' and my_cursor_rushing_carrier"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Sur le côté, cadre juste : il va revenir dans l'axe"
+    bouton: "L2"
+    priorite: 2
+    source: 12
+
+  - id: pressing_a_deux_r1
+    fiche: "Le pressing à deux"
+    contexte: defense
+    declencheur:
+      description: "Je défends avec un milieu sur une ligne de passe, personne ne cadre le porteur."
+      condition: "not my_possession and my_cursor_role in ['MDC','MC','MOC'] and opp_carrier_free_m >= 5 and my_midfield_off_lanes == False"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Ferme la ligne et R1 : ton coéquipier cadre le porteur"
+    bouton: "R1"
+    priorite: 2
+    source: 12
+
+  - id: bu_touche_l1_dc
+    fiche: "Le pressing à deux"
+    contexte: defense
+    declencheur:
+      description: "Son BU reçoit dans le dos de mes milieux alors que je contrôle un milieu."
+      condition: "not my_possession and opp_carrier_role == 'BU' and opp_carrier_behind_my_midfield and my_cursor_role in ['MDC','MC','MOC']"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Il a touché son BU : L1 sur ton DC le plus proche"
+    bouton: "L1"
+    priorite: 1
+    source: 12
+
+  - id: dc_temporise_reprends_milieu
+    fiche: "Le pressing à deux"
+    contexte: defense
+    declencheur:
+      description: "Je défends avec mon DC, le porteur temporise et un de mes milieux est à portée."
+      condition: "not my_possession and my_cursor_role == 'DC' and opp_carrier_speed_low and my_mid_near_opp_carrier_m <= 6"
+      historique: 0
+      depend_equipe: true
+      depend_formation: true
+    conseil: "Il temporise : reprends ton milieu, passe à 3 contre 2"
+    bouton: null
+    priorite: 2
+    source: 12
+
+  - id: contre_corner_ramene
+    fiche: "Le pressing à deux"
+    contexte: perte
+    declencheur:
+      description: "Ballon perdu juste après un de mes corners (contre très dangereux)."
+      condition: "ball_lost and seconds_since_my_corner <= 10"
+      historique: 0
+      depend_equipe: true
+      depend_formation: false
+    conseil: "Contre sur corner : ramène du monde, ne presse pas"
+    bouton: null
+    priorite: 1
+    source: 12
+
 # -----------------------------------------------------------------------------
 # Signaux attendus par les conditions (produits par vision/tracking/analysis).
 # Tant qu'un signal n'existe pas encore (phase non livrée), la règle qui
@@ -788,3 +864,8 @@ signals:
   habit_opp_dc_out_count: "int"
   habit_closes_lanes_count: "int"
   habit_ignores_runs_count: "int"
+  seconds_since_my_corner: "float — temps depuis mon dernier corner (fiche 12)"
+  opp_carrier_role: "str — poste du porteur adverse"
+  opp_carrier_free_m: "float — distance du porteur adverse à mon joueur le plus proche"
+  opp_carrier_speed_low: "bool — le porteur adverse temporise (< 2 m/s)"
+  my_mid_near_opp_carrier_m: "float — mon milieu (non sélectionné) le plus proche du porteur"

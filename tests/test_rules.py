@@ -16,8 +16,12 @@ def test_pdf_present():
     assert (RULES.parent / "paastek.pdf").stat().st_size > 1_000_000
 
 
-def test_all_eleven_fiches_covered(rules):
-    assert {r.source for r in rules} == set(range(1, 12))
+def test_all_fiches_covered(rules):
+    assert {r.source for r in rules} == set(range(1, 13))
+
+
+def test_fiche12_pdf_present():
+    assert (RULES.parent / "fiches" / "fiche12_pressing_a_deux.pdf").stat().st_size > 50_000
 
 
 def test_conseils_short_and_cited(rules):
@@ -41,6 +45,8 @@ def test_conseils_short_and_cited(rules):
     ("Joue à l'inverse du curseur", 1),
     ("Il est dézoné : attaque son côté", 8),
     ("Il réagit trop tard : prends l'espace", 2),
+    ("Ferme la ligne et R1 : ton coéquipier cadre le porteur", 12),
+    ("Il a touché son BU : L1 sur ton DC le plus proche", 12),
 ])
 def test_priority_rules_present(rules, conseil, source):
     match = [r for r in rules if r.conseil == conseil]

@@ -42,3 +42,17 @@ def test_offscreen_is_not_empty():
     w = World(t=0, pitch_ok=True)
     w.view = np.array([[-30, -34], [0, -34], [0, 34], [-30, 34]], float)
     assert w.visible(-10, 0) and not w.visible(20, 0)
+
+
+def test_fiche12_bu_receives_behind_midfield(tmp_path):
+    an = MatchAnalyzer(RULES, FakeHomography(), tmp_path, coach_cfg=CoachConfig(min_interval_s=0))
+    sc = Scene("41212", "4213")
+    sc.ball = list(sc.pos[5])
+    run(an, sc, 0, 12, {"me": None, "opp": None})            # formations et postes, possession à moi
+    # Son BU (tid 109) récupère dans le dos de mes milieux ; je contrôle mon MDC (tid 5)
+    sc.pos[109] = [-27.0, 2.0]
+    sc.ball = [-27.0, 2.6]
+    run(an, sc, 12, 14, {"me": 5, "opp": None})
+    assert an.signals["opp_carrier_role"] == "BU"
+    shown = [a for a in an.coach.shown if a.rule_id == "bu_touche_l1_dc"]
+    assert shown and "L1" in shown[0].text and "fiche 12" in shown[0].text

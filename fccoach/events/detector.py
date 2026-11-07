@@ -56,6 +56,7 @@ class EventDetector:
         self.last_pass_start: GameEvent | None = None
         self.last_reception: GameEvent | None = None
         self.last_opp_corner_t: float | None = None
+        self.last_my_corner_t: float | None = None
         self.passes_without_progress = 0
         self._seq_best_x: float | None = None
         self.counts: dict[str, int] = {}
@@ -173,6 +174,8 @@ class EventDetector:
             team = "me" if bx > 0 else "opp"     # corner près du but adverse = pour moi
             if team == "opp":
                 self.last_opp_corner_t = w.t
+            else:
+                self.last_my_corner_t = w.t
             self._emit(GameEvent("corner", w.t, team, {"side": "droite" if by > 0 else "gauche"}), out)
 
     def _pressing(self, w: World, out: list[GameEvent]) -> None:
